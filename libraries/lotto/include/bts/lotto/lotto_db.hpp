@@ -67,5 +67,5 @@ class lotto_db : public bts::blockchain::chain_database
 }} // bts::lotto
 
 
-FC_REFLECT( bts::lotto::drawwing_record, (total_jackpot)(total_paid) )
+FC_REFLECT( bts::lotto::drawing_record, (total_jackpot)(total_paid) )
 FC_REFLECT( bts::lotto::block_summary, (ticket_sales)(amount_won) )

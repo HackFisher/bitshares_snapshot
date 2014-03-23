@@ -32,20 +32,23 @@ namespace bts { namespace lotto {
     {
         try {
             chain_database::open( dir, create );
-            my->drawing2record.open( dir / "drawing2record", create );
-            my->block2summary.open( dir / "block2summary", create );
+            my->_drawing2record.open( dir / "drawing2record", create );
+            my->_block2summary.open( dir / "block2summary", create );
         } FC_RETHROW_EXCEPTIONS( warn, "Error loading domain database ${dir}", ("dir", dir)("create", create) );
     }
 
     void lotto_db::close() 
     {
-        my->name2record.close();
+        my->_drawing2record.close();
+		my->_block2summary.close();
     }
 
     uint64_t lotto_db::get_jackpot_for_ticket( uint64_t ticket_block_num, 
                                      fc::sha256& winning_number, 
                                      uint64_t& global_odds )
     {
+		// TODO:
+		return 0;
     }
 
     /**
