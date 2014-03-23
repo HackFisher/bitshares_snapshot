@@ -12,6 +12,8 @@ namespace bts { namespace lotto {
         public:
             lotto_wallet();
             ~lotto_wallet();
+            bts::blockchain::signed_transaction buy_ticket(const uint64_t& luckynumber, const uint16_t& odds,
+                                                        asset amount, lotto_db& db);
 
         protected:
             virtual bool scan_output( const bts::blockchain::trx_output& out,

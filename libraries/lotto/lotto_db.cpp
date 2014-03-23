@@ -40,7 +40,7 @@ namespace bts { namespace lotto {
     void lotto_db::close() 
     {
         my->_drawing2record.close();
-		my->_block2summary.close();
+        my->_block2summary.close();
     }
 
     uint64_t lotto_db::get_jackpot_for_ticket( uint64_t ticket_block_num, 
