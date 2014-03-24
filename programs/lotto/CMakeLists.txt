@@ -1,0 +1,15 @@
+include_directories( "${CMAKE_CURRENT_SOURCE_DIR}/include" )
+include_directories( "${CMAKE_SOURCE_DIR}/libraries/db/include" )
+include_directories( "${CMAKE_SOURCE_DIR}/libraries/blockchain/include" )
+include_directories( "${CMAKE_SOURCE_DIR}/libraries/wallet/include" )
+include_directories( "${CMAKE_SOURCE_DIR}/libraries/client/include" )
+include_directories( "${CMAKE_SOURCE_DIR}/libraries/net/include" )
+include_directories( "${CMAKE_SOURCE_DIR}/libraries/rpc/include" )
+include_directories( "${CMAKE_SOURCE_DIR}/libraries/cli/include" )
+include_directories( "${CMAKE_SOURCE_DIR}/libraries/lotto/include" )
+
+add_executable( lotto_client main.cpp )
+target_link_libraries( lotto_client bts_lotto bitcoin_import bts_wallet bts_rpc bts_cli bts_blockchain bts_db bts_net bts_client fc ${READLINE_LIBRARIES} ${CMAKE_DL_LIBS} ${crypto_library} ${ZLIB_LIBRARY} )
+
+add_executable( lotto_server server.cpp  )
+target_link_libraries( lotto_server bts_lotto bts_wallet bts_rpc bts_cli bts_blockchain bts_db bts_net bts_client fc ${READLINE_LIBRARIES} ${CMAKE_DL_LIBS} ${crypto_library} ${ZLIB_LIBRARY} )
