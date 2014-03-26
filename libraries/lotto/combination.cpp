@@ -1,5 +1,9 @@
 #include <bts/lotto/lotto_config.hpp>
 #include <bts/lotto/combination.hpp>
+#include <algorithm>
+#include <functional>
+#include <vector>
+#include <iostream>
 
 namespace bts { namespace lotto {
 	combination::combination()
@@ -27,22 +31,66 @@ namespace bts { namespace lotto {
 		return red * BTS_LOTTO_BLUE_COMBINATION_COUNT + blue;
 	}
 
-	uint32_t combination::combination_to_int(const std::vector<uint16_t>& nums)
+    /* convert cominations numbers to int N, algorithm combinatorial number system
+     * 0<=C1<=C2.....
+     *
+     */
+	uint32_t combination::ranking(const std::vector<uint16_t>& combination)
 	{
-		// sorting by decrease
+        std::vector<uint16_t> v(combination);
+        std::sort(v.begin(), v.end());
 		uint32_t n = 0;
-		// TODO: convert cominations numbers to int N, algorithm combinatorial number system
+        // sum of C(v[k - 1], k)
+        for (uint32_t i = 1; i <= v.size(); i ++) {
+            int32_t a = 1;
+            uint32_t b = 1;
+            for (uint32_t j = 1; j <= i; j++) {
+                a *= v[i - 1] - j + 1;
+                b *= j;
+            }
+            n += (a <= 0 ? 0: a/b);
+        }
 		return n;
 	}
 
-	std::vector<uint16_t> combination::int_to_combination_binary(uint32_t num)
-	{
-		// step1: revert of combination_to_int, converting to vector of nums
-		// representing this nums using 2-bit form, e.g. 00001110000000
-		std::vector<uint16_t> combine_nums(5);
-		combine_nums.push_back(5);
-		combine_nums.push_back(4);
+    std::vector<uint16_t> combination::unranking(uint32_t num, uint16_t k, uint16_t n)
+    {
+        std::vector<uint16_t> combination(5);
+        uint16_t max = n;
+        uint32_t x = 1;
+        for (uint16_t i = k; i >=1; i--)
+        {
+            x*= i;
+        }
 
-		return combine_nums;
+        for (uint16_t i = k; i >=1; i--)
+        {
+            if (num <= 0) {
+                combination.push_back(i-1);
+            } else {
+                for (; max >= 1;)
+                {
+                    int32_t temp = 1;
+                    for (uint16_t m = 1; m <= i; m ++)
+                    {
+                        temp *= (max - m + 1);
+                    }
+
+                    if (num * x >= temp) {
+                        combination.push_back(max);
+                        num -=  temp / x;
+                        std::cout << num << "   "<< max << "\n";
+                        max --;
+                        break;
+                    } else {
+                        max --;
+                    }
+                }
+            }
+
+            x /= i;
+        }
+
+        return combination;
 	}
 }}	// namespace bts::lotto

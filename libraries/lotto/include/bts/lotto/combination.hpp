@@ -28,9 +28,9 @@ namespace bts { namespace lotto {
 	   combination(uint32_t num);
 
 	   // representing combination using nature numbers, 0, 1, 2, ....
-	   static uint32_t combination_to_int(const std::vector<uint16_t>& nums);
+	   static uint32_t ranking(const std::vector<uint16_t>& combination);
 	   // convert nature numbers to combination binary
-	   static std::vector<uint16_t> int_to_combination_binary(uint32_t num);
+       static std::vector<uint16_t> unranking(uint32_t num, uint16_t k, uint16_t n);
 
 	   uint32_t to_num() const;
        

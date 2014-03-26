@@ -30,17 +30,21 @@ BOOST_AUTO_TEST_CASE( combination_to_int )
 	}
 
 	BOOST_CHECK(ticket_v.size() == 5);
-	uint32_t ticket_num = combination::combination_to_int(ticket_v);
+    uint32_t ticket_num = combination::ranking(ticket_v);
 
 	// TODO: assert(ticket_num = ??);
 	//uint64_t bits_ull = combination::int_to_combination_binary<35>(ticket_num);
-	std::vector<uint16_t> res_nums = combination::int_to_combination_binary(ticket_num);
+    std::vector<uint16_t> res_nums = combination::unranking(ticket_num, 5, 35);
 	std::bitset<35> res_bits;
 	for (int i = 0; i < 5; i++){
+        std::cout << res_nums[i] << "\n";
 		res_bits[res_nums[i]] = 1;
 	}
 
-	std::cout << "the inner representing number of ticket is: " << res_bits.to_ullong();
+	std::cout << "the rankinging number of ticket is: " << ticket_num << "\n";
+
+    std::cout << "ticket bits is: "<< ticket_bits.to_string() << "\n";
+    std::cout << "result bits is: "<< res_bits.to_string() << "\n";
 
 	BOOST_CHECK(ticket_bits == res_bits);
 
