@@ -14,3 +14,8 @@ include_directories( ${CMAKE_SOURCE_DIR}/libraries/client/include )
 add_executable( simple_net_test_client simple_net_test_client.cpp )
 target_link_libraries( simple_net_test_client bts_client bts_net bts_blockchain fc ${BOOST_LIBRARIES} ${OPENSSL_LIBRARIES} ${crypto_library} )
 
+include_directories( ${CMAKE_SOURCE_DIR}/libraries/lotto/include )
+
+add_executable( lotto_tests lotto_tests.cpp )
+target_link_libraries( lotto_tests bts_wallet bts_lotto bts_client bts_net bts_blockchain fc ${BOOST_LIBRARIES} ${OPENSSL_LIBRARIES} ${crypto_library} )
+
