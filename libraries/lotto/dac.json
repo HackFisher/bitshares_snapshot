@@ -1,0 +1,21 @@
+{
+    version: 1,
+    id: 1
+    name: "double-color ball lottory",
+    rule: {
+        balls: [
+                {N: 35, k: 5},
+                {N: 12, k: 2}
+            ],
+        prizes: [
+                {level: 1, match: [[5, 2]]}, 
+                {leve;: 2, match: [[5, 1]]},
+                {leve;: 3, match: [[5, 0]]},
+                {leve;: 4, match: [[4, 2]]},
+                {leve;: 5, match: [[4, 1]]},
+                {leve;: 6, match: [[4, 0], [3, 2]]},
+                {leve;: 7, match: [[3, 1], [2, 2]]},
+                {leve;: 8, match: [[3, 0], [1, 2], [2, 1], [0, 2]]}
+            ]
+    }
+}
