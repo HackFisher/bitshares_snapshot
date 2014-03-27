@@ -53,9 +53,9 @@ namespace bts { namespace lotto {
 		return n;
 	}
 
-    std::vector<uint16_t> combination::unranking(uint32_t num, uint16_t k, uint16_t n)
+    std::shared_ptr<std::vector<uint16_t>> combination::unranking(uint32_t num, uint16_t k, uint16_t n)
     {
-        std::vector<uint16_t> combination(5);
+		std::vector<uint16_t> combination;
         uint16_t max = n;
         uint32_t x = 1;
         for (uint16_t i = k; i >=1; i--)
@@ -79,7 +79,6 @@ namespace bts { namespace lotto {
                     if (num * x >= temp) {
                         combination.push_back(max);
                         num -=  temp / x;
-                        std::cout << num << "   "<< max << "\n";
                         max --;
                         break;
                     } else {
@@ -91,6 +90,8 @@ namespace bts { namespace lotto {
             x /= i;
         }
 
-        return combination;
+		std::sort(combination.begin(), combination.end());
+
+		return std::make_shared<std::vector<uint16_t>>(combination);
 	}
 }}	// namespace bts::lotto

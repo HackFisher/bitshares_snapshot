@@ -5,6 +5,8 @@
 #include <fc/io/enum_type.hpp>
 #include <stdint.h>
 #include <bitset>
+#include <boost/shared_ptr.hpp>
+#include <boost/make_shared.hpp>
 
 namespace bts { namespace lotto {
 
@@ -30,7 +32,7 @@ namespace bts { namespace lotto {
 	   // representing combination using nature numbers, 0, 1, 2, ....
 	   static uint32_t ranking(const std::vector<uint16_t>& combination);
 	   // convert nature numbers to combination binary
-       static std::vector<uint16_t> unranking(uint32_t num, uint16_t k, uint16_t n);
+       static std::shared_ptr<std::vector<uint16_t>> unranking(uint32_t num, uint16_t k, uint16_t n);
 
 	   uint32_t to_num() const;
        

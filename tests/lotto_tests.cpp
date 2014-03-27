@@ -11,6 +11,8 @@
 #include <fc/reflect/variant.hpp>
 #include <fc/thread/thread.hpp>
 #include <bitset>
+#include <boost/shared_ptr.hpp>
+#include <boost/make_shared.hpp>
 
 #include <iostream>
 using namespace bts::wallet;
@@ -26,7 +28,7 @@ BOOST_AUTO_TEST_CASE( combination_to_int )
 	std::vector<uint16_t> ticket_v(ticket_combination, ticket_combination + 5);
 	std::bitset<35> ticket_bits;
 	for (int i = 0; i < 5; i++){
-		ticket_bits[ticket_combination[i]] = 1;
+		ticket_bits[ticket_v[i]] = 1;
 	}
 
 	BOOST_CHECK(ticket_v.size() == 5);
@@ -34,11 +36,11 @@ BOOST_AUTO_TEST_CASE( combination_to_int )
 
 	// TODO: assert(ticket_num = ??);
 	//uint64_t bits_ull = combination::int_to_combination_binary<35>(ticket_num);
-    std::vector<uint16_t> res_nums = combination::unranking(ticket_num, 5, 35);
+    auto res_nums = combination::unranking(ticket_num, 5, 35);
 	std::bitset<35> res_bits;
 	for (int i = 0; i < 5; i++){
-        std::cout << res_nums[i] << "\n";
-		res_bits[res_nums[i]] = 1;
+		std::cout << res_nums->at(i) << "\n";
+		res_bits[res_nums->at(i)] = 1;
 	}
 
 	std::cout << "the rankinging number of ticket is: " << ticket_num << "\n";
