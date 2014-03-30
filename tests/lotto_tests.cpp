@@ -25,18 +25,18 @@ using namespace bts::lotto;
 BOOST_AUTO_TEST_CASE( combination_to_int )
 {
 	uint16_t ticket_combination[5] = {2, 4, 17, 21, 33};
-	std::vector<uint16_t> ticket_v(ticket_combination, ticket_combination + 5);
+    combination ticket_v(ticket_combination, ticket_combination + 5);
 	std::bitset<35> ticket_bits;
 	for (int i = 0; i < 5; i++){
 		ticket_bits[ticket_v[i]] = 1;
 	}
 
 	BOOST_CHECK(ticket_v.size() == 5);
-    uint32_t ticket_num = combination::ranking(ticket_v);
+    uint32_t ticket_num = ranking(ticket_v);
 
 	// TODO: assert(ticket_num = ??);
 	//uint64_t bits_ull = combination::int_to_combination_binary<35>(ticket_num);
-    auto res_nums = combination::unranking(ticket_num, 5, 35);
+    auto res_nums = unranking(ticket_num, 5, 35);
 	std::bitset<35> res_bits;
 	for (int i = 0; i < 5; i++){
 		std::cout << res_nums->at(i) << "\n";
@@ -61,4 +61,64 @@ BOOST_AUTO_TEST_CASE( combination_to_int )
 
 	// only two numbers are matched
 	BOOST_CHECK(prize_bits.count() == 2);
+}
+
+BOOST_AUTO_TEST_CASE( test_load_rule_config )
+{
+    rule_config config;
+    config.version = 1;
+    config.id = 1;
+    config.name = fc::string("Double color ball lottey");
+    config.balls.push_back(std::pair<uint16_t, uint16_t>(35, 5));
+    config.balls.push_back(std::pair<uint16_t, uint16_t>(12, 2));
+
+    // level 1:
+    uint16_t group_1_match_1[2] = {5, 2};
+    match g1v1(group_1_match_1, group_1_match_1+2);
+    std::vector< match> g1;
+    g1.push_back(g1v1);
+    config.prizes.push_back(std::pair<uint16_t, std::vector<match>>(1, g1));
+
+
+    // level 2:
+    uint16_t group_2_match_1[2] = {5, 1};
+    match g2v1(group_2_match_1, group_2_match_1+2);
+    std::vector< match> g2;
+    g2.push_back(g2v1);
+    config.prizes.push_back(std::pair<uint16_t, std::vector<match>>(2, g2));
+
+    // level 3:
+    uint16_t group_3_match_1[2] = {5, 0};
+    match g3v1(group_3_match_1, group_3_match_1+2);
+    std::vector< match> g3;
+    g3.push_back(g3v1);
+    config.prizes.push_back(std::pair<uint16_t, std::vector<match>>(3, g3));
+
+    // level 4:
+    uint16_t group_4_match_1[2] = {4, 2};
+    match g4v1(group_4_match_1, group_4_match_1+2);
+    std::vector< match> g4;
+    g4.push_back(g4v1);
+    config.prizes.push_back(std::pair<uint16_t, std::vector<match>>(4, g4));
+
+    // level 5:
+    uint16_t group_5_match_1[2] = {4, 1};
+    match g5v1(group_5_match_1, group_5_match_1+2);
+    std::vector< match> g5;
+    g5.push_back(g5v1);
+    config.prizes.push_back(std::pair<uint16_t, std::vector<match>>(5, g5));
+
+    // level 6:
+    uint16_t group_6_match_1[2] = {4, 0};
+    match g6v1(group_6_match_1, group_6_match_1+2);
+    uint16_t group_6_match_2[2] = {3, 2};
+    match g6v2(group_6_match_2, group_6_match_2+2);
+    std::vector< match> g6;
+    g6.push_back(g6v1);
+    g6.push_back(g6v2);
+    config.prizes.push_back(std::pair<uint16_t, std::vector<match>>(6, g6));
+
+    fc::variant var(config);
+    auto str = fc::json::to_pretty_string(var);
+    ilog( "block: \n${b}", ("b", str ) );
 }

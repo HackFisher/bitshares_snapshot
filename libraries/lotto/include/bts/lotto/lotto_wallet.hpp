@@ -7,6 +7,7 @@
 namespace bts { namespace lotto {
     //namespace detail  { class dns_wallet_impl; }
     using namespace bts::blockchain;
+    using namespace bts::wallet;
     class lotto_wallet : public bts::wallet::wallet
     {
         public:
@@ -16,9 +17,7 @@ namespace bts { namespace lotto {
                                                         asset amount, lotto_db& db);
 
         protected:
-            virtual bool scan_output( const bts::blockchain::trx_output& out,
-                                      const bts::blockchain::output_reference& ref,
-                                      const bts::wallet::output_index& oidx );
+            virtual bool scan_output( transaction_state& state, const trx_output& out, const output_reference& out_ref, const bts::wallet::output_index& oidx );
 
         private:
              //std::unique_ptr<detail::lotto_wallet_impl> my;

@@ -7,10 +7,14 @@
 #include <bitset>
 #include <boost/shared_ptr.hpp>
 #include <boost/make_shared.hpp>
+#include <fc/reflect/variant.hpp>
+#include <fc/thread/thread.hpp>
+#include <fc/thread/future.hpp>
+#include <fc/io/raw.hpp>
+#include <fc/io/json.hpp>
+#include <fc/log/logger.hpp>
 
-namespace bts { namespace lotto {
-
-   /**
+/**
     *  @brief encapsulates an combination number in
     *  integer form.   It can be converted to arrays or bits for matching
     *  winning or input purposes and can also be constructed from an combinatorial representation of integer
@@ -21,25 +25,42 @@ namespace bts { namespace lotto {
 	*  4. TODO: replace vectors and binary with BOOST_BINARY( 100 111000 01 1 110 )
 	*    http://www.boost.org/doc/libs/1_42_0/libs/utility/utility.htm#BOOST_BINARY
     */
-   class combination
-   {
-	  public:
-	   combination();
-       combination(uint32_t r, uint32_t b);
-       combination(const std::vector<uint16_t>& nums);   // 5 red balls and 2 blue balls
-	   combination(uint32_t num);
+    typedef std::vector<uint16_t> combination;
+    /* Ranking groups
+     * 
+     */
+    typedef std::vector<uint32_t> rankings;
+    typedef std::vector<uint16_t> match;
 
-	   // representing combination using nature numbers, 0, 1, 2, ....
-	   static uint32_t ranking(const std::vector<uint16_t>& combination);
-	   // convert nature numbers to combination binary
-       static std::shared_ptr<std::vector<uint16_t>> unranking(uint32_t num, uint16_t k, uint16_t n);
+    /*  Ball counts uint16_t
+     *  
+     */
+    struct rule_config
+    {
+        rule_config():version(0),id(0), name(""){}
+        uint16_t                                        version;
+        uint64_t                                        id;
+        fc::string                                      name;
+        std::vector< std::pair<uint16_t,uint16_t> >     balls;
+        std::vector< /* levels */ std::pair<
+            /*level*/ uint16_t, /* matches */ std::vector<match> > 
+            > prizes;
+    };
 
-	   uint32_t to_num() const;
-       
-	   uint32_t red;
-       uint32_t blue;
-   };
-   
+    
+
+    rule_config load_rule_config();
+
+    uint16_t rule_group_count();
+
+namespace bts { namespace lotto {
+    
+
+    // representing combination using nature numbers, 0, 1, 2, ....
+	uint32_t ranking(const combination& c);
+	
+    // convert nature numbers to combination binary
+    std::shared_ptr<combination> unranking(uint32_t num, uint16_t k, uint16_t n);
 } } // namespace bts::lotto
 
 
@@ -52,4 +73,4 @@ namespace fc
 */
 
 #include <fc/reflect/reflect.hpp>
-FC_REFLECT( bts::lotto::combination, (red)(blue) )
+FC_REFLECT( rule_config, (version)(id)(name)(balls)(prizes))

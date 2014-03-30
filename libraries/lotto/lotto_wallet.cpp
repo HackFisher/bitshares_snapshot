@@ -60,9 +60,7 @@ bts::blockchain::signed_transaction lotto_wallet::buy_ticket(const uint64_t& luc
     } FC_RETHROW_EXCEPTIONS(warn, "buy_ticket ${luckynumber} with ${odds}", ("name", luckynumber)("amt", odds))
 }
 
-bool lotto_wallet::scan_output( const trx_output& out,
-                              const output_reference& ref,
-                              const bts::wallet::output_index& oidx )
+bool lotto_wallet::scan_output( transaction_state& state, const trx_output& out, const output_reference& out_ref, const bts::wallet::output_index& oidx )
 {
     try {
         switch ( out.claim_func )
@@ -71,13 +69,13 @@ bool lotto_wallet::scan_output( const trx_output& out,
             {
                 if (is_my_address( out.as<claim_ticket_output>().owner ))
                 {
-                    cache_output( out, ref, oidx );
+                    cache_output( out, out_ref, oidx );
                     return true;
                 }
                 return false;
             }
             default:
-                return wallet::scan_output( out, ref, oidx );
+                return wallet::scan_output(state, out, out_ref, oidx );
         }
     } FC_RETHROW_EXCEPTIONS( warn, "" )
 }
