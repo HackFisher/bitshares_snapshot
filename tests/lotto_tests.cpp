@@ -4,7 +4,7 @@
 #include <bts/blockchain/chain_database.hpp>
 #include <bts/blockchain/block_miner.hpp>
 #include <bts/blockchain/config.hpp>
-#include <bts/lotto/combination.hpp>
+#include <bts/lotto/rule.hpp>
 #include <fc/filesystem.hpp>
 #include <fc/log/logger.hpp>
 #include <fc/io/raw.hpp>
@@ -24,7 +24,7 @@ using namespace bts::lotto;
  */
 BOOST_AUTO_TEST_CASE( combination_to_int )
 {
-	uint16_t ticket_combination[5] = {2, 4, 17, 21, 33};
+	uint8_t ticket_combination[5] = {2, 4, 17, 21, 33};
     combination ticket_v(ticket_combination, ticket_combination + 5);
 	std::bitset<35> ticket_bits;
 	for (int i = 0; i < 5; i++){
@@ -32,14 +32,14 @@ BOOST_AUTO_TEST_CASE( combination_to_int )
 	}
 
 	BOOST_CHECK(ticket_v.size() == 5);
-    uint32_t ticket_num = ranking(ticket_v);
+    uint64_t ticket_num = ranking(ticket_v);
 
 	// TODO: assert(ticket_num = ??);
 	//uint64_t bits_ull = combination::int_to_combination_binary<35>(ticket_num);
     auto res_nums = unranking(ticket_num, 5, 35);
 	std::bitset<35> res_bits;
 	for (int i = 0; i < 5; i++){
-		std::cout << res_nums->at(i) << "\n";
+		std::cout << (uint16_t)res_nums->at(i) << "\n";
 		res_bits[res_nums->at(i)] = 1;
 	}
 

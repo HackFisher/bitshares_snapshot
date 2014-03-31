@@ -43,11 +43,32 @@ namespace bts { namespace lotto {
         my->_block2summary.close();
     }
 
-    uint64_t lotto_db::get_jackpot_for_ticket( uint64_t ticket_block_num, 
-                                     fc::sha256& winning_number, 
-                                     uint64_t& global_odds )
+	uint64_t lotto_db::get_jackpot_for_ticket( uint64_t ticket_block_num, uint64_t lucky_number, uint16_t odds, uint16_t amount)
     {
-		// TODO:
+		/* TODO: generate winning_number according to future blocks, maybe with prove of work
+		 * winning_number should be validate by block validation. or generated during block mining, so we can get directly from here.
+		 */
+		fc::sha256 winning_number;
+		// TODO: what's global_odds, ignore currenly.
+		uint64_t global_odds = 0;
+
+		// 3. jackpot should not be calculated here, 
+		/*
+		fc::sha256::encoder enc;
+		enc.write( (char*)&lucky_number, sizeof(lucky_number) );
+		enc.write( (char*)&winning_number, sizeof(winning_number) );
+		enc.result();
+		fc::bigint  result_bigint( enc.result() );
+
+		// the ticket number must be below the winning threshold to claim the jackpot
+		auto winning_threshold = result_bigint.to_int64 % fc::bigint( global_odds * odds ).to_int64();
+		auto ticket_threshold = amount / odds;
+		if (winning_threshold < ticket_threshold)	// we have a winners
+		{
+			return jackpots;
+		}
+		*/
+
 		return 0;
     }
 

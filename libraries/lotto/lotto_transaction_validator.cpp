@@ -48,12 +48,12 @@ void lotto_transaction_validator::validate_output( const trx_output& out, transa
 
 void lotto_transaction_validator::validate_ticket_input(const meta_trx_input& in, transaction_evaluation_state& state, const block_evaluation_state_ptr& block_state)
 {
-	/* TODO:
+	// 
 	try {
 		auto lotto_state = dynamic_cast<lotto_trx_evaluation_state&>(state);
 		auto claim_ticket = in.output.as<claim_ticket_output>();
 
-		auto trx_loc = _db->fetch_trx_num( in.output_ref.trx_id );
+		auto trx_loc = in.source;
 		auto headnum = _db->head_block_num();
 
 		// ticket must have been purchased in the past 2 days
@@ -65,33 +65,26 @@ void lotto_transaction_validator::validate_ticket_input(const meta_trx_input& in
     
 		lotto_db* db = dynamic_cast<lotto_db*>(_db);
 		FC_ASSERT( db != nullptr );
-    
-		fc::sha256 winning_number;
-		uint64_t global_odds = 0;
 
 		// returns the jackpot based upon which lottery the ticket was for.
 		// throws an exception if the jackpot was already claimed.
-		uint64_t jackpot  = db->get_jackpot_for_ticket( trx_loc.block_num, winning_number, global_odds );
+		uint64_t jackpot  = db->get_jackpot_for_ticket( trx_loc.block_num, claim_ticket.lucky_number, claim_ticket.odds, in.output.amount.get_rounded_amount());
 
-		fc::sha256::encoder enc;
-		enc.write( (char*)&claim_ticket.lucky_number, sizeof(claim_ticket.lucky_number) );
-		enc.write( (char*)&winning_number, sizeof(winning_number) );
-		fc::bigint  result_bigint( enc.result() );
-
-		// the ticket number must be below the winning threshold to claim the jackpot
-		auto winning_threshold = result_bigint % fc::bigint( global_odds * claim_ticket.odds ).to_int64();
-		auto ticket_threshold = in.output.amount.get_rounded_amount() / claim_ticket.odds;
-		if( winning_threshold < ticket_threshold ) // we have a winner!
+		if( jackpot > 0 ) // we have a winner!
 		{
 			lotto_state.add_input_asset( asset( jackpot ) ); 
 			lotto_state.ticket_winnings += jackpot;
+		} else {
+			// throws or invalid when they did not win, is there necessary to do this?
+
 		}
 
+		/* TODO
 		uint64_t winnings = db->get_winnings( in ); // throws if they did not win.
 		lotto_state.ticket_winnings += winnings;
-		add_input_asset( asset(winnings) );
+		lotto_state.add_input_asset( asset(winnings) );
+		*/
 	} FC_RETHROW_EXCEPTIONS( warn, "" ) 
-	*/
 }
 
 void lotto_transaction_validator::validate_ticket_output(const trx_output& out, transaction_evaluation_state& state, const block_evaluation_state_ptr& block_state)

@@ -36,9 +36,7 @@ class lotto_db : public bts::blockchain::chain_database
         void             open( const fc::path& dir, bool create );
         void             close();
 
-        uint64_t get_jackpot_for_ticket( uint64_t ticket_block_num, 
-                                         fc::sha256& winning_number, 
-                                         uint64_t& global_odds );
+        uint64_t get_jackpot_for_ticket( uint64_t ticket_block_num, uint64_t lucky_number, uint16_t odds, uint16_t amount );
 
         /**
          * Performs global validation of a block to make sure that no two transactions conflict. In

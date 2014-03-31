@@ -7,7 +7,7 @@ include_directories( "${CMAKE_SOURCE_DIR}/libraries/client/include" )
 include_directories( "${CMAKE_SOURCE_DIR}/libraries/cli/include" )
 
 add_library( bts_lotto
-             combination.cpp
+             rule.cpp
              lotto_outputs.cpp
              lotto_db.cpp
              lotto_transaction_validator.cpp
