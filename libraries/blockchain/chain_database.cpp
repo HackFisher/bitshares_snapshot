@@ -82,7 +82,7 @@ namespace bts { namespace blockchain {
                trx_id2num.store( t.id(), tn ); 
                meta_trxs.store( tn, meta_trx(t) );
 
-               for( uint16_t i = 0; i < t.inputs.size(); ++i )
+			   for( size_t i = 0; i < t.inputs.size(); ++i )
                {
                   mark_spent( t.inputs[i].output_ref, tn, i ); 
                }

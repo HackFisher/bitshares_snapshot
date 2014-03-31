@@ -13,6 +13,7 @@
 #include <fc/io/raw.hpp>
 #include <fc/io/json.hpp>
 #include <fc/log/logger.hpp>
+#include <bts/lotto/lotto_db.hpp>
 
 /**
     *  @brief encapsulates an combination number in
@@ -29,8 +30,12 @@
     /* Ranking groups
      * 
      */
-    typedef std::vector<uint64_t> c_rankings;
-    typedef std::vector<uint8_t> match;
+    typedef std::vector<uint64_t>						c_rankings;
+    typedef std::vector<uint8_t>						match;
+	typedef std::vector< std::pair<uint8_t,uint8_t> >	type_balls;
+	typedef std::vector< 
+		std::pair</*level*/ uint8_t, 
+		/* matches */ std::vector<match>> >				type_prizes;
 
     /*  Ball counts uint8_t
      *  
@@ -42,10 +47,8 @@
         uint16_t                                        version;
         uint32_t                                        id;
         fc::string                                      name;
-        std::vector< std::pair<uint8_t,uint8_t> >     balls;
-        std::vector< /* levels */ std::pair<
-            /*level*/ uint8_t, /* matches */ std::vector<match> > 
-            > prizes;
+        type_balls     balls;
+        type_prizes prizes;
     };
 
     
@@ -58,9 +61,12 @@
 
 	uint64_t TOTAL_SPACE();
 
+
 namespace bts { namespace lotto {
 	// calculate combinational number, TODO: inline?
 	uint64_t Combination(uint8_t N, uint8_t k);
+
+	match match_rankings(const c_rankings& l, const c_rankings& r, const type_balls& balls);
 
     // ranking of multi indepent nature numbers C(N1,k1) * C(N2,k2) * C(N3,k3)
 	// nums in c_ranking are start from 0,spaces are the total counts for each ranking

@@ -17,8 +17,8 @@ const rule_config& global_rule_config()
 	if (config.valid) return config;
 	
 	try {
-		FC_ASSERT( fc::exists( "dac.json" ) );
-		config = fc::json::from_file( "dac.json" ).as<rule_config>();
+		FC_ASSERT( fc::exists( "rule.json" ) );
+		config = fc::json::from_file( "rule.json" ).as<rule_config>();
 
 		// TODO: validation and assert
 		config.valid = true;
@@ -70,7 +70,7 @@ uint64_t TOTAL_SPACE()
 	total = 1;
 	const std::vector<uint64_t>& spaces = GROUP_SPACES();
 
-	for(int i = 0; i < spaces.size(); i ++)
+	for(size_t i = 0; i < spaces.size(); i ++)
 	{
 		FC_ASSERT(spaces[i] >= 0);
 		total *= spaces[i];
@@ -113,11 +113,37 @@ uint64_t Combination(uint8_t N, uint8_t k)
 	return C[N][k];
 }
 
+match match_rankings(const c_rankings& l, const c_rankings& r, const type_balls& balls)
+{
+	FC_ASSERT(l.size() == r.size());
+	FC_ASSERT(l.size() == balls.size());
+	
+	match m;
+
+	for(size_t i = 0; i < l.size(); i ++)
+	{
+		std::shared_ptr<combination> left_combinatioin = unranking(l[i], balls[i].second, balls[i].first);
+		std::shared_ptr<combination> right_combinatioin = unranking(r[i], balls[i].second, balls[i].first);
+
+		std::bitset<256> left_bits, right_bits;	// TODO: is size of 256 too big?
+		for (size_t i = 0; i < balls.size(); i++){
+			left_bits[left_combinatioin->at(i)] = 1;
+			right_bits[right_combinatioin->at(i)] = 1;
+		}
+
+		m.push_back( (left_bits & right_bits).count() );
+	}
+
+	FC_ASSERT(balls.size() == m.size());
+
+	return m;
+}
+
 uint64_t ranking(const c_rankings& r, const std::vector<uint64_t>& spaces )
 {
 	FC_ASSERT( r.size() == spaces.size() );
 	uint64_t res = 0;
-	for (int i = 0; i < spaces.size(); i ++ )
+	for (uint16_t i = 0; i < spaces.size(); i ++ )
 	{
 		FC_ASSERT( r[i] < spaces.size() );
 		if (i == 0)
@@ -132,6 +158,7 @@ uint64_t ranking(const c_rankings& r, const std::vector<uint64_t>& spaces )
 }
 
 // unranking to combination rankings
+// TODO: making return value const?
 std::shared_ptr<c_rankings> unranking(uint64_t num, const std::vector<uint64_t>& spaces )
 {
 	c_rankings rs;

@@ -5,6 +5,7 @@
 #include <bts/blockchain/chain_database.hpp>
 
 #include <bts/lotto/lotto_transaction_validator.hpp>
+#include <bts/lotto/lotto_rule_validator.hpp>
 
 namespace bts { namespace lotto {
 
@@ -35,6 +36,8 @@ class lotto_db : public bts::blockchain::chain_database
     
         void             open( const fc::path& dir, bool create );
         void             close();
+
+		void set_rule_validator( const rule_validator_ptr& v );
 
         uint64_t get_jackpot_for_ticket( uint64_t ticket_block_num, uint64_t lucky_number, uint16_t odds, uint16_t amount );
 

@@ -63,7 +63,7 @@ BOOST_AUTO_TEST_CASE( combination_to_int )
 	BOOST_CHECK(prize_bits.count() == 2);
 }
 
-BOOST_AUTO_TEST_CASE( test_load_rule_config )
+BOOST_AUTO_TEST_CASE( test_generate_rule_config )
 {
     rule_config config;
     config.version = 1;
@@ -119,6 +119,34 @@ BOOST_AUTO_TEST_CASE( test_load_rule_config )
     config.prizes.push_back(std::pair<uint16_t, std::vector<match>>(6, g6));
 
     fc::variant var(config);
-    auto str = fc::json::to_pretty_string(var);
+    auto str = fc::json::to_string(var);
+	
     ilog( "block: \n${b}", ("b", str ) );
+
+	const fc::path& p = "rule.json";
+	fc::json::save_to_file(var, p);
+}
+
+BOOST_AUTO_TEST_CASE( test_load_rule_config )
+{
+	const rule_config& config = global_rule_config();
+	BOOST_CHECK(config.balls.size() == 2);
+
+	BOOST_CHECK(GROUP_COUNT() == 2);
+
+	BOOST_CHECK(TOTAL_SPACE() == Combination(35, 5) * Combination(12, 2));
+
+	BOOST_CHECK(GROUP_SPACES()[0] == Combination(35, 5));
+
+	BOOST_CHECK(GROUP_SPACES()[1] == Combination(12, 2));
+}
+
+BOOST_AUTO_TEST_CASE( test_combination )
+{
+	// TODO
+}
+
+BOOST_AUTO_TEST_CASE( test_rule_validator )
+{
+	// TODO
 }

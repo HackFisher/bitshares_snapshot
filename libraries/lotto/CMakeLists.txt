@@ -11,6 +11,7 @@ add_library( bts_lotto
              lotto_outputs.cpp
              lotto_db.cpp
              lotto_transaction_validator.cpp
+             lotto_rule_validator.cpp
              lotto_wallet.cpp
              lotto_cli.cpp
            )
