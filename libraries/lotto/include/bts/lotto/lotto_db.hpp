@@ -18,7 +18,6 @@ struct drawing_record
 
    uint64_t total_jackpot;	// total jackpot of this block
    uint64_t total_paid;		// total jackpot which have been paid in future block.
-   uint64_t winning_number;	// the previous block uses this value to calculate jackpot, this value is generated according current block's info
 };
 struct block_summary
 {
@@ -27,6 +26,7 @@ struct block_summary
 
    uint64_t ticket_sales;	// total ticket sales in the blocks, from 0 to .... current
    uint64_t amount_won;		// total pay out amount from 0 to previous block
+   uint64_t winning_number;	// the previous block uses this value to calculate jackpot, this value is generated according current block's info
 };
 
 class lotto_db : public bts::blockchain::chain_database
@@ -70,4 +70,4 @@ class lotto_db : public bts::blockchain::chain_database
 
 
 FC_REFLECT( bts::lotto::drawing_record, (total_jackpot)(total_paid) )
-FC_REFLECT( bts::lotto::block_summary, (ticket_sales)(amount_won) )
+FC_REFLECT( bts::lotto::block_summary, (ticket_sales)(amount_won)(winning_number))
