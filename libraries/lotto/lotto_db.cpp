@@ -57,9 +57,15 @@ namespace bts { namespace lotto {
 		 * winning_number should be validate by block validation. or generated during block mining, so we can get directly from here.
 		 */
 		// fc::sha256 winning_number;
-		uint64_t winning_number;
+		// using the next block generated block number
+		uint64_t winning_number = my->_drawing2record.fetch(ticket_block_num + 1).winning_number;
 		// TODO: what's global_odds, ignore currenly.
 		uint64_t global_odds = 0;
+
+		drawing_record dr = my->_drawing2record.fetch(ticket_block_num);
+		// TODO: what's the total jackpot and total paid meaning?
+		block_summary summary = my->_block2summary.fetch(ticket_block_num);
+		uint16_t available_pool_prize = summary.ticket_sales - summary.amount_won;
 
 		// 3. jackpot should not be calculated here, 
 		/*

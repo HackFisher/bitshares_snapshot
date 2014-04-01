@@ -15,8 +15,12 @@ namespace bts { namespace lotto {
 	rule_validator::~rule_validator()
 	{
 	}
-      
-    uint64_t rule_validator::evaluate(uint64_t winning_number, uint64_t lucky_number, uint16_t amount)
+    
+	uint64_t rule_validator::evaluate_total_jackpot(uint64_t winning_number, uint64_t target_block_num){
+		return 0;
+	}
+
+    uint64_t rule_validator::evaluate_jackpot(uint64_t winning_number, uint64_t lucky_number, uint16_t amount)
 	{
 		// This is only one kind of implementation, we call also implement it as dice.
 		uint64_t total_space = TOTAL_SPACE();
