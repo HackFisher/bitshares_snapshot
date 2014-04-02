@@ -10,8 +10,8 @@ namespace bts { namespace lotto {
 
 using namespace client;
 
-lotto_cli::lotto_cli( const client_ptr& c )
-: bts::cli::cli(c)
+lotto_cli::lotto_cli( const client_ptr& c, const lotto_wallet_ptr& w)
+	: bts::cli::cli(c), my_wallet(w)
 {
 }
 
@@ -23,6 +23,7 @@ void lotto_cli::print_help(){
     std::cout<<"Lotto Commands\n";
     std::cout<<"-------------------------------------------------------------\n";
     std::cout<<"buy_ticket AMOUNT UNIT [LUCKY_NUMBER] [ODDS] - buy tickets for specific lucky number with some odds\n";
+	std::cout<<"draw_ticket - draw tickets\n";
     std::cout<<"-------------------------------------------------------------\n";
 
     cli::print_help();
@@ -30,9 +31,10 @@ void lotto_cli::print_help(){
 void lotto_cli::process_command( const std::string& cmd, const std::string& args ){
     std::stringstream ss(args);
 
-    if( cmd == "buy_ticket" ) {
+    if( cmd == "buy_ticket" )
+	{
         std::string line;
-        // TODO: process buy lotto ticket commands
+        // TODO: process buy lotto ticket commands according to rule config
         std::string base_str,at;
         double      amount;
         // TODO: maybe lucky_number and odds should not be optional?
@@ -44,8 +46,8 @@ void lotto_cli::process_command( const std::string& cmd, const std::string& args
         asset       amnt = asset(amount,base_unit);
 
         auto required_input = amnt;
-        // TODO: get current balance
-        asset curr_bal = asset::zero();
+        // TODO: customize lotto::type value for lotto share?
+		asset curr_bal = my_wallet->get_balance(0);
 
         //std::cout<<"current balance: "<< to_balance( curr_bal.amount.high_bits() ) <<" "<<fc::variant(required_input.unit).as_string()<<"\n"; 
         //std::cout<<"total price: "<< to_balance(required_input.amount.high_bits()) <<" "<<fc::variant(required_input.unit).as_string()<<"\n"; 
@@ -60,8 +62,7 @@ void lotto_cli::process_command( const std::string& cmd, const std::string& args
             std::getline( std::cin, line );
             if( line == "yes" || line == "y" )
             {
-                // TODO: call wallet to buy the ticket,
-                // main_thread->async( [=](){ c->buy(required_input,pr); } ).wait();
+				my_wallet->buy_ticket(lucky_number, odds, amnt);
                 std::cout<<"order submitted\n";
             }
             else
@@ -69,7 +70,10 @@ void lotto_cli::process_command( const std::string& cmd, const std::string& args
                 std::cout<<"order canceled\n";
             }
         }
-    }
+	} else if ( cmd == "draw_ticket")
+	{
+		my_wallet->draw_ticket();
+	}
     else
     {
         cli::process_command(cmd, args);

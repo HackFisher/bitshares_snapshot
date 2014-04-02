@@ -14,8 +14,18 @@ namespace bts { namespace lotto {
 
 using namespace bts::blockchain;
 
+namespace detail 
+{
+		class lotto_wallet_impl
+		{
+			public:
+				// TODO cache _un_drawed tickets
+				// Temp to store _un_drawed ticket_output in _unspent_output
+		};
+} // namespace detail
+
 lotto_wallet::lotto_wallet()
-//:my(new detail::lotto_wallet_impl())
+:my(new detail::lotto_wallet_impl())
 {
 }
 
@@ -24,7 +34,7 @@ lotto_wallet::~lotto_wallet()
 }
 
 bts::blockchain::signed_transaction lotto_wallet::buy_ticket(const uint64_t& luckynumber, const uint16_t& odds,
-                                                        asset amount, lotto_db& db)
+                                                        asset amount)
 {
     try {
         signed_transaction trx;
@@ -60,6 +70,33 @@ bts::blockchain::signed_transaction lotto_wallet::buy_ticket(const uint64_t& luc
     } FC_RETHROW_EXCEPTIONS(warn, "buy_ticket ${luckynumber} with ${odds}", ("name", luckynumber)("amt", odds))
 }
 
+bts::blockchain::signed_transaction lotto_wallet::draw_ticket()
+{
+	try {
+		// TODO: if draw transaction, should be one in one out, or X in X out?
+		auto unspent_outputs = get_unspent_outputs();
+		signed_transaction trx;
+		auto req_sigs = std::unordered_set<bts::blockchain::address>();
+		for (auto out : unspent_outputs)
+		{
+			if (out.second.claim_func == claim_ticket)
+			{
+				uint64_t jackpot = 0;	// TODO: Check output valid block, and calcute the jackpots for this output.
+				trx.inputs.push_back( trx_input( claim_ticket_input(), get_ref_from_output_idx(out.first) ) ); 
+				trx.outputs.push_back( trx_output( 
+					claim_by_signature_output( out.second.as<claim_ticket_output>().owner), asset(jackpot, out.second.amount.unit) ) );
+				req_sigs.insert( out.second.as<claim_ticket_output>().owner );
+			}
+		}
+
+		trx.sigs.clear();
+        sign_transaction(trx, req_sigs, false);
+
+		return trx;
+		
+	} FC_RETHROW_EXCEPTIONS(warn, "draw_ticket ")
+}
+
 bool lotto_wallet::scan_output( transaction_state& state, const trx_output& out, const output_reference& out_ref, const bts::wallet::output_index& oidx )
 {
     try {
@@ -69,6 +106,7 @@ bool lotto_wallet::scan_output( transaction_state& state, const trx_output& out,
             {
                 if (is_my_address( out.as<claim_ticket_output>().owner ))
                 {
+					// Is my ticket do not ajust balance.
                     cache_output( out, out_ref, oidx );
                     return true;
                 }
@@ -78,6 +116,11 @@ bool lotto_wallet::scan_output( transaction_state& state, const trx_output& out,
                 return wallet::scan_output(state, out, out_ref, oidx );
         }
     } FC_RETHROW_EXCEPTIONS( warn, "" )
+}
+
+void lotto_wallet::scan_input( transaction_state& state, const output_reference& ref ){
+	// TODO: if in.output_ref is claim_ticket, not to update balance.
+	// state.trx.inputs[0]
 }
 
 }} // bts::lotto

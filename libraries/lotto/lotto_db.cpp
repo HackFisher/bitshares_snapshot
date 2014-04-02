@@ -115,25 +115,25 @@ namespace bts { namespace lotto {
         uint64_t amout_won = 0;
         for( const signed_transaction& trx : determinsitc_trxs )
         {
-            for ( const trx_output& o : trx.outputs)
+            for ( auto o : trx.outputs)
             {
                 if (o.claim_func == claim_ticket) {
                     ticket_sales += o.amount.get_rounded_amount();
                 }
             }
 
-            for ( const trx_input& i : trx.inputs)
+            for ( auto i : trx.inputs)
             {
-                // TODO: if there is one ticket as input, then all output will be as jackpots.
-                const trx_output& o = fetch_trx(fetch_trx_num(i.output_ref.trx_hash)).outputs[i.output_ref.output_idx];
+				auto o = fetch_output(i.output_ref);
                 if (o.claim_func == claim_ticket) {
-                    for ( const trx_output& out : trx.outputs)
+                    for ( auto out : trx.outputs)
                     {
-                        // TODO: do we need to a seperate claim method? for give out jackpot?
-                        //if (out.claim_func == claim_jackpot) {
+						if (out.claim_func == claim_by_signature) {
                             amout_won += out.amount.get_rounded_amount();
-                        //}
+                        }
                     }
+					// The in.output should all be tickets, and the out should all be jackpots
+					break;
                 }
             }
         }

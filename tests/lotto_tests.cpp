@@ -150,3 +150,11 @@ BOOST_AUTO_TEST_CASE( test_rule_validator )
 {
 	// TODO
 }
+
+BOOST_AUTO_TEST_CASE( test_hash_and )
+{
+	uint32_t left = 1;
+	uint32_t right = 2;
+	uint64_t result = ((1 << 32) & 2);
+	BOOST_CHECK((((uint64_t)left << 32) & (uint64_t)right) == result);
+}

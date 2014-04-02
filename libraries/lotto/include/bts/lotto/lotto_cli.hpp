@@ -2,13 +2,14 @@
 #include <bts/cli/cli.hpp>
 #include <bts/client/client.hpp>
 #include <bts/lotto/lotto_db.hpp>
+#include <bts/lotto/lotto_wallet.hpp>
 
 namespace bts { namespace lotto {
     using namespace client;
     class lotto_cli : public bts::cli::cli
     {
         public:
-            lotto_cli( const client_ptr& c );
+            lotto_cli( const client_ptr& c, const lotto_wallet_ptr& w );
             ~lotto_cli();
             virtual void print_help();
             virtual void process_command( const std::string& cmd, const std::string& args );
@@ -18,6 +19,8 @@ namespace bts { namespace lotto {
 
         private:
             // std::unique_ptr<detail::cli_impl> my;
+
+			lotto_wallet_ptr       my_wallet;
      };
 
 } } // bts::lotto

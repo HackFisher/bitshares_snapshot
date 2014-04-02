@@ -18,6 +18,7 @@ lotto_transaction_validator::~lotto_transaction_validator()
 transaction_summary lotto_transaction_validator::evaluate( const signed_transaction& tx, const block_evaluation_state_ptr& block_state )
 {
     lotto_trx_evaluation_state state(tx);
+	// TODO: if one of tx.inputs are claim ticket, then all its inputs should be claim tickets, and all output should be claim signature.
     return on_evaluate( state, block_state );
 }
 
@@ -94,10 +95,11 @@ void lotto_transaction_validator::validate_ticket_output(const trx_output& out, 
     lotto_state.total_ticket_sales += out.amount.get_rounded_amount();
     lotto_state.add_output_asset( out.amount );
 
-	/*
-    auto claim_ticket = out.output.as<claim_ticket_output>();
-    FC_ASSERT( claim_ticket.odds 
-		*/
+    auto claim_ticket = out.as<claim_ticket_output>();
+	// ticket must be signed by owner
+	FC_ASSERT( lotto_state.has_signature( claim_ticket.owner ) );
+
+	// TODO: later we might going to support customize the winner address
 } FC_RETHROW_EXCEPTIONS( warn, "" ) }
 
 
