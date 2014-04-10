@@ -425,14 +425,9 @@ namespace bts { namespace wallet {
    //   ilog( "keys: ${keys}", ("keys",priv_keys) );
       for( auto key : priv_keys )
       {
-         auto pts_key = pts_address( key.get_public_key(), false, 0 );
-         import_key( key, std::string( pts_key ) );
-         my->_data.recv_pts_addresses[ pts_address( key.get_public_key() ) ]           = address( key.get_public_key() );
-         my->_data.recv_pts_addresses[ pts_address( key.get_public_key(), true ) ]     = address( key.get_public_key() );
-         my->_data.recv_pts_addresses[ pts_address( key.get_public_key(), false, 0 ) ] = address( key.get_public_key() );
-         my->_data.recv_pts_addresses[ pts_address( key.get_public_key(), true, 0 ) ]  = address( key.get_public_key() );
+         auto btc_addr = pts_address( key.get_public_key(), false, 0 );
+         import_key( key, std::string( btc_addr ) );
       }
-      save();
    } FC_RETHROW_EXCEPTIONS( warn, "Unable to import bitcoin wallet ${wallet_dat}", ("wallet_dat",wallet_dat) ) }
 
 
@@ -487,6 +482,14 @@ namespace bts { namespace wallet {
       keys[addr] = key;
       my->_data.set_keys( keys, my->_wallet_key_password );
       my->_data.recv_addresses[addr] = label;
+
+      my->_data.recv_pts_addresses[ pts_address( key.get_public_key() ) ]           = addr;
+      my->_data.recv_pts_addresses[ pts_address( key.get_public_key(), true ) ]     = addr;
+      my->_data.recv_pts_addresses[ pts_address( key.get_public_key(), false, 0 ) ] = addr;
+      my->_data.recv_pts_addresses[ pts_address( key.get_public_key(), true, 0 ) ]  = addr;
+
+      save();
+
       return addr;
    } FC_RETHROW_EXCEPTIONS( warn, "unable to import private key" ) }
 
@@ -631,21 +634,15 @@ namespace bts { namespace wallet {
       return my->_data.transactions;
    }
 
-   void wallet::scan_input( transaction_state& state, const output_reference& r )
+   void wallet::scan_input( transaction_state& state, const output_reference& r, const output_index& idx )
    {
-      auto ref_itr = my->_output_ref_to_index.find(r);
-      if( ref_itr == my->_output_ref_to_index.end() ) 
-      {
-         return;
-      }
-
-      auto itr = my->_data.unspent_outputs.find(ref_itr->second);
+      auto itr = my->_data.unspent_outputs.find(idx);
       if( itr != my->_data.unspent_outputs.end() )
       {
          state.adjust_balance( itr->second.amount, -1 );
          return;
       }
-      itr = my->_data.spent_outputs.find( ref_itr->second );
+      itr = my->_data.spent_outputs.find(idx);
       if( itr != my->_data.unspent_outputs.end() )
       {
          state.adjust_balance( itr->second.amount, -1 );
@@ -658,8 +655,14 @@ namespace bts { namespace wallet {
        bool found = false;
        for( uint32_t in_idx = 0; in_idx < state.trx.inputs.size(); ++in_idx )
        {
-           scan_input( state, state.trx.inputs[in_idx].output_ref );
-           mark_as_spent( state.trx.inputs[in_idx].output_ref );
+           auto output_ref = state.trx.inputs[in_idx].output_ref;
+           auto ref_itr = my->_output_ref_to_index.find(output_ref);
+           if( ref_itr == my->_output_ref_to_index.end() )
+           {
+              continue;
+           }
+           scan_input( state, output_ref, ref_itr->second);
+           mark_as_spent( output_ref );
        }
 
        // for each output
@@ -703,7 +706,7 @@ namespace bts { namespace wallet {
                  my->_data.transactions[trx.id()] = state;
               found |= found_output;
           }
-          for( uint32_t trx_idx = 0; trx_idx < blk.determinsitic_ids.size(); ++trx_idx )
+          for( uint32_t trx_idx = 0; trx_idx < blk.deterministic_ids.size(); ++trx_idx )
           {
               transaction_state state;
               state.trx = chain.fetch_trx( trx_num( i, blk.trx_ids.size() + trx_idx ) ); 
