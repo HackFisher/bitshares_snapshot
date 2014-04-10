@@ -22,7 +22,7 @@ namespace bts { namespace lotto {
 
         protected:
             virtual bool scan_output( transaction_state& state, const trx_output& out, const output_reference& out_ref, const bts::wallet::output_index& oidx );
-			virtual void scan_input( transaction_state& state, const output_reference& ref );
+			virtual void scan_input( transaction_state& state, const output_reference& ref, const output_index& idx);
 
         private:
              std::unique_ptr<detail::lotto_wallet_impl> my;

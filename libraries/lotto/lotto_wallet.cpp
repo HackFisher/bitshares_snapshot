@@ -118,9 +118,20 @@ bool lotto_wallet::scan_output( transaction_state& state, const trx_output& out,
     } FC_RETHROW_EXCEPTIONS( warn, "" )
 }
 
-void lotto_wallet::scan_input( transaction_state& state, const output_reference& ref ){
-	// TODO: if in.output_ref is claim_ticket, not to update balance.
-	// state.trx.inputs[0]
+void lotto_wallet::scan_input( transaction_state& state, const output_reference& ref, const output_index& idx  ){
+    auto itr = get_unspent_outputs().find(idx);
+    if( itr != get_unspent_outputs().end() )
+    {
+        if (itr->second.claim_func == claim_ticket) {
+            return;
+        } else {
+            wallet::scan_input(state, ref, idx);
+            return;
+        }
+    }
+
+    // TODO: scan from spent outputs?
+    wallet::scan_input(state, ref, idx);
 }
 
 }} // bts::lotto
