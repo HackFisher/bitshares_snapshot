@@ -20,7 +20,7 @@ struct claim_ticket_output
 {
     static const claim_type_enum type;
     
-    claim_ticket_output():odds(1),lucky_number(0){}
+    claim_ticket_output():lucky_number(0), odds(1){}
 
     /**
      *  This is the number chosen by the user or at 

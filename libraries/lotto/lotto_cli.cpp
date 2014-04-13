@@ -1,6 +1,7 @@
 #include <bts/client/client.hpp>
 #include <bts/cli/cli.hpp>
 #include <bts/lotto/lotto_cli.hpp>
+#include <bts/lotto/lotto_asset.hpp>
 
 #include <iostream>
 #include <sstream>
@@ -42,15 +43,15 @@ void lotto_cli::process_command( const std::string& cmd, const std::string& args
         uint16_t    odds;
         std::string unit;
         ss >> amount >> unit >> lucky_number >> odds;
-        asset::type base_unit = fc::variant(unit).as<asset::type>();
+        asset::type base_unit = fc::variant(unit).as<asset_type>();
         asset       amnt = asset(amount,base_unit);
 
         auto required_input = amnt;
         // TODO: customize lotto::type value for lotto share?
-		asset curr_bal = my_wallet->get_balance(0);
+		asset curr_bal = my_wallet->get_balance(base_unit);
 
-        //std::cout<<"current balance: "<< to_balance( curr_bal.amount.high_bits() ) <<" "<<fc::variant(required_input.unit).as_string()<<"\n"; 
-        //std::cout<<"total price: "<< to_balance(required_input.amount.high_bits()) <<" "<<fc::variant(required_input.unit).as_string()<<"\n"; 
+        std::cout<<"current balance: "<< curr_bal.get_rounded_amount() <<" "<<fc::variant((asset_type)curr_bal.unit).as_string()<<"\n";
+        std::cout<<"total price: "<< required_input.get_rounded_amount() <<" "<<fc::variant((asset_type)required_input.unit).as_string()<<"\n";
 
         if( required_input > curr_bal )
         {
