@@ -60,11 +60,19 @@ namespace bts { namespace blockchain {
        FC_ASSERT( name_inputs.find( o.name ) == name_inputs.end() );
        name_inputs[o.name] = o;
    }
-   void transaction_evaluation_state::add_input_delegate_votes( int16_t did, const asset& votes )
+   void block_evaluation_state::add_input_delegate_votes( int32_t did, const asset& votes )
    {
-      auto itr = input_votes.find(did);
-      if( itr == input_votes.end() )
-         input_votes[did] = votes.get_rounded_amount();
+      auto itr = _input_votes.find(did);
+      if( itr == _input_votes.end() )
+         _input_votes[did] = votes.get_rounded_amount();
+      else
+         itr->second += votes.get_rounded_amount();
+   }
+   void block_evaluation_state::add_output_delegate_votes( int32_t did, const asset& votes )
+   {
+      auto itr = _output_votes.find(did);
+      if( itr == _output_votes.end() )
+         _output_votes[did] = votes.get_rounded_amount();
       else
          itr->second += votes.get_rounded_amount();
    }
@@ -126,7 +134,7 @@ namespace bts { namespace blockchain {
 
        state.inputs = _db->fetch_inputs( state.trx.inputs );
        auto trx_delegate = _db->lookup_delegate( state.trx.vote );
-       FC_ASSERT( !!trx_delegate );
+       FC_ASSERT( !!trx_delegate, "unable to find delegate id ${id}", ("id",state.trx.vote) );
 
        /** make sure inputs are unique */
        std::unordered_set<output_reference> unique_inputs;
@@ -241,7 +249,8 @@ namespace bts { namespace blockchain {
        if( in.output.amount.unit == 0 )
        {
           accumulate_votes( in.output.amount.get_rounded_amount(), in.source.block_num, state );
-          state.add_input_delegate_votes( in.delegate_id, in.output.amount );
+          block_state->add_input_delegate_votes( in.delegate_id, in.output.amount );
+          block_state->add_output_delegate_votes( state.trx.vote, in.output.amount );
        }
    }
 
@@ -256,7 +265,8 @@ namespace bts { namespace blockchain {
        if( in.output.amount.unit == 0 )
        {
           accumulate_votes( in.output.amount.get_rounded_amount(), in.source.block_num, state );
-          state.add_input_delegate_votes( in.delegate_id, in.output.amount );
+          block_state->add_input_delegate_votes( in.delegate_id, in.output.amount );
+          block_state->add_output_delegate_votes( state.trx.vote, in.output.amount );
        }
    }
 
@@ -265,15 +275,15 @@ namespace bts { namespace blockchain {
                                                          const block_evaluation_state_ptr& block_state )
    {
        auto claim = in.output.as<claim_name_output>(); 
-       FC_ASSERT( state.has_signature( claim.owner ), "", ("owner",claim.owner)("sigs",state.sigs) );
+       FC_ASSERT( state.has_signature( address(claim.owner) ), "", ("owner",claim.owner)("sigs",state.sigs) );
        state.add_name_input( claim );
        state.add_input_asset( in.output.amount );
-       state.add_input_delegate_votes( in.delegate_id, in.output.amount );
 
        if( in.output.amount.unit == 0 )
        {
           accumulate_votes( in.output.amount.get_rounded_amount(), in.source.block_num, state );
-          state.add_input_delegate_votes( in.delegate_id, in.output.amount );
+          block_state->add_input_delegate_votes( in.delegate_id, in.output.amount );
+          block_state->add_output_delegate_votes( state.trx.vote, in.output.amount );
        }
    }
 

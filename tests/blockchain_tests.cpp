@@ -23,14 +23,18 @@ trx_block generate_genesis_block( const std::vector<address>& addr )
     genesis.next_fee          = block_header::min_fee();
     genesis.total_shares      = 0;
 
-    signed_transaction trx;
-    for( uint32_t i = 0; i < addr.size(); ++i )
+    // generate an initial genesis block that evenly allocates votes among all 
+    // delegates.
+    for( uint32_t i = 0; i < 100; ++i )
     {
-        uint64_t amnt = rand()%1000 * BTS_BLOCKCHAIN_SHARE;
-        trx.outputs.push_back( trx_output( claim_by_signature_output( addr[i] ), asset( amnt ) ) );
-        genesis.total_shares += amnt;
+       signed_transaction trx;
+       trx.vote = i + 1;
+       uint64_t amnt = 1000 * BTS_BLOCKCHAIN_SHARE;
+       trx.outputs.push_back( trx_output( claim_by_signature_output( addr[i] ), asset( amnt ) ) );
+       genesis.total_shares += amnt;
+       genesis.trxs.push_back( trx );
     }
-    genesis.trxs.push_back( trx );
+
     genesis.trx_mroot = genesis.calculate_merkle_root(signed_transactions());
 
     return genesis;
@@ -70,8 +74,8 @@ BOOST_AUTO_TEST_CASE( blockchain_simple_chain )
        fc::ecc::private_key auth = fc::ecc::private_key::generate();
 
        std::vector<address> addrs;
-       addrs.reserve(50);
-       for( uint32_t i = 0; i < 50; ++i )
+       addrs.reserve(80);
+       for( uint32_t i = 0; i < 80; ++i )
        {
           addrs.push_back( wall.new_recv_address() );
        }
@@ -87,8 +91,9 @@ BOOST_AUTO_TEST_CASE( blockchain_simple_chain )
 
        wall.scan_chain( db );
        wall.dump();
+       db.dump_delegates();
 
-       for( uint32_t i = 0; i < 10; ++i )
+       for( uint32_t i = 0; i < 50; ++i )
        {
           auto trx = wall.transfer( asset( double( rand() % 1000 ) ), addrs[ rand()%addrs.size() ] );
 
@@ -104,6 +109,7 @@ BOOST_AUTO_TEST_CASE( blockchain_simple_chain )
 
           wall.scan_chain( db );
           wall.dump();
+          db.dump_delegates();
        }
    } 
    catch ( const fc::exception& e )
