@@ -158,3 +158,8 @@ BOOST_AUTO_TEST_CASE( test_hash_and )
 	uint64_t result = ((1 << 32) & 2);
 	BOOST_CHECK((((uint64_t)left << 32) & (uint64_t)right) == result);
 }
+
+BOOST_AUTO_TEST_CASE ( test_c_ranking )
+{
+    //uint64_t ranking(const c_rankings& r, const std::vector<uint64_t>& spaces )
+}

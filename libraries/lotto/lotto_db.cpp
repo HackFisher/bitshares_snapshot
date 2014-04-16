@@ -164,8 +164,9 @@ namespace bts { namespace lotto {
         auto random = fc::sha256::hash(head_blk.revealed_secret.str());
         for( uint32_t i = 1; i < 100; ++i )
         {
-            auto lotto_blk = static_cast<bts::lotto::lotto_block&>(fetch_block(head_blk.block_num - i));
-            random = fc::sha256::hash(lotto_blk.revealed_secret.str() + random.str()); // where + is concat 
+            auto h_blk = fetch_block(head_blk.block_num - i);
+            auto lotto_blk = static_cast<bts::lotto::lotto_block&>(h_blk);
+            random = fc::sha256::hash(lotto_blk.revealed_secret.str() + random.str()); // where + is concat
         }
 
         // TODO: change wining_number to sha256, and recheck whether sha356 is suitable for hashing.

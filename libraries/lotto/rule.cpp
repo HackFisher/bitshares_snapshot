@@ -145,7 +145,7 @@ uint64_t ranking(const c_rankings& r, const std::vector<uint64_t>& spaces )
 	uint64_t res = 0;
 	for (uint16_t i = 0; i < spaces.size(); i ++ )
 	{
-		FC_ASSERT( r[i] < spaces.size() );
+		FC_ASSERT( r[i] < spaces[i] );
 		if (i == 0)
 		{
 			res += r[i];
