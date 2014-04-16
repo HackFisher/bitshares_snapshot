@@ -46,14 +46,14 @@ class lotto_db : public bts::blockchain::chain_database
          * Performs global validation of a block to make sure that no two transactions conflict. In
          * the case of the lotto only one transaction can claim the jackpot.
          */
-        virtual void validate( const trx_block& blk, const signed_transactions& determinsitc_trxs );
+        virtual block_evaluation_state_ptr validate( const trx_block& blk, const signed_transactions& determinsitc_trxs );
 
         /** 
          *  Called after a block has been validated and appends
          *  it to the block chain storing all relevant transactions and updating the
          *  winning database.
          */
-        virtual void store( const trx_block& blk, const signed_transactions& determinsitc_trxs );
+        virtual void store( const trx_block& blk, const signed_transactions& deterministic_trxs, const block_evaluation_state_ptr& state );
 
         /**
          * When a block is popped from the chain, this method implements the necessary code

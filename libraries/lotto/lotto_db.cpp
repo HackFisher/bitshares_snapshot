@@ -3,6 +3,7 @@
 #include <bts/lotto/lotto_db.hpp>
 #include <fc/reflect/variant.hpp>
 #include <bts/lotto/lotto_rule_validator.hpp>
+#include <bts/lotto/lotto_block.hpp>
 
 namespace bts { namespace lotto {
 
@@ -15,6 +16,7 @@ namespace bts { namespace lotto {
                 // map drawning number to drawing record
                 bts::db::level_map<uint32_t, drawing_record>  _drawing2record;
                 bts::db::level_map<uint32_t, block_summary>   _block2summary;
+                bts::db::level_map<uint32_t, std::vector<uint32_t>>   _delegate2blocks;
 				rule_validator_ptr                           _rule_validator;
             
         };
@@ -91,9 +93,27 @@ namespace bts { namespace lotto {
      * Performs global validation of a block to make sure that no two transactions conflict. In
      * the case of the lotto only one transaction can claim the jackpot.
      */
-    void lotto_db::validate( const trx_block& blk, const signed_transactions& determinsitc_trxs )
+    block_evaluation_state_ptr lotto_db::validate( const trx_block& blk, const signed_transactions& determinsitc_trxs )
     {
-        chain_database::validate(blk, determinsitc_trxs);
+        block_evaluation_state_ptr blockstate = chain_database::validate(blk, determinsitc_trxs);
+
+        // TODO:
+        auto head_blk = static_cast<const bts::lotto::lotto_block&>(blk);
+        auto delegate_id = lookup_delegate(blk.block_num)->delegate_id;
+        auto itr = my->_delegate2blocks.find(delegate_id);
+        if( itr.valid() )
+        {
+            auto block_ids = itr.value();
+            auto trx_blk = fetch_block(block_ids[block_ids.size() - 1]);    // GetLastBlockProducedByDelegate
+            auto lotto_blk = static_cast<bts::lotto::lotto_block&>(trx_blk);
+            
+            // TODO: reviewing the hash.
+            FC_ASSERT(fc::sha256::hash(head_blk.revealed_secret) == lotto_blk.secret);
+        } else {
+            FC_ASSERT(head_blk.revealed_secret == fc::sha256());   //  this is the first block produced by delegate
+        }
+
+        return blockstate;
     }
 
     /** 
@@ -101,19 +121,19 @@ namespace bts { namespace lotto {
      *  it to the block chain storing all relevant transactions and updating the
      *  winning database.
      */
-    void lotto_db::store( const trx_block& b, const signed_transactions& determinsitc_trxs )
+    void lotto_db::store( const trx_block& blk, const signed_transactions& deterministic_trxs, const block_evaluation_state_ptr& state )
     {
-        chain_database::store(b, determinsitc_trxs);
+        chain_database::store(blk, deterministic_trxs, state);
 
         // update drawingrecord and blocksummary, and winning number(used as random)
         drawing_record dr;
         // TODO:
 
-        my->_drawing2record.store(b.block_num, dr);
+        my->_drawing2record.store(blk.block_num, dr);
         block_summary bs;
         uint64_t ticket_sales = 0;
         uint64_t amout_won = 0;
-        for( const signed_transaction& trx : determinsitc_trxs )
+        for( const signed_transaction& trx : deterministic_trxs )
         {
             for ( auto o : trx.outputs)
             {
@@ -140,8 +160,23 @@ namespace bts { namespace lotto {
         bs.ticket_sales = ticket_sales;
         bs.amount_won = amout_won;
         // TODO: hash according to block info, move to block summary?
-        bs.winning_number = ((uint64_t)b.trx_mroot._hash[0]) <<32 & ((uint64_t)b.trx_mroot._hash[1]);
-        my->_block2summary.store(b.block_num, bs);
+        auto head_blk = static_cast<const bts::lotto::lotto_block&>(blk);
+        auto random = fc::sha256::hash(head_blk.revealed_secret.str());
+        for( uint32_t i = 1; i < 100; ++i )
+        {
+            auto lotto_blk = static_cast<bts::lotto::lotto_block&>(fetch_block(head_blk.block_num - i));
+            random = fc::sha256::hash(lotto_blk.revealed_secret.str() + random.str()); // where + is concat 
+        }
+
+        // TODO: change wining_number to sha256, and recheck whether sha356 is suitable for hashing.
+        bs.winning_number = ((uint64_t)random._hash[0]) <<32 & ((uint64_t)random._hash[0]);
+        my->_block2summary.store(blk.block_num, bs);
+
+        // TODO: Should block's delegate id be retrieved this way? Then, how to achieve this before store?
+        auto delegate_id = lookup_delegate(blk.block_num)->delegate_id;
+        auto block_ids = my->_delegate2blocks.fetch(delegate_id);
+        block_ids.push_back(blk.block_num);
+        my->_delegate2blocks.store(delegate_id, block_ids);
     }
 
     /**

@@ -107,7 +107,7 @@ bool lotto_wallet::scan_output( transaction_state& state, const trx_output& out,
                 if (is_my_address( out.as<claim_ticket_output>().owner ))
                 {
 					// Is my ticket do not ajust balance.
-                    cache_output( out, out_ref, oidx );
+                    cache_output( state.trx.vote, out, out_ref, oidx );
                     return true;
                 }
                 return false;
