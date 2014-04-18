@@ -42,7 +42,6 @@ bts::blockchain::signed_transaction lotto_wallet::buy_ticket(const uint64_t& luc
    
         auto jackpot_addr = new_recv_address("Owner address for jackpot, lucky number is " + luckynumber);
         auto change_addr = new_recv_address("Change address");
-        auto req_sigs = std::unordered_set<bts::blockchain::address>();
         auto inputs = std::vector<trx_input>();
         auto total_in = bts::blockchain::asset(); // set by collect_inputs
 
@@ -51,22 +50,12 @@ bts::blockchain::signed_transaction lotto_wallet::buy_ticket(const uint64_t& luc
         ticket_output.odds = odds;
         ticket_output.owner = jackpot_addr;
 
-        // TODO: what's the asset/coin here for lotto?
-        auto required_in = amount;
-        trx.inputs = collect_inputs( required_in, total_in, req_sigs);
-        auto change_amt = total_in - required_in;
-
         // TODO: what's the meaning of amount here?
         trx.outputs.push_back(trx_output(ticket_output, amount));
-        trx.outputs.push_back(trx_output(claim_by_signature_output(change_addr), change_amt));
-        // what the next step doing?
-        trx.sigs.clear();
-        sign_transaction(trx, req_sigs, false);
-
-        // TODO
-        //trx = add_fee_and_sign(trx, amount, total_in, req_sigs);
 
         return trx;
+
+        return collect_inputs_and_sign(trx, amount);
     } FC_RETHROW_EXCEPTIONS(warn, "buy_ticket ${luckynumber} with ${odds}", ("name", luckynumber)("amt", odds))
 }
 
@@ -89,10 +78,7 @@ bts::blockchain::signed_transaction lotto_wallet::draw_ticket()
 			}
 		}
 
-		trx.sigs.clear();
-        sign_transaction(trx, req_sigs, false);
-
-		return trx;
+        return collect_inputs_and_sign(trx, asset(), req_sigs);
 		
 	} FC_RETHROW_EXCEPTIONS(warn, "draw_ticket ")
 }
