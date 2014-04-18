@@ -65,6 +65,7 @@ class lotto_db : public bts::blockchain::chain_database
 
 };
 
+typedef std::shared_ptr<lotto_db> lotto_db_ptr;
 
 }} // bts::lotto
 

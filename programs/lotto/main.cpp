@@ -46,7 +46,7 @@ int main( int argc, char** argv )
       c->set_chain( chain );
       c->set_wallet( wall );
 
-	  auto cli = std::make_shared<bts::lotto::lotto_cli>( c, wall );
+	  auto cli = std::make_shared<bts::lotto::lotto_cli>( c );
 
       c->add_node( "127.0.0.1:8888" );
 

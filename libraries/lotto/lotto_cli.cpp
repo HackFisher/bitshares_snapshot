@@ -10,17 +10,6 @@
 
 namespace bts { namespace lotto {
 
-using namespace client;
-
-lotto_cli::lotto_cli( const client_ptr& c, const lotto_wallet_ptr& w)
-	: bts::cli::cli(c), my_wallet(w)
-{
-}
-
-lotto_cli::~lotto_cli()
-{
-}
-
 void lotto_cli::print_help(){
     std::cout<<"Lotto Commands\n";
     std::cout<<"-------------------------------------------------------------\n";
@@ -34,6 +23,9 @@ void lotto_cli::print_help(){
 }
 void lotto_cli::process_command( const std::string& cmd, const std::string& args ){
     std::stringstream ss(args);
+
+    const lotto_db_ptr db = std::dynamic_pointer_cast<lotto_db>(client()->get_chain());
+    const lotto_wallet_ptr wallet = std::dynamic_pointer_cast<lotto_wallet>(client()->get_wallet());
 
     if( cmd == "buy_ticket" )
 	{
@@ -50,7 +42,7 @@ void lotto_cli::process_command( const std::string& cmd, const std::string& args
             asset       amnt(amount);
             
             auto required_input = amnt;
-            asset curr_bal = my_wallet->get_balance(0);
+            asset curr_bal = wallet->get_balance(0);
             
             std::cout<<"current balance: "<< curr_bal.get_rounded_amount() <<" "<<fc::variant((asset_type)curr_bal.unit).as_string()<<"\n";
             std::cout<<"total price: "<< required_input.get_rounded_amount() <<" "<<fc::variant((asset_type)required_input.unit).as_string()<<"\n";
@@ -65,7 +57,7 @@ void lotto_cli::process_command( const std::string& cmd, const std::string& args
                 std::getline( std::cin, line );
                 if( line == "yes" || line == "y" )
                 {
-                    my_wallet->buy_ticket(lucky_number, odds, amnt);
+                    wallet->buy_ticket(lucky_number, odds, amnt);
                     std::cout<<"order submitted\n";
                 }
                 else
@@ -125,7 +117,7 @@ void lotto_cli::process_command( const std::string& cmd, const std::string& args
             if( line == "yes" || line == "y" )
             {
                 asset amt(1.0);
-                my_wallet->buy_ticket(lucky_number, 1, amt);
+                wallet->buy_ticket(lucky_number, 1, amt);
                 std::cout<<"order submitted\n";
             }
             else
@@ -136,7 +128,7 @@ void lotto_cli::process_command( const std::string& cmd, const std::string& args
     }
     else if ( cmd == "draw_ticket")
 	{
-		my_wallet->draw_ticket();
+		wallet->draw_ticket();
 	} else if ( cmd == "query_jackpots")
     {
         // TODO
