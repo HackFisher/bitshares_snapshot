@@ -18,7 +18,7 @@ namespace bts { namespace lotto {
             bts::blockchain::signed_transaction buy_ticket(const uint64_t& luckynumber, const uint16_t& odds,
                                                         asset amount);
 
-			bts::blockchain::signed_transaction draw_ticket();
+			bts::blockchain::signed_transaction draw_ticket( lotto_db& db );
 
         protected:
             virtual bool scan_output( transaction_state& state, const trx_output& out, const output_reference& out_ref, const bts::wallet::output_index& oidx );

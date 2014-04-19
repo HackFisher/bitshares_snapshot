@@ -4,6 +4,7 @@
 #include <fc/reflect/variant.hpp>
 #include <bts/lotto/lotto_rule_validator.hpp>
 #include <bts/lotto/lotto_block.hpp>
+#include <bts/lotto/lotto_config.hpp>
 
 namespace bts { namespace lotto {
 
@@ -60,7 +61,7 @@ namespace bts { namespace lotto {
 		 */
 		// fc::sha256 winning_number;
 		// using the next block generated block number
-        uint64_t winning_number = my->_block2summary.fetch(ticket_block_num + 1).winning_number;
+        uint64_t winning_number = my->_block2summary.fetch(ticket_block_num + BTS_LOTTO_BLOCKS_BEFORE_JACKPOTS_DRAW).winning_number;
 		// TODO: what's global_odds, ignore currenly.
 		uint64_t global_odds = 0;
 

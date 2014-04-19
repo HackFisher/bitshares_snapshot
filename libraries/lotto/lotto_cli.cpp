@@ -128,7 +128,7 @@ void lotto_cli::process_command( const std::string& cmd, const std::string& args
     }
     else if ( cmd == "draw_ticket")
 	{
-		wallet->draw_ticket();
+		wallet->draw_ticket(*db);
 	} else if ( cmd == "query_jackpots")
     {
         // TODO

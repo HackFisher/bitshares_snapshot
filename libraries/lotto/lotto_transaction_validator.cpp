@@ -70,9 +70,12 @@ void lotto_transaction_validator::validate_ticket_input(const meta_trx_input& in
 		// returns the jackpot based upon which lottery the ticket was for.
 		// throws an exception if the jackpot was already claimed.
 		uint64_t jackpot  = db->get_jackpot_for_ticket( trx_loc.block_num, claim_ticket.lucky_number, claim_ticket.odds, in.output.amount.get_rounded_amount());
+        
+        
 
 		if( jackpot > 0 ) // we have a winner!
 		{
+            // For assert jackpot equals output.amount, by add asset to input in state
 			lotto_state.add_input_asset( asset( jackpot ) ); 
 			lotto_state.ticket_winnings += jackpot;
 		} else {
