@@ -1,9 +1,9 @@
-#pragma once
 #include <bts/lotto/lotto_outputs.hpp>
 #include <fc/reflect/variant.hpp>
 #include <bts/lotto/lotto_db.hpp>
 #include <bts/lotto/lotto_rule_validator.hpp>
 #include <bts/lotto/rule.hpp>
+#include <bts/lotto/lotto_config.hpp>
 
 namespace bts { namespace lotto {
 
@@ -16,18 +16,30 @@ namespace bts { namespace lotto {
 	{
 	}
     
-	uint64_t rule_validator::evaluate_total_jackpot(uint64_t winning_number, uint64_t target_block_num){
+	uint64_t rule_validator::evaluate_total_jackpot(const uint64_t& winning_number, const uint64_t& target_block_num, const uint64_t& available_funds)
+    {
+        if (target_block_num < BTS_LOTTO_BLOCKS_BEFORE_JACKPOTS_DRAW) {
+            return 0;
+        }
+        
+        // make sure that the jackpot_pool is large than the sum ticket sales of blk.block_num - 99 , blk.block_num - 98 ... blk.block_num.
+        
+        // available funds - all 100 tickets sales / 100 + (block_num - 100)th ticket sale
+        // as the total jackpots.
+        
+        // uint16_t available_pool_prize = summary.ticket_sales - summary.amount_won;
+        // auto summary = my->_block2summary.fetch(ticket_block_num);
 		return 0;
 	}
 
-    uint64_t rule_validator::evaluate_jackpot(uint64_t winning_number, uint64_t lucky_number, uint16_t amount)
+    uint64_t rule_validator::evaluate_jackpot(const uint64_t& winning_number, const uint64_t& lucky_number, const uint64_t& amount)
 	{
 		// This is only one kind of implementation, we call also implement it as dice.
 		uint64_t total_space = TOTAL_SPACE();
-		winning_number = winning_number % total_space;
-		lucky_number = lucky_number % total_space;
-		std::shared_ptr<c_rankings> winning_rs = unranking(winning_number, GROUP_SPACES());
-		std::shared_ptr<c_rankings> lucky_rs = unranking(winning_number, GROUP_SPACES());
+		uint64_t rule_winning_number = winning_number % total_space;
+		uint64_t rule_lucky_number = lucky_number % total_space;
+		std::shared_ptr<c_rankings> winning_rs = unranking(rule_winning_number, GROUP_SPACES());
+		std::shared_ptr<c_rankings> lucky_rs = unranking(rule_lucky_number, GROUP_SPACES());
 		match m = match_rankings(*winning_rs.get(), *lucky_rs.get(), global_rule_config().balls);
 
 		const type_prizes& prizes = global_rule_config().prizes;

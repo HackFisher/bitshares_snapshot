@@ -14,15 +14,16 @@ namespace detail  { class lotto_db_impl; }
 struct drawing_record
 {
    drawing_record()
-   :total_jackpot(0),total_paid(0){}
+   :total_jackpot(0),total_paid(0), jackpot_pool(0){}
 
    uint64_t total_jackpot;	// total jackpot of this block
    uint64_t total_paid;		// total jackpot which have been paid in future block.
+   uint64_t jackpot_pool;
 };
 struct block_summary
 {
    block_summary()
-   :ticket_sales(0),amount_won(0){}
+   :ticket_sales(0),amount_won(0), winning_number(0){}
 
    uint64_t ticket_sales;	// total ticket sales in the blocks, from 0 to .... current
    uint64_t amount_won;		// total pay out amount from 0 to previous block
@@ -46,7 +47,7 @@ class lotto_db : public bts::blockchain::chain_database
          * Performs global validation of a block to make sure that no two transactions conflict. In
          * the case of the lotto only one transaction can claim the jackpot.
          */
-        virtual block_evaluation_state_ptr validate( const trx_block& blk, const signed_transactions& determinsitc_trxs );
+        virtual block_evaluation_state_ptr validate( const trx_block& blk, const signed_transactions& deterministic_trxs );
 
         /** 
          *  Called after a block has been validated and appends
@@ -70,5 +71,5 @@ typedef std::shared_ptr<lotto_db> lotto_db_ptr;
 }} // bts::lotto
 
 
-FC_REFLECT( bts::lotto::drawing_record, (total_jackpot)(total_paid) )
+FC_REFLECT( bts::lotto::drawing_record, (total_jackpot)(total_paid)(jackpot_pool) )
 FC_REFLECT( bts::lotto::block_summary, (ticket_sales)(amount_won)(winning_number))

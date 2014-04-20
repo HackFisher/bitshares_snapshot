@@ -3,6 +3,7 @@
 
 #include <bts/lotto/lotto_wallet.hpp>
 #include <bts/lotto/lotto_outputs.hpp>
+#include <bts/lotto/lotto_config.hpp>
 
 #include<fc/reflect/variant.hpp>
 #include<fc/io/raw.hpp>
@@ -57,23 +58,27 @@ bts::blockchain::signed_transaction lotto_wallet::buy_ticket(const uint64_t& luc
     } FC_RETHROW_EXCEPTIONS(warn, "buy_ticket ${luckynumber} with ${odds}", ("name", luckynumber)("amt", odds))
 }
 
-bts::blockchain::signed_transaction lotto_wallet::draw_ticket( lotto_db& lotto_db )
+bts::blockchain::signed_transaction lotto_wallet::draw_ticket( lotto_db& lotto_db, const uint32_t& ticket_block_num )
 {
 	try {
-		// TODO: if draw transaction, should be one in one out, or X in X out?
+        // TODO: more validations?
+        FC_ASSERT(lotto_db.head_block_num() - ticket_block_num > BTS_LOTTO_BLOCKS_BEFORE_JACKPOTS_DRAW);
+        
+		// For each ticket draw transaction, the input.out_ref must have the same block number.
 		auto unspent_outputs = get_unspent_outputs();
 		signed_transaction trx;
 		auto req_sigs = std::unordered_set<bts::blockchain::address>();
+        
 		for (auto out : unspent_outputs)
 		{
-			if (out.second.claim_func == claim_ticket)
+			if (out.first.block_idx == ticket_block_num && out.second.claim_func == claim_ticket)
 			{
                 auto out_ref = get_ref_from_output_idx(out.first);
                 auto output = lotto_db.fetch_output(out_ref);
                 
                 auto claim_ticket = output.as<claim_ticket_output>();
                 
-				uint64_t jackpot = lotto_db.get_jackpot_for_ticket(out.first.block_idx, claim_ticket.lucky_number, claim_ticket.odds, output.amount.get_rounded_amount());
+				uint64_t jackpot = lotto_db.get_jackpot_for_ticket(ticket_block_num, claim_ticket.lucky_number, claim_ticket.odds, output.amount.get_rounded_amount());
 				trx.inputs.push_back( trx_input( claim_ticket_input(),  out_ref) );
 				trx.outputs.push_back( trx_output( 
 					claim_by_signature_output( out.second.as<claim_ticket_output>().owner), asset(jackpot, out.second.amount.unit) ) );

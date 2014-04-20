@@ -16,7 +16,7 @@ void lotto_cli::print_help(){
     std::cout<<"buy_ticket [AMOUNT] [LUCKY_NUMBER] [ODDS] - buy tickets for specific lucky number with some odds\n";
     std::cout<<"lucky_number - but 1 share of lotto ticket. FORMAT: R1 R2 R3 R4 R5 | B1 B2 e.g. 3 6 21 25 31 | 4 7\n";
     std::cout<<"print_rule - print details gaming rule.";
-    std::cout<<"draw_ticket - draw tickets\n";
+    std::cout<<"draw_ticket [BLOCK_NUMBER]- draw tickets\n";
     std::cout<<"-------------------------------------------------------------\n";
 
     cli::print_help();
@@ -128,7 +128,12 @@ void lotto_cli::process_command( const std::string& cmd, const std::string& args
     }
     else if ( cmd == "draw_ticket")
 	{
-		wallet->draw_ticket(*db);
+        if ( check_unlock() )
+        {
+            uint32_t block_num;
+            ss >> block_num;
+            wallet->draw_ticket(*db, block_num);
+        }
 	} else if ( cmd == "query_jackpots")
     {
         // TODO

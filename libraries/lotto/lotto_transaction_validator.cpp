@@ -3,6 +3,7 @@
 #include <bts/lotto/lotto_db.hpp>
 #include <bts/blockchain/config.hpp>
 #include <fc/io/raw.hpp>
+#include <bts/lotto/lotto_config.hpp>
 
 namespace bts { namespace lotto {
 
@@ -19,6 +20,7 @@ transaction_summary lotto_transaction_validator::evaluate( const signed_transact
 {
     lotto_trx_evaluation_state state(tx);
 	// TODO: if one of tx.inputs are claim ticket, then all its inputs should be claim tickets, and all output should be claim signature.
+    // TODO: and all the tickets drawing in this trx should belong to the same blocks.
     return on_evaluate( state, block_state );
 }
 
@@ -57,10 +59,11 @@ void lotto_transaction_validator::validate_ticket_input(const meta_trx_input& in
 		auto trx_loc = in.source;
 		auto headnum = _db->head_block_num();
 
-		// ticket must have been purchased in the past 2 days
-		FC_ASSERT( headnum - trx_loc.block_num < (BTS_BLOCKCHAIN_BLOCKS_PER_DAY*2) );
+		// ticket must have been purchased in the past 7 days
+		FC_ASSERT( headnum - trx_loc.block_num < (BTS_BLOCKCHAIN_BLOCKS_PER_DAY*7) );
 		// ticket must be before the last drawing... 
 		FC_ASSERT( trx_loc.block_num < (headnum/BTS_BLOCKCHAIN_BLOCKS_PER_DAY)*BTS_BLOCKCHAIN_BLOCKS_PER_DAY );
+        FC_ASSERT(headnum - trx_loc.block_num > BTS_LOTTO_BLOCKS_BEFORE_JACKPOTS_DRAW);
 		// ticket must be signed by owner
 		FC_ASSERT( lotto_state.has_signature( claim_ticket.owner ) );
     

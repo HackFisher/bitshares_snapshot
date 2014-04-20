@@ -21,9 +21,9 @@ class rule_validator
 	   * using this to update the following blocks' drawing_record's (total_jackpot, total_paid)
 	   * will be used for block validation
 	   */
-	  virtual uint64_t evaluate_total_jackpot(uint64_t winning_number, uint64_t target_block_num);
+	  virtual uint64_t evaluate_total_jackpot(const uint64_t& winning_number, const uint64_t& target_block_num, const uint64_t& available_funds);
       
-      virtual uint64_t evaluate_jackpot(uint64_t winning_number, uint64_t lucky_number, uint16_t amount);
+      virtual uint64_t evaluate_jackpot(const uint64_t& winning_number, const uint64_t& lucky_number, const uint64_t& amount);
 
    protected:
       lotto_db* _db;
