@@ -9,15 +9,12 @@ namespace bts { namespace lotto {
     class lotto_cli : public bts::cli::cli
     {
         public:
-            lotto_cli (const client_ptr &c) : cli(c)
-            {
-            }
+            lotto_cli ( const client_ptr& client, const bts::rpc::rpc_server_ptr& rpc_server );
+            virtual ~lotto_cli();
 
-            virtual void print_help();
-            virtual void process_command( const std::string& cmd, const std::string& args );
-            
-            virtual void list_transactions( uint32_t count = 0 );
-            virtual void get_balance( uint32_t min_conf, uint16_t unit = 0 );
+            virtual void parse_interactive_command(const std::string& line_to_parse, std::string& command, fc::variants& arguments);
+            virtual fc::variant execute_interactive_command(const std::string& command, const fc::variants& arguments);
+            virtual void format_and_print_result(const std::string& command, const fc::variant& result);
 
         private:
             // std::unique_ptr<detail::cli_impl> my;

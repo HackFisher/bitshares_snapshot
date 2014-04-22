@@ -38,9 +38,9 @@ namespace bts { namespace lotto {
 		uint64_t total_space = TOTAL_SPACE();
 		uint64_t rule_winning_number = winning_number % total_space;
 		uint64_t rule_lucky_number = lucky_number % total_space;
-		std::shared_ptr<c_rankings> winning_rs = unranking(rule_winning_number, GROUP_SPACES());
-		std::shared_ptr<c_rankings> lucky_rs = unranking(rule_lucky_number, GROUP_SPACES());
-		match m = match_rankings(*winning_rs.get(), *lucky_rs.get(), global_rule_config().balls);
+		c_rankings winning_rs = unranking(rule_winning_number, GROUP_SPACES());
+		c_rankings lucky_rs = unranking(rule_lucky_number, GROUP_SPACES());
+		match m = match_rankings(winning_rs, lucky_rs, global_rule_config().balls);
 
 		const type_prizes& prizes = global_rule_config().prizes;
 

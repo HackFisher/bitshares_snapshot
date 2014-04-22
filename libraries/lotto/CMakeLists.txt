@@ -5,6 +5,7 @@ include_directories( "${CMAKE_SOURCE_DIR}/libraries/wallet/include" )
 include_directories( "${CMAKE_SOURCE_DIR}/libraries/net/include" )
 include_directories( "${CMAKE_SOURCE_DIR}/libraries/client/include" )
 include_directories( "${CMAKE_SOURCE_DIR}/libraries/cli/include" )
+include_directories( "${CMAKE_SOURCE_DIR}/libraries/rpc/include" )
 
 add_library( bts_lotto
              rule.cpp
@@ -15,6 +16,7 @@ add_library( bts_lotto
              lotto_rule_validator.cpp
              lotto_wallet.cpp
              lotto_cli.cpp
+             lotto_rpc_server.cpp
            )
 
 

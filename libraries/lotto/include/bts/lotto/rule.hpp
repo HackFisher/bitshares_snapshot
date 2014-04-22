@@ -63,24 +63,45 @@
 
 
 namespace bts { namespace lotto {
-	// calculate combinational number, TODO: inline?
+	/**
+     * Calculate combinational number, TODO: inline?
+     * @return C(N, k)
+     */
 	uint64_t Combination(uint8_t N, uint8_t k);
 
+    /**
+     * Match different combination groups according to group type (N, k)
+     * @return the vector of matched count as elements.
+     */
 	match match_rankings(const c_rankings& l, const c_rankings& r, const type_balls& balls);
 
-    // ranking of multi indepent nature numbers C(N1,k1) * C(N2,k2) * C(N3,k3)
-	// nums in c_ranking are start from 0,spaces are the total counts for each ranking
+    /**
+     * Ranking of multi group combination ranked numbers C(N1,k1) * C(N2,k2) * C(N3,k3)
+     * Numbers in c_ranking start from 0, and spaces are the group space size for each group
+     * @return the ranking of multi combination groups
+	 */ 
 	uint64_t ranking(const c_rankings& r, const std::vector<uint64_t>& spaces );
 
-	// unranking to combination rankings
-	// minimum numbers in returen value should start from 0, maximum is (N-1), N is space
-	std::shared_ptr<c_rankings> unranking(uint64_t num, const std::vector<uint64_t>& spaces );
+	/*
+     * Unranking to combination groups' ranking, this is the reverse process of ranking
+	 * Numbers in returen value should start from 0, maximum is (N-1), N is group space size
+     * @return combination ranked numbers C(N1,k1) * C(N2,k2) * C(N3,k3)
+     */
+	c_rankings unranking(uint64_t num, const std::vector<uint64_t>& spaces );
 
-    // representing combination using nature numbers, 0, 1, 2, ....
+    /* 
+     * Parameters is combination of a group of nature numbers, number in this group is from 0 to N - 1 , N is the group count
+     * Convert group combination to continous nature nubmers from 0 to C(N, k) - 1, using algorithm combinatorial number system
+     * @return ranking value of the combination
+     */
 	uint64_t ranking(const combination& c);
 	
-    // convert nature numbers to combination binary
-    std::shared_ptr<combination> unranking(uint64_t num, uint8_t k, uint8_t n);
+    /*
+     * Convert nature numbers to combination binary
+     * Reverse process of ranking
+     */
+    combination unranking(uint64_t num, uint8_t k, uint8_t n);
+
 } } // namespace bts::lotto
 
 

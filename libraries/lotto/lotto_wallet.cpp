@@ -52,8 +52,6 @@ bts::blockchain::signed_transaction lotto_wallet::buy_ticket(const uint64_t& luc
         // TODO: what's the meaning of amount here?
         trx.outputs.push_back(trx_output(ticket_output, amount));
 
-        return trx;
-
         return collect_inputs_and_sign(trx, amount);
     } FC_RETHROW_EXCEPTIONS(warn, "buy_ticket ${luckynumber} with ${odds}", ("name", luckynumber)("amt", odds))
 }

@@ -39,8 +39,8 @@ BOOST_AUTO_TEST_CASE( combination_to_int )
     auto res_nums = unranking(ticket_num, 5, 35);
 	std::bitset<35> res_bits;
 	for (int i = 0; i < 5; i++){
-		std::cout << (uint16_t)res_nums->at(i) << "\n";
-		res_bits[res_nums->at(i)] = 1;
+		std::cout << (uint16_t)res_nums[i] << "\n";
+		res_bits[res_nums[i]] = 1;
 	}
 
 	std::cout << "the rankinging number of ticket is: " << ticket_num << "\n";

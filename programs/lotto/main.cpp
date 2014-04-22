@@ -4,6 +4,7 @@
 #include <bts/lotto/lotto_db.hpp>
 #include <bts/lotto/lotto_wallet.hpp>
 #include <bts/lotto/lotto_cli.hpp>
+#include <bts/lotto/lotto_rpc_server.hpp>
 #include <fc/filesystem.hpp>
 #include <fc/thread/thread.hpp>
 #include <fc/log/file_appender.hpp>
@@ -46,7 +47,9 @@ int main( int argc, char** argv )
       c->set_chain( chain );
       c->set_wallet( wall );
 
-	  auto cli = std::make_shared<bts::lotto::lotto_cli>( c );
+      bts::lotto::lotto_rpc_server_ptr rpc_server = std::make_shared<bts::lotto::lotto_rpc_server>();
+      rpc_server->set_client(c);
+	  auto cli = std::make_shared<bts::lotto::lotto_cli>( c, rpc_server );
 
       c->add_node( "127.0.0.1:8888" );
 

@@ -85,12 +85,6 @@ void lotto_transaction_validator::validate_ticket_input(const meta_trx_input& in
 			// throws or invalid when they did not win, is there necessary to do this?
 
 		}
-
-		/* TODO
-		uint64_t winnings = db->get_winnings( in ); // throws if they did not win.
-		lotto_state.ticket_winnings += winnings;
-		lotto_state.add_input_asset( asset(winnings) );
-		*/
 	} FC_RETHROW_EXCEPTIONS( warn, "" ) 
 }
 

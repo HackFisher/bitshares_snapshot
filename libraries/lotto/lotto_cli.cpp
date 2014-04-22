@@ -10,6 +10,7 @@
 
 namespace bts { namespace lotto {
 
+/* TODO: remove this.
 void lotto_cli::print_help(){
     std::cout<<"Lotto Commands\n";
     std::cout<<"-------------------------------------------------------------\n";
@@ -29,10 +30,61 @@ void lotto_cli::process_command( const std::string& cmd, const std::string& args
 
     if( cmd == "buy_ticket" )
 	{
+        
+	} else if (cmd == "lucky_number")
+    {
         if( check_unlock() )
         {
-            std::string line;
-            // TODO: process buy lotto ticket commands according to rule config
+            
+        }
+    }
+    else if ( cmd == "draw_ticket")
+	{
+        if ( check_unlock() )
+        {
+            uint32_t block_num;
+            ss >> block_num;
+            wallet->draw_ticket(*db, block_num);
+        }
+	} else if ( cmd == "query_jackpots")
+    {
+    } else 
+    else
+    {
+        cli::process_command(cmd, args);
+    }
+}
+*/
+
+lotto_cli::lotto_cli( const client_ptr& client, const bts::rpc::rpc_server_ptr& rpc_server ) :
+    cli(client, rpc_server)// my( new detail::cli_impl(client, rpc_server) )
+  {
+      /* TODO: remove this.
+    my->_self        = this;
+    my->_main_thread = &fc::thread::current();
+
+    my->create_wallet_if_missing();
+
+    my->_cin_complete = fc::async( [=](){ my->process_commands(); } );
+    */
+  }
+
+lotto_cli::~lotto_cli()
+{
+}
+
+void lotto_cli::parse_interactive_command(const std::string& line_to_parse, std::string& command, fc::variants& arguments)
+{
+    if (command == "buy_ticket")
+    {
+        std::string::const_iterator iter = std::find_if(line_to_parse.begin(), line_to_parse.end(), ::isspace);
+        if (iter != line_to_parse.end())
+        {
+            // then there are arguments to this function
+            size_t first_space_pos = iter - line_to_parse.begin();
+            command = line_to_parse.substr(0, first_space_pos);
+            std::stringstream ss(line_to_parse.substr(first_space_pos + 1));
+
             std::string base_str,at;
             double      amount;
             // TODO: maybe lucky_number and odds should not be optional?
@@ -40,37 +92,21 @@ void lotto_cli::process_command( const std::string& cmd, const std::string& args
             uint16_t    odds;
             ss >> amount >> lucky_number >> odds;
             asset       amnt(amount);
-            
-            auto required_input = amnt;
-            asset curr_bal = wallet->get_balance(0);
-            
-            std::cout<<"current balance: "<< curr_bal.get_rounded_amount() <<" "<<fc::variant((asset_type)curr_bal.unit).as_string()<<"\n";
-            std::cout<<"total price: "<< required_input.get_rounded_amount() <<" "<<fc::variant((asset_type)required_input.unit).as_string()<<"\n";
-            
-            if( required_input > curr_bal )
-            {
-                std::cout<<"Insufficient Funds\n";
-            }
-            else
-            {
-                std::cout<<"submit order? (y|n): ";
-                std::getline( std::cin, line );
-                if( line == "yes" || line == "y" )
-                {
-                    wallet->buy_ticket(lucky_number, odds, amnt);
-                    std::cout<<"order submitted\n";
-                }
-                else
-                {
-                    std::cout<<"order canceled\n";
-                }
-            }
+            arguments.push_back(fc::variant(amnt));
+            arguments.push_back(fc::variant(lucky_number));
+            arguments.push_back(fc::variant(odds));
         }
-	} else if (cmd == "lucky_number")
+    }
+    else if (command == "lucky_number")
     {
-        if( check_unlock() )
+        std::string::const_iterator iter = std::find_if(line_to_parse.begin(), line_to_parse.end(), ::isspace);
+        if (iter != line_to_parse.end())
         {
-            std::string line;
+            // then there are arguments to this function
+            size_t first_space_pos = iter - line_to_parse.begin();
+            command = line_to_parse.substr(0, first_space_pos);
+            std::stringstream ss(line_to_parse.substr(first_space_pos + 1));
+            
             uint16_t group_count = GROUP_COUNT();
             c_rankings c_r;
             for (size_t k = 0; k < group_count; k ++)
@@ -109,15 +145,41 @@ void lotto_cli::process_command( const std::string& cmd, const std::string& args
             }
             
             uint64_t lucky_number = ranking(c_r, GROUP_SPACES());
+            arguments.push_back(fc::variant(lucky_number));
+        }
+    }
+    else
+    {
+        cli::parse_interactive_command(line_to_parse, command, arguments);
+    }
+}
+fc::variant lotto_cli::execute_interactive_command(const std::string& command, const fc::variants& arguments)
+{
+    if (command == "buy_ticket")
+    {
+        FC_ASSERT(arguments.size() == 3);
+        
+        
+        auto required_input = arguments[2].as<asset>();
+        // _create_sendtoaddress_transaction takes the same arguments as sendtoaddress
+        auto result = execute_interactive_command("getbalance", fc::variants());
+        auto curr_bal = result.as<bts::blockchain::asset>();
             
-            std::cout << "lucky number is "<< lucky_number << "\n";
-            
+        std::cout<<"current balance: "<< curr_bal.get_rounded_amount() <<" "<<fc::variant((asset_type)curr_bal.unit).as_string()<<"\n";
+        std::cout<<"total price: "<< required_input.get_rounded_amount() <<" "<<fc::variant((asset_type)required_input.unit).as_string()<<"\n";
+
+        if( required_input > curr_bal )
+        {
+            std::cout<<"Insufficient Funds\n";
+        }
+        else
+        {
+            std::string line;
             std::cout<<"submit order? (y|n): ";
             std::getline( std::cin, line );
             if( line == "yes" || line == "y" )
             {
-                asset amt(1.0);
-                wallet->buy_ticket(lucky_number, 1, amt);
+                execute_interactive_command(command, arguments);
                 std::cout<<"order submitted\n";
             }
             else
@@ -126,18 +188,42 @@ void lotto_cli::process_command( const std::string& cmd, const std::string& args
             }
         }
     }
-    else if ( cmd == "draw_ticket")
-	{
-        if ( check_unlock() )
-        {
-            uint32_t block_num;
-            ss >> block_num;
-            wallet->draw_ticket(*db, block_num);
-        }
-	} else if ( cmd == "query_jackpots")
+    else if (command == "lucky_number")
     {
-        // TODO
-    } else if ( cmd == "print_rule")
+        FC_ASSERT(arguments.size() == 1);
+        uint64_t lucky_number = arguments[0].as_uint64();
+            
+        std::cout << "lucky number is "<< lucky_number << "\n";
+        
+        std::string line;
+        std::cout<<"submit order? (y|n): ";
+        std::getline( std::cin, line );
+        if( line == "yes" || line == "y" )
+        {
+            execute_interactive_command(command, arguments);
+            std::cout<<"order submitted\n";
+        }
+        else
+        {
+            std::cout<<"order canceled\n";
+        }
+    }
+    else
+    {
+        return cli::execute_interactive_command(command, arguments);
+    }
+}
+void lotto_cli::format_and_print_result(const std::string& command, const fc::variant& result)
+{
+    if ( command == "buy_ticket")
+    {
+        std::cout << "\nDone buy ticket\n";
+    }
+    if ( command == "lucky_number")
+    {
+        std::cout << "\nDone lucky number\n";
+    }
+    else if ( command == "print_rule")
     {
         // TODO: to be improved
         auto config = global_rule_config();
@@ -186,17 +272,8 @@ void lotto_cli::process_command( const std::string& cmd, const std::string& args
     }
     else
     {
-        cli::process_command(cmd, args);
+        cli::format_and_print_result(command, result);
     }
-}
-            
-void lotto_cli::list_transactions( uint32_t count ){
-    // TODO: list lotto related transactions
-    cli::list_transactions(count);
-}
-void lotto_cli::get_balance( uint32_t min_conf, uint16_t unit ){
-    // TODO: list lotto related balances
-    cli::get_balance(min_conf, unit);
 }
 
 }}

@@ -56,9 +56,6 @@ namespace bts { namespace lotto {
 
 	uint64_t lotto_db::get_jackpot_for_ticket( uint64_t ticket_block_num, uint64_t lucky_number, uint16_t odds, uint16_t amount)
     {
-		/* TODO: generate winning_number according to future blocks, maybe with prove of work
-		 * winning_number should be validate by block validation. or generated during block mining, so we can get directly from here.
-		 */
         FC_ASSERT(head_block_num() - ticket_block_num > BTS_LOTTO_BLOCKS_BEFORE_JACKPOTS_DRAW);
 		// fc::sha256 winning_number;
 		// using the next block generated block number
@@ -188,7 +185,7 @@ namespace bts { namespace lotto {
         }
         bs.ticket_sales = ticket_sales;
         bs.amount_won = amout_won;
-        // TODO: hash according to block info, move to block summary?
+
         auto head_blk = static_cast<const bts::lotto::lotto_block&>(blk);
         auto random = fc::sha256::hash(head_blk.revealed_secret.str());
         for( uint32_t i = 1; i < 100; ++i )
@@ -220,7 +217,7 @@ namespace bts { namespace lotto {
         
         my->_drawing2record.store(blk.block_num, dr);
         
-        // TODO: Should block's delegate id be retrieved this way? Then, how to achieve this before store?
+        // TODO: ToFix: Should block's delegate id be retrieved this way? Then, how to achieve this before store?
         auto delegate_id = lookup_delegate(blk.block_num)->delegate_id;
         auto block_ids = my->_delegate2blocks.fetch(delegate_id);
         block_ids.push_back(blk.block_num);

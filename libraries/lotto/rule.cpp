@@ -122,13 +122,13 @@ match match_rankings(const c_rankings& l, const c_rankings& r, const type_balls&
 
 	for(size_t i = 0; i < l.size(); i ++)
 	{
-		std::shared_ptr<combination> left_combinatioin = unranking(l[i], balls[i].second, balls[i].first);
-		std::shared_ptr<combination> right_combinatioin = unranking(r[i], balls[i].second, balls[i].first);
+		combination left_combinatioin = unranking(l[i], balls[i].second, balls[i].first);
+		combination right_combinatioin = unranking(r[i], balls[i].second, balls[i].first);
 
 		std::bitset<256> left_bits, right_bits;	// TODO: is size of 256 too big?
 		for (size_t i = 0; i < balls.size(); i++){
-			left_bits[left_combinatioin->at(i)] = 1;
-			right_bits[right_combinatioin->at(i)] = 1;
+			left_bits[left_combinatioin[i]] = 1;
+			right_bits[right_combinatioin[i]] = 1;
 		}
 
 		m.push_back( (left_bits & right_bits).count() );
@@ -159,7 +159,7 @@ uint64_t ranking(const c_rankings& r, const std::vector<uint64_t>& spaces )
 
 // unranking to combination rankings
 // TODO: making return value const?
-std::shared_ptr<c_rankings> unranking(uint64_t num, const std::vector<uint64_t>& spaces )
+c_rankings unranking(uint64_t num, const std::vector<uint64_t>& spaces )
 {
 	c_rankings rs;
 	for (int i = spaces.size() - 1; i >= 0; i --) {
@@ -168,14 +168,9 @@ std::shared_ptr<c_rankings> unranking(uint64_t num, const std::vector<uint64_t>&
 	}
 
 	std::reverse(rs.begin(), rs.end());
-	return std::make_shared<c_rankings>(rs);
+	return rs;
 }
 
-
-/* convert cominations numbers to int N, algorithm combinatorial number system
-    * 0<=C1<=C2.....
-    *
-    */
 uint64_t ranking(const combination& c)
 {
     std::vector<uint8_t> v(c);
@@ -188,7 +183,7 @@ uint64_t ranking(const combination& c)
 	return n;
 }
 
-std::shared_ptr<combination> unranking(uint64_t num, uint8_t k, uint8_t n)
+combination unranking(uint64_t num, uint8_t k, uint8_t n)
 {
 	std::vector<uint8_t> c;
     uint8_t max = n;
@@ -216,6 +211,6 @@ std::shared_ptr<combination> unranking(uint64_t num, uint8_t k, uint8_t n)
 
 	std::sort(c.begin(), c.end());
 
-	return std::make_shared<combination>(c);
+	return c;
 }
 }}	// namespace bts::lotto
