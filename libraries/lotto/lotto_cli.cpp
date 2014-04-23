@@ -73,84 +73,54 @@ lotto_cli::~lotto_cli()
 {
 }
 
-void lotto_cli::parse_interactive_command(const std::string& line_to_parse, std::string& command, fc::variants& arguments)
+fc::variants lotto_cli::parse_interactive_command(fc::buffered_istream& argument_stream, const std::string& command)
 {
-    if (command == "buy_ticket")
+    if (command == "lucky_number")
     {
-        std::string::const_iterator iter = std::find_if(line_to_parse.begin(), line_to_parse.end(), ::isspace);
-        if (iter != line_to_parse.end())
+        fc::variants arguments;
+        uint16_t group_count = GROUP_COUNT();
+        c_rankings c_r;
+        for (size_t k = 0; k < group_count; k ++)
         {
-            // then there are arguments to this function
-            size_t first_space_pos = iter - line_to_parse.begin();
-            command = line_to_parse.substr(0, first_space_pos);
-            std::stringstream ss(line_to_parse.substr(first_space_pos + 1));
-
-            std::string base_str,at;
-            double      amount;
-            // TODO: maybe lucky_number and odds should not be optional?
-            uint16_t    lucky_number;
-            uint16_t    odds;
-            ss >> amount >> lucky_number >> odds;
-            asset       amnt(amount);
-            arguments.push_back(fc::variant(amnt));
-            arguments.push_back(fc::variant(lucky_number));
-            arguments.push_back(fc::variant(odds));
-        }
-    }
-    else if (command == "lucky_number")
-    {
-        std::string::const_iterator iter = std::find_if(line_to_parse.begin(), line_to_parse.end(), ::isspace);
-        if (iter != line_to_parse.end())
-        {
-            // then there are arguments to this function
-            size_t first_space_pos = iter - line_to_parse.begin();
-            command = line_to_parse.substr(0, first_space_pos);
-            std::stringstream ss(line_to_parse.substr(first_space_pos + 1));
-            
-            uint16_t group_count = GROUP_COUNT();
-            c_rankings c_r;
-            for (size_t k = 0; k < group_count; k ++)
+            if ( k != 0)
             {
-                if ( k != 0)
-                {
-                    char seperator;
-                    ss >> seperator;
-                    FC_ASSERT(seperator == '|');
-                }
-                
-                combination combination;
-                uint16_t ball_select_count = global_rule_config().balls[k].second;
-                uint16_t ball_count = global_rule_config().balls[k].first;
-                
-                for (size_t i = 0; i < ball_select_count; i ++)
-                {
-                    uint16_t    number;
-                    ss >> number;
-                    
-                    FC_ASSERT(number > 0 && number <= ball_count);
-                    
-                    
-                    combination.push_back(number - 1);
-                }
-                
-                // assert unique of number
-                std::sort(combination.begin(), combination.end());
-                for ( size_t j = 1; j < combination.size(); j ++ )
-                {
-                    FC_ASSERT(combination[j - 1] != combination[j]);
-                }
-                
-                uint64_t r = ranking(combination);
-                c_r.push_back(r);
+                auto seperator_var = fc::json::from_stream(argument_stream);
+                std::string seperator = seperator_var.as_string();
+                FC_ASSERT(seperator == "|");
             }
             
-            uint64_t lucky_number = ranking(c_r, GROUP_SPACES());
-            arguments.push_back(fc::variant(lucky_number));
+            combination combination;
+            uint16_t ball_select_count = global_rule_config().balls[k].second;
+            uint16_t ball_count = global_rule_config().balls[k].first;
+            
+            for (size_t i = 0; i < ball_select_count; i ++)
+            {
+                auto number_var = fc::json::from_stream(argument_stream);
+                uint16_t    number = (uint16_t)number_var.as_uint64();
+                
+                FC_ASSERT(number > 0 && number <= ball_count);
+                
+                combination.push_back(number - 1);
+            }
+            
+            // assert unique of number
+            std::sort(combination.begin(), combination.end());
+            for ( size_t j = 1; j < combination.size(); j ++ )
+            {
+                FC_ASSERT(combination[j - 1] != combination[j]);
+            }
+            
+            uint64_t r = ranking(combination);
+            c_r.push_back(r);
         }
+        
+        uint64_t lucky_number = ranking(c_r, GROUP_SPACES());
+        arguments.push_back(fc::variant(lucky_number));
+        return arguments;
     }
     else
     {
-        cli::parse_interactive_command(line_to_parse, command, arguments);
+        return cli::parse_interactive_command(argument_stream, command);
     }
 }
 fc::variant lotto_cli::execute_interactive_command(const std::string& command, const fc::variants& arguments)
