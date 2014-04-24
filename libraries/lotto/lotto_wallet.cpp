@@ -41,7 +41,7 @@ bts::blockchain::signed_transaction lotto_wallet::buy_ticket(const uint64_t& luc
         signed_transaction trx;
         // TODO: validate lucknumber, odds, and amount
    
-        auto jackpot_addr = new_recv_address("Owner address for jackpot");
+		auto jackpot_addr = new_receive_address("Owner address for jackpot");
         auto inputs = std::vector<trx_input>();
 
         auto ticket_output = claim_ticket_output();
