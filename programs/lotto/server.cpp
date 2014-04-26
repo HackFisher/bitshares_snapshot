@@ -1,6 +1,7 @@
 #include <boost/program_options.hpp>
 
 #include <bts/net/chain_server.hpp>
+#include <bts/lotto/lotto_db.hpp>
 #include <fc/thread/thread.hpp>
 #include <fc/log/logger_config.hpp>
 #include <fc/io/json.hpp>
@@ -36,7 +37,8 @@ int main(int argc, char** argv)
 	try {
 		fc::configure_logging(fc::logging_config::default_config());
 
-		bts::net::chain_server cserv;
+		bts::blockchain::chain_database_ptr db = std::make_shared<bts::lotto::lotto_db>();
+		bts::net::chain_server cserv(db);
 		bts::net::chain_server::config cfg;
 		cfg.port = 8888;
 		cserv.configure(cfg);

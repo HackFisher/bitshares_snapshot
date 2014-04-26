@@ -37,7 +37,7 @@ void print_banner();
 void configure_logging(const fc::path&);
 fc::path get_data_dir(const boost::program_options::variables_map& option_variables);
 config   load_config(const fc::path& datadir);
-bts::blockchain::chain_database_ptr load_and_configure_chain_database(const fc::path& datadir,
+bts::lotto::lotto_db_ptr load_and_configure_chain_database(const fc::path& datadir,
 	const boost::program_options::variables_map& option_variables);
 
 int main(int argc, char** argv)
@@ -89,12 +89,12 @@ int main(int argc, char** argv)
 		::configure_logging(datadir);
 
 		auto cfg = load_config(datadir);
-		auto chain = load_and_configure_chain_database(datadir, option_variables);
-		auto wall = std::make_shared<bts::wallet::wallet>();
+		auto lotto_db = load_and_configure_chain_database(datadir, option_variables);
+		auto wall = std::make_shared<bts::lotto::lotto_wallet>();
 		wall->set_data_directory(datadir);
 
 		auto c = std::make_shared<bts::client::client>(p2p_mode);
-		c->set_chain(chain);
+		c->set_chain(lotto_db);
 		c->set_wallet(wall);
 
 		if (option_variables.count("trustee-private-key"))
@@ -112,9 +112,8 @@ int main(int argc, char** argv)
 			c->run_trustee(key);
 		}
 
-		bts::rpc::rpc_server_ptr rpc_server = std::make_shared<bts::rpc::rpc_server>();
+		bts::lotto::lotto_rpc_server_ptr rpc_server = std::make_shared<bts::lotto::lotto_rpc_server>();
 		rpc_server->set_client(c);
-
 
 		if (option_variables.count("server"))
 		{
@@ -152,7 +151,7 @@ int main(int argc, char** argv)
 				c->add_node("127.0.0.1:8888");
 		}
 
-		auto cli = std::make_shared<bts::cli::cli>(c, rpc_server);
+		auto cli = std::make_shared<bts::lotto::lotto_cli>(c, rpc_server);
 		cli->wait();
 
 	}
@@ -221,18 +220,18 @@ fc::path get_data_dir(const boost::program_options::variables_map& option_variab
 	} FC_RETHROW_EXCEPTIONS(warn, "error loading config")
 }
 
-bts::blockchain::chain_database_ptr load_and_configure_chain_database(const fc::path& datadir,
+bts::lotto::lotto_db_ptr load_and_configure_chain_database(const fc::path& datadir,
 	const boost::program_options::variables_map& option_variables)
 {
-	bts::blockchain::chain_database_ptr chain = std::make_shared<bts::blockchain::chain_database>();
-	chain->open(datadir / "chain", true);
+	auto db = std::make_shared<bts::lotto::lotto_db>();
+	db->open(datadir / "chain", true);
 	if (option_variables.count("trustee-address"))
-		chain->set_trustee(bts::blockchain::address(option_variables["trustee-address"].as<std::string>()));
+		db->set_trustee(bts::blockchain::address(option_variables["trustee-address"].as<std::string>()));
 	else
-		chain->set_trustee(bts::blockchain::address("ADmEYU8d5Qmr99hHT8UKbyshwahXbBduY"));
+		db->set_trustee(bts::blockchain::address("ADmEYU8d5Qmr99hHT8UKbyshwahXbBduY"));
 	if (option_variables.count("genesis-json"))
 	{
-		if (chain->head_block_num() == uint32_t(-1))
+		if (db->head_block_num() == uint32_t(-1))
 		{
 			fc::path genesis_json_file(option_variables["genesis-json"].as<std::string>());
 			bts::blockchain::trx_block genesis_block;
@@ -243,11 +242,11 @@ bts::blockchain::chain_database_ptr load_and_configure_chain_database(const fc::
 			catch (fc::exception& e)
 			{
 				wlog("Error creating genesis block from file ${filename}: ${e}", ("filename", genesis_json_file)("e", e.to_string()));
-				return chain;
+				return db;
 			}
 			try
 			{
-				chain->push_block(genesis_block);
+				db->push_block(genesis_block);
 			}
 			catch (const fc::exception& e)
 			{
@@ -257,7 +256,7 @@ bts::blockchain::chain_database_ptr load_and_configure_chain_database(const fc::
 		else
 			wlog("Ignoring genesis-json command-line argument because our blockchain already has a genesis block");
 	}
-	return chain;
+	return db;
 }
 
 config load_config(const fc::path& datadir)
