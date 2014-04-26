@@ -60,8 +60,10 @@ bts::blockchain::trx_block create_test_genesis_block(fc::path genesis_json_file)
       uint64_t total = 0;
       for( auto itr = config.balances.begin(); itr != config.balances.end(); ++itr )
       {
+          itr->second *=  100000000;;
           total += itr->second;
       }
+      FC_ASSERT(total >= 100, "genesis block must contain enough balances to distribute amongst the delegates");
       int64_t one_percent = total / 100;
       elog( "one percent: ${one}", ("one",one_percent) );
 
