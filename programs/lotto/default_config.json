@@ -1,0 +1,1 @@
+{"rpc":{"rpc_user":"user","rpc_password":"password","rpc_endpoint":"127.0.0.1:8886","httpd_endpoint":"127.0.0.1:8887","htdocs":"./lotto"},"ignore_console":false}
