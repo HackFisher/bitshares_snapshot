@@ -5,6 +5,8 @@
 #include <bts/blockchain/block_miner.hpp>
 #include <bts/blockchain/config.hpp>
 #include <bts/lotto/rule.hpp>
+#include <bts/lotto/lotto_wallet.hpp>
+#include <bts/lotto/lotto_outputs.hpp>
 #include <fc/filesystem.hpp>
 #include <fc/log/logger.hpp>
 #include <fc/io/raw.hpp>
@@ -19,10 +21,171 @@ using namespace bts::wallet;
 using namespace bts::blockchain;
 using namespace bts::lotto;
 
+#define LOTTO_TEST_NUM_WALLET_ADDRS   10
+#define LOTTO_TEST_BLOCK_SECS         (5 * 60)
+
+#define LOTTO_TEST_TRRANSFER_AMOUT_FOR_BLOCK             asset(uint64_t(1))
+
+trx_block generate_genesis_block(const std::vector<address>& addr)
+{
+    trx_block genesis;
+    genesis.version = 0;
+    genesis.block_num = 0;
+    genesis.timestamp = fc::time_point::now();
+    genesis.next_fee = block_header::min_fee();
+    genesis.total_shares = 0;
+
+    signed_transaction secret_trx;
+    secret_trx.vote = 0; // no vote
+    secret_trx.outputs.push_back(trx_output(claim_secret_output(), asset()));
+    genesis.trxs.push_back(secret_trx);
+
+    signed_transaction dtrx;
+    dtrx.vote = 0;
+    // create initial delegates
+    for (uint32_t i = 0; i < 100; ++i)
+    {
+        auto name = "delegate-" + fc::to_string(int64_t(i + 1));
+        auto key_hash = fc::sha256::hash(name.c_str(), name.size());
+        auto key = fc::ecc::private_key::regenerate(key_hash);
+        dtrx.outputs.push_back(trx_output(claim_name_output(name, std::string(), i + 1, key.get_public_key()), asset()));
+    }
+    genesis.trxs.push_back(dtrx);
+
+    // generate an initial genesis block that evenly allocates votes among all
+    // delegates.
+    for (uint32_t i = 0; i < 100; ++i)
+    {
+        signed_transaction trx;
+        trx.vote = i + 1;
+        for (uint32_t o = 0; o < 5; ++o)
+        {
+            uint64_t amnt = 200000;
+            trx.outputs.push_back(trx_output(claim_by_signature_output(addr[i]), asset(amnt)));
+            genesis.total_shares += amnt;
+        }
+        genesis.trxs.push_back(trx);
+    }
+
+    genesis.trx_mroot = genesis.calculate_merkle_root(signed_transactions());
+
+    return genesis;
+}
+
+/* State for simulating a Lotto chain, with 2 wallets, and mining*/
+class LottoTestState
+{
+    public:
+        std::shared_ptr<sim_pow_validator>  validator;
+        fc::ecc::private_key                auth;
+        fc::path                            path;
+        bts::lotto::lotto_db                db;
+
+        bts::lotto::lotto_wallet            wallet1;
+        bts::lotto::lotto_wallet            wallet2;
+
+        std::vector<address>                addrs1;
+        std::vector<address>                addrs2;
+
+        LottoTestState()
+        {
+            validator = std::make_shared<sim_pow_validator>(fc::time_point::now());
+            auth = fc::ecc::private_key::generate();
+            fc::temp_directory dir;
+            path = dir.path();
+
+            db.set_trustee(auth.get_public_key());
+            db.set_pow_validator(validator);
+            db.open(path / "lotto_test_db", true);
+
+            wallet1.create_internal(path / "lotto_test_wallet1.dat", "password", "password", true);
+            wallet2.create_internal(path / "lotto_test_wallet2.dat", "password", "password", true);
+
+            addrs1 = std::vector<address>();
+            addrs2 = std::vector<address>();
+
+            /* Start the blockchain with random balances in new addresses */
+            for (auto i = 0; i < LOTTO_TEST_NUM_WALLET_ADDRS; ++i)
+            {
+                addrs1.push_back(wallet1.new_receive_address());
+                addrs2.push_back(wallet2.new_receive_address());
+            }
+
+            std::vector<address> addrs = addrs1;
+            addrs.insert(addrs.end(), addrs2.begin(), addrs2.end());
+            auto genblk = generate_genesis_block(addrs);
+            genblk.sign(auth);
+            db.push_block(genblk);
+
+            wallet1.scan_chain(db);
+            wallet2.scan_chain(db);
+        }
+
+        ~LottoTestState()
+        {
+            db.close();
+            fc::remove_all(path);
+        }
+
+        /* Put these transactions into a block */
+        void next_block(lotto_wallet &wallet, signed_transactions &txs)
+        {
+            validator->skip_time(fc::seconds(LOTTO_TEST_BLOCK_SECS));
+
+            if (txs.size() <= 0)
+                txs.push_back(wallet.transfer(LOTTO_TEST_TRRANSFER_AMOUT_FOR_BLOCK, random_addr(wallet)));
+
+            auto next_block = wallet.generate_next_block(db, txs);
+            next_block.sign(auth);
+            db.push_block(next_block);
+
+            wallet1.scan_chain(db);
+            wallet2.scan_chain(db);
+            txs.clear();
+        }
+
+        void next_block(signed_transactions &txs)
+        {
+            signed_transaction secret_trx;
+            claim_secret_output secret_out;
+            // all 100 using the same secret
+            if (db.head_block_num() <= 100)
+            {
+                secret_out.secret = fc::sha256();
+            }
+            else
+            {
+                secret_out.secret = fc::sha256("random");
+            }
+            secret_out.revealed_secret = fc::sha256::hash(fc::sha256("random"));
+            secret_out.delegate_id = (db.head_block_num() - 1) % 100 + 1;
+            secret_trx.outputs.push_back(trx_output(secret_out, asset()));
+
+            txs.insert(txs.begin(), secret_trx);
+            next_block(wallet1, txs);
+        }
+
+        /* Get a random existing address. Good for avoiding dust in certain tests. */
+        address random_addr(lotto_wallet &wallet)
+        {
+            if (&wallet == &wallet1)
+                return addrs1[rand() % (addrs1.size())];
+            else if (&wallet == &wallet2)
+                return addrs2[rand() % (addrs2.size())];
+
+            throw;
+        }
+
+        address random_addr()
+        {
+            return random_addr(wallet1);
+        }
+};
+
 /**
  *  Test utility methods
  */
-BOOST_AUTO_TEST_CASE( combination_to_int )
+BOOST_AUTO_TEST_CASE( util_combination_to_int )
 {
 	uint8_t ticket_combination[5] = {2, 4, 17, 21, 33};
     combination ticket_v(ticket_combination, ticket_combination + 5);
@@ -63,7 +226,7 @@ BOOST_AUTO_TEST_CASE( combination_to_int )
 	BOOST_CHECK(prize_bits.count() == 2);
 }
 
-BOOST_AUTO_TEST_CASE( test_generate_rule_config )
+BOOST_AUTO_TEST_CASE( util_generate_rule_config )
 {
     rule_config config;
     config.version = 1;
@@ -127,7 +290,7 @@ BOOST_AUTO_TEST_CASE( test_generate_rule_config )
 	fc::json::save_to_file(var, p);
 }
 
-BOOST_AUTO_TEST_CASE( test_load_rule_config )
+BOOST_AUTO_TEST_CASE( util_load_rule_config )
 {
 	const rule_config& config = global_rule_config();
 	BOOST_CHECK(config.balls.size() == 2);
@@ -141,17 +304,17 @@ BOOST_AUTO_TEST_CASE( test_load_rule_config )
 	BOOST_CHECK(GROUP_SPACES()[1] == Combination(12, 2));
 }
 
-BOOST_AUTO_TEST_CASE( test_combination )
+BOOST_AUTO_TEST_CASE( util_combination )
 {
 	// TODO
 }
 
-BOOST_AUTO_TEST_CASE( test_rule_validator )
+BOOST_AUTO_TEST_CASE(util_rule_validator)
 {
 	// TODO
 }
 
-BOOST_AUTO_TEST_CASE( test_hash_and )
+BOOST_AUTO_TEST_CASE(util_hash_and)
 {
 	uint32_t left = 1;
 	uint32_t right = 2;
@@ -159,7 +322,7 @@ BOOST_AUTO_TEST_CASE( test_hash_and )
 	BOOST_CHECK((((uint64_t)left << 32) & (uint64_t)right) == result);
 }
 
-BOOST_AUTO_TEST_CASE ( test_c_ranking )
+BOOST_AUTO_TEST_CASE(util_c_ranking)
 {
     //uint64_t ranking(const c_rankings& r, const std::vector<uint64_t>& spaces )
 }
