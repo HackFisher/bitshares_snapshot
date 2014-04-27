@@ -30,8 +30,12 @@ void lotto_transaction_validator::validate_input( const meta_trx_input& in, tran
      switch( in.output.claim_func )
      {
         case claim_ticket:
-            validate_ticket_input(in, state, block_state);
+           validate_ticket_input(in, state, block_state);
            break;
+		case claim_secret:
+		   // pass, validation is done in block
+		   FC_ASSERT(false, "claim secret in should not happen...");
+		   break;
         default:
            transaction_validator::validate_input( in, state, block_state );
      }
@@ -42,8 +46,11 @@ void lotto_transaction_validator::validate_output( const trx_output& out, transa
      switch( out.claim_func )
      {
         case claim_ticket:
-            validate_ticket_output(out, state, block_state);
+           validate_ticket_output(out, state, block_state);
            break;
+		case claim_secret:
+		   // pass, validation is done in block
+		   break;
         default:
            transaction_validator::validate_output( out, state, block_state);
      }

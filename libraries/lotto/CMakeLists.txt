@@ -9,7 +9,6 @@ include_directories( "${CMAKE_SOURCE_DIR}/libraries/rpc/include" )
 
 add_library( bts_lotto
              rule.cpp
-             lotto_block.cpp
              lotto_outputs.cpp
              lotto_db.cpp
              lotto_transaction_validator.cpp

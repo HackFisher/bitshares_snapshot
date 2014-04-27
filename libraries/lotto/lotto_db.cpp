@@ -3,7 +3,6 @@
 #include <bts/lotto/lotto_db.hpp>
 #include <fc/reflect/variant.hpp>
 #include <bts/lotto/lotto_rule_validator.hpp>
-#include <bts/lotto/lotto_block.hpp>
 #include <bts/lotto/lotto_config.hpp>
 
 namespace bts { namespace lotto {
@@ -18,6 +17,7 @@ namespace bts { namespace lotto {
                 bts::db::level_map<uint32_t, drawing_record>  _drawing2record;
                 bts::db::level_map<uint32_t, block_summary>   _block2summary;
                 bts::db::level_map<uint32_t, std::vector<uint32_t>>   _delegate2blocks;
+				bts::db::level_map<uint32_t, claim_secret_output> _block2secret;
 				rule_validator_ptr                           _rule_validator;
             
         };
@@ -53,6 +53,35 @@ namespace bts { namespace lotto {
     {
        my->_rule_validator = v;
     }
+
+	void validate_secret_transactions(const signed_transactions& deterministic_trxs, const signed_transactions& trxs)
+	{
+		std::unordered_set<output_reference> ref_outs;
+		for (const signed_transaction& trx : deterministic_trxs)
+		{
+			for (auto out : trx.outputs)
+			{
+				FC_ASSERT(out.claim_func != claim_secret, "secret output is no allowed in deterministic transactions");
+			}
+		}
+		for (size_t i = 0; i < trxs.size(); i++)
+		{
+			if (i == 0)
+			{
+				FC_ASSERT(trxs[0].inputs.size() == 0, "The size of claim secret inputs should be zero.");
+				FC_ASSERT(trxs[0].outputs.size() == 1, "The size of claim secret outputs should be one.");
+
+				FC_ASSERT(trxs[0].outputs[0].claim_func == claim_secret, "The first transaction in this block should be claim secret.");
+			}
+			else
+			{
+				for (auto out : trxs[i].outputs)
+				{
+					FC_ASSERT(out.claim_func != claim_secret, "secret output is no allowed in transactions except the first one");
+				}
+			}
+		}
+	}
 
 	uint64_t lotto_db::get_jackpot_for_ticket( uint64_t ticket_block_num, uint64_t lucky_number, uint16_t odds, uint16_t amount)
     {
@@ -94,22 +123,29 @@ namespace bts { namespace lotto {
      */
     block_evaluation_state_ptr lotto_db::validate( const trx_block& blk, const signed_transactions& deterministic_trxs )
     {
-        block_evaluation_state_ptr blockstate = chain_database::validate(blk, deterministic_trxs);
+		block_evaluation_state_ptr block_state = chain_database::validate(blk, deterministic_trxs);
 
-        // TODO:
-        auto head_blk = static_cast<const bts::lotto::lotto_block&>(blk);
-        auto delegate_id = lookup_delegate(blk.block_num)->delegate_id;
-        auto itr = my->_delegate2blocks.find(delegate_id);
+		if (blk.block_num == 0) { return block_state; } // don't check anything for the genesis block;
+
+		// At least contain the claim_secret trx
+		FC_ASSERT(deterministic_trxs.size() > 0);
+
+		validate_secret_transactions(deterministic_trxs, blk.trxs);
+
+		auto secret_out = deterministic_trxs[0].outputs[0].as<claim_secret_output>();
+
+		auto itr = my->_delegate2blocks.find(secret_out.delegate_id);
         if( itr.valid() )
         {
             auto block_ids = itr.value();
-            auto trx_blk = fetch_block(block_ids[block_ids.size() - 1]);    // GetLastBlockProducedByDelegate
-            auto lotto_blk = static_cast<bts::lotto::lotto_block&>(trx_blk);
+
+			// // Get the last secret produced by this delegate
+			auto last_secret = my->_block2secret.fetch(block_ids[block_ids.size() - 1]);
             
             // TODO: reviewing the hash.
-            FC_ASSERT(fc::sha256::hash(head_blk.revealed_secret) == lotto_blk.secret);
+			FC_ASSERT(fc::sha256::hash(secret_out.revealed_secret) == last_secret.secret);
         } else {
-            FC_ASSERT(head_blk.revealed_secret == fc::sha256());   //  this is the first block produced by delegate
+			FC_ASSERT(secret_out.revealed_secret == fc::sha256());   //  this is the first block produced by delegate
         }
         
         for( const signed_transaction& trx : deterministic_trxs )
@@ -136,7 +172,7 @@ namespace bts { namespace lotto {
             }
         }
 
-        return blockstate;
+		return block_state;
     }
 
     /** 
@@ -147,6 +183,16 @@ namespace bts { namespace lotto {
     void lotto_db::store( const trx_block& blk, const signed_transactions& deterministic_trxs, const block_evaluation_state_ptr& state )
     {
         chain_database::store(blk, deterministic_trxs, state);
+
+		claim_secret_output head_secret;
+
+		if (blk.block_num > 0)
+		{
+			head_secret = deterministic_trxs[0].outputs[0].as<claim_secret_output>();
+		}
+
+		// TODO: the default delegate id of first block is 0, this could influnce delgete2blocks.....
+		my->_block2secret.store(blk.block_num, head_secret);
 
         block_summary bs;
         uint64_t ticket_sales = 0;
@@ -186,13 +232,11 @@ namespace bts { namespace lotto {
         bs.ticket_sales = ticket_sales;
         bs.amount_won = amout_won;
 
-        auto head_blk = static_cast<const bts::lotto::lotto_block&>(blk);
-        auto random = fc::sha256::hash(head_blk.revealed_secret.str());
-        for( uint32_t i = 1; i < 100; ++i )
+		auto random = fc::sha256::hash(head_secret.revealed_secret.str());
+		for (uint32_t i = 1; i < 100 && (blk.block_num - i >= 0); ++i)
         {
-            auto h_blk = fetch_block(head_blk.block_num - i);
-            auto lotto_blk = static_cast<bts::lotto::lotto_block&>(h_blk);
-            random = fc::sha256::hash(lotto_blk.revealed_secret.str() + random.str()); // where + is concat
+			auto history_secret = my->_block2secret.fetch(blk.block_num - i);
+			random = fc::sha256::hash(history_secret.revealed_secret.str() + random.str()); // where + is concat
         }
 
         // TODO: change wining_number to sha256, and recheck whether sha356 is suitable for hashing.
@@ -218,10 +262,13 @@ namespace bts { namespace lotto {
         my->_drawing2record.store(blk.block_num, dr);
         
         // TODO: ToFix: Should block's delegate id be retrieved this way? Then, how to achieve this before store?
-        auto delegate_id = lookup_delegate(blk.block_num)->delegate_id;
-        auto block_ids = my->_delegate2blocks.fetch(delegate_id);
-        block_ids.push_back(blk.block_num);
-        my->_delegate2blocks.store(delegate_id, block_ids);
+		// TODO: the default delegate id of first block is 0, this could influnce delgete2blocks.....
+		if (blk.block_num > 0)
+		{
+			auto block_ids = my->_delegate2blocks.fetch(head_secret.delegate_id);
+			block_ids.push_back(blk.block_num);
+			my->_delegate2blocks.store(head_secret.delegate_id, block_ids);
+		}
     }
 
     /**
