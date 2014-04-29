@@ -220,7 +220,7 @@ BOOST_AUTO_TEST_CASE(trx_validator_claim_secret)
 
         // no inputs and no need to sign
 
-        validator.evaluate(signed_trx, validator.create_block_state);
+        validator.evaluate(signed_trx, validator.create_block_state());
     }
     catch (const fc::exception &e)
     {
@@ -240,7 +240,7 @@ BOOST_AUTO_TEST_CASE(trx_validator_buy_ticket)
         auto signed_trx = state.wallet1.buy_ticket(88, 0, asset(10));
         wlog("tx: ${tx} ", ("tx", signed_trx));
 
-        validator.evaluate(signed_trx, validator.create_block_state);
+        validator.evaluate(signed_trx, validator.create_block_state());
     }
     catch (const fc::exception &e)
     {
@@ -261,7 +261,7 @@ BOOST_AUTO_TEST_CASE(trx_validator_lucky_number)
         auto signed_trx = state.wallet1.buy_ticket(888, 0, asset(1.0));
         wlog("tx: ${tx} ", ("tx", signed_trx));
 
-        validator.evaluate(signed_trx, validator.create_block_state);
+        validator.evaluate(signed_trx, validator.create_block_state());
     }
     catch (const fc::exception &e)
     {

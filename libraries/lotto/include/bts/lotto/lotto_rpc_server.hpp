@@ -2,6 +2,7 @@
 #include <bts/rpc/rpc_server.hpp>
 
 namespace bts { namespace lotto {
+  using namespace bts::rpc;
   
   namespace detail
   {
