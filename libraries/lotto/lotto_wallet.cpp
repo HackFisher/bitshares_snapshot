@@ -94,13 +94,25 @@ bool lotto_wallet::scan_output( transaction_state& state, const trx_output& out,
     try {
         switch ( out.claim_func )
         {
+            case claim_secret:
+            {
+                // pass, no need to cache
+                return true;
+            }
             case claim_ticket:
             {
-                if (is_my_address( out.as<claim_ticket_output>().owner ))
+                auto receive_address = out.as<claim_ticket_output>().owner; 
+                if (is_my_address( receive_address ))
                 {
 					// Is my ticket do not ajust balance.
                     cache_output( state.trx.vote, out, out_ref, oidx );
+                    state.from[ receive_address ] = get_receive_address_label( receive_address );
+                    state.adjust_balance( out.amount, 1 );
                     return true;
+                }
+                else if( state.delta_balance.size() )
+                {
+                    // TODO: what is this?
                 }
                 return false;
             }
@@ -111,18 +123,10 @@ bool lotto_wallet::scan_output( transaction_state& state, const trx_output& out,
 }
 
 void lotto_wallet::scan_input( transaction_state& state, const output_reference& ref, const output_index& idx  ){
-    auto itr = get_unspent_outputs().find(idx);
-    if( itr != get_unspent_outputs().end() )
-    {
-        if (itr->second.claim_func == claim_ticket) {
-            return;
-        } else {
-            wallet::scan_input(state, ref, idx);
-            return;
-        }
-    }
+    // For claim secret output, there is no need to scan.
+    // Because secret output is required to must have zero amount asset, so will not affect ajust balance
+    // And, claim_secret is not cached, so the input is not ownered by the wallet.
 
-    // TODO: scan from spent outputs?
     wallet::scan_input(state, ref, idx);
 }
 

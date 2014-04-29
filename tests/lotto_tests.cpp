@@ -26,6 +26,27 @@ using namespace bts::lotto;
 
 #define LOTTO_TEST_TRRANSFER_AMOUT_FOR_BLOCK             asset(uint64_t(1))
 
+std::pair<fc::sha256, fc::sha256> delegate_secret_last_revealed_secret_pair(uint16_t delegate_id)
+{
+    static std::map<uint16_t, std::pair<fc::sha256, fc::sha256>> _delegate_secret_pair_map;
+
+    if (_delegate_secret_pair_map.find(delegate_id) == _delegate_secret_pair_map.end())
+    {
+        fc::sha256 new_reveal_secret = fc::sha256("To generate random number with" + fc::to_string((int64_t)std::rand()));
+        fc::sha256 new_secret = fc::sha256::hash(new_reveal_secret);
+        _delegate_secret_pair_map[delegate_id] = std::pair<fc::sha256, fc::sha256>(new_secret, new_reveal_secret);
+        return std::pair<fc::sha256, fc::sha256>(new_secret, fc::sha256());
+    }
+    else
+    {
+        fc::sha256 new_reveal_secret = fc::sha256("To generate random number with" + fc::to_string((int64_t)std::rand()));
+        fc::sha256 new_secret = fc::sha256::hash(new_reveal_secret);
+        auto secret_pair = std::pair<fc::sha256, fc::sha256>(new_secret, _delegate_secret_pair_map[delegate_id].second);
+        _delegate_secret_pair_map[delegate_id] = std::pair<fc::sha256, fc::sha256>(new_secret, new_reveal_secret);
+        return secret_pair;
+    }
+}
+
 trx_block generate_genesis_block(const std::vector<address>& addr)
 {
     trx_block genesis;
@@ -148,17 +169,15 @@ class LottoTestState
         {
             signed_transaction secret_trx;
             claim_secret_output secret_out;
-            // all 100 using the same secret
-            if (db.head_block_num() <= 100)
-            {
-                secret_out.secret = fc::sha256();
-            }
-            else
-            {
-                secret_out.secret = fc::sha256("random");
-            }
-            secret_out.revealed_secret = fc::sha256::hash(fc::sha256("random"));
+
             secret_out.delegate_id = (db.head_block_num() - 1) % 100 + 1;
+            auto secret_pair = delegate_secret_last_revealed_secret_pair(secret_out.delegate_id);
+            
+            // hash of secret for this round
+            secret_out.secret = secret_pair.first;
+            // reveal secret of last round
+            secret_out.revealed_secret = secret_pair.second;
+            
             secret_trx.outputs.push_back(trx_output(secret_out, asset()));
 
             txs.insert(txs.begin(), secret_trx);
@@ -181,6 +200,80 @@ class LottoTestState
             return random_addr(wallet1);
         }
 };
+
+BOOST_AUTO_TEST_CASE(trx_validator_claim_secret)
+{
+    try
+    {
+        LottoTestState state;
+        lotto_transaction_validator validator(&state.db);
+
+        signed_transaction signed_trx;
+
+        /* Build secret output */
+        claim_secret_output secret_out;
+        secret_out.secret = fc::sha256::hash(fc::sha256("next_secret_for_hash"));
+        secret_out.revealed_secret = fc::sha256("last_secret_for_hash");
+
+        // amount must be zero
+        signed_trx.outputs.push_back(trx_output(secret_out, asset()));
+
+        // no inputs and no need to sign
+
+        validator.evaluate(signed_trx, validator.create_block_state);
+    }
+    catch (const fc::exception &e)
+    {
+        std::cerr << e.to_detail_string() << "\n";
+        elog("${e}", ("e", e.to_detail_string()));
+        throw;
+    }
+}
+
+BOOST_AUTO_TEST_CASE(trx_validator_buy_ticket)
+{
+    try
+    {
+        LottoTestState state;
+        lotto_transaction_validator validator(&state.db);
+
+        auto signed_trx = state.wallet1.buy_ticket(88, 0, asset(10));
+        wlog("tx: ${tx} ", ("tx", signed_trx));
+
+        validator.evaluate(signed_trx, validator.create_block_state);
+    }
+    catch (const fc::exception &e)
+    {
+        std::cerr << e.to_detail_string() << "\n";
+        elog("${e}", ("e", e.to_detail_string()));
+        throw;
+    }
+}
+
+/* lucky number is just a special buy_ticket trx that only buy 1 amout of ticket*/
+BOOST_AUTO_TEST_CASE(trx_validator_lucky_number)
+{
+    try
+    {
+        LottoTestState state;
+        lotto_transaction_validator validator(&state.db);
+
+        auto signed_trx = state.wallet1.buy_ticket(888, 0, asset(1.0));
+        wlog("tx: ${tx} ", ("tx", signed_trx));
+
+        validator.evaluate(signed_trx, validator.create_block_state);
+    }
+    catch (const fc::exception &e)
+    {
+        std::cerr << e.to_detail_string() << "\n";
+        elog("${e}", ("e", e.to_detail_string()));
+        throw;
+    }
+}
+
+BOOST_AUTO_TEST_CASE(trx_validator_draw_ticket)
+{
+}
 
 /**
  *  Test utility methods
@@ -306,7 +399,25 @@ BOOST_AUTO_TEST_CASE( util_load_rule_config )
 
 BOOST_AUTO_TEST_CASE( util_combination )
 {
-	// TODO
+    BOOST_CHECK(Combination(156, 0) == 156);
+
+    BOOST_CHECK(Combination(254, 30) == Combination(254, 254 - 30));
+
+    BOOST_CHECK(Combination(133, 4) == (133 * 132 * 131 * 130) / (4 * 3 * 2 * 1));
+
+    auto no_exception = false;
+    try
+    {
+        // N should not be larger than 256
+        Combination(256, 3);
+        no_exception = true;
+    }
+    catch (const fc::exception &e)
+    {
+        no_exception = false;
+    }
+
+    BOOST_CHECK(no_exception == false);
 }
 
 BOOST_AUTO_TEST_CASE(util_rule_validator)
@@ -324,5 +435,25 @@ BOOST_AUTO_TEST_CASE(util_hash_and)
 
 BOOST_AUTO_TEST_CASE(util_c_ranking)
 {
-    //uint64_t ranking(const c_rankings& r, const std::vector<uint64_t>& spaces )
+    c_rankings cr;
+    cr.push_back(6);
+    cr.push_back(34);
+    cr.push_back(17);
+
+    c_rankings spaces;
+    spaces.push_back(21);
+    spaces.push_back(50);
+    spaces.push_back(100);
+    BOOST_CHECK( ranking(cr, spaces) == ( 6 * 50 * 100 + 34 * 100 + 17 ) );
+
+    BOOST_CHECK( unranking( 6 * 50 * 100 + 34 * 100 + 17, spaces) == cr );
+}
+
+BOOST_AUTO_TEST_CASE(util_random_hash)
+{
+    fc::sha256 revealed_secret("I'm a random selected secret!");
+    fc::sha256 secret = fc::sha256::hash(revealed_secret);
+
+    BOOST_CHECK(revealed_secret != secret);
+    BOOST_CHECK(secret._hash[0] == fc::hash64(revealed_secret.data(), 32));
 }

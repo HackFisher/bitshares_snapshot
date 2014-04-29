@@ -7,8 +7,9 @@ namespace bts { namespace lotto {
 enum claim_type_enum
 {
    /** basic claim by single address */
-   claim_ticket         = 30,
-   claim_secret			= 31
+   claim_secret			= 30,
+   claim_ticket         = 31
+   
 };
 
 

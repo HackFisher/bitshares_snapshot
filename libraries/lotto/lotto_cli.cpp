@@ -10,64 +10,9 @@
 
 namespace bts { namespace lotto {
 
-/* TODO: remove this.
-void lotto_cli::print_help(){
-    std::cout<<"Lotto Commands\n";
-    std::cout<<"-------------------------------------------------------------\n";
-    std::cout<<"buy_ticket [AMOUNT] [LUCKY_NUMBER] [ODDS] - buy tickets for specific lucky number with some odds\n";
-    std::cout<<"lucky_number - but 1 share of lotto ticket. FORMAT: R1 R2 R3 R4 R5 | B1 B2 e.g. 3 6 21 25 31 | 4 7\n";
-    std::cout<<"print_rule - print details gaming rule.";
-    std::cout<<"draw_ticket [BLOCK_NUMBER]- draw tickets\n";
-    std::cout<<"-------------------------------------------------------------\n";
-
-    cli::print_help();
+lotto_cli::lotto_cli( const client_ptr& client, const bts::rpc::rpc_server_ptr& rpc_server ) : cli(client, rpc_server)
+{
 }
-void lotto_cli::process_command( const std::string& cmd, const std::string& args ){
-    std::stringstream ss(args);
-
-    const lotto_db_ptr db = std::dynamic_pointer_cast<lotto_db>(client()->get_chain());
-    const lotto_wallet_ptr wallet = std::dynamic_pointer_cast<lotto_wallet>(client()->get_wallet());
-
-    if( cmd == "buy_ticket" )
-	{
-        
-	} else if (cmd == "lucky_number")
-    {
-        if( check_unlock() )
-        {
-            
-        }
-    }
-    else if ( cmd == "draw_ticket")
-	{
-        if ( check_unlock() )
-        {
-            uint32_t block_num;
-            ss >> block_num;
-            wallet->draw_ticket(*db, block_num);
-        }
-	} else if ( cmd == "query_jackpots")
-    {
-    } else 
-    else
-    {
-        cli::process_command(cmd, args);
-    }
-}
-*/
-
-lotto_cli::lotto_cli( const client_ptr& client, const bts::rpc::rpc_server_ptr& rpc_server ) :
-    cli(client, rpc_server)// my( new detail::cli_impl(client, rpc_server) )
-  {
-      /* TODO: remove this.
-    my->_self        = this;
-    my->_main_thread = &fc::thread::current();
-
-    my->create_wallet_if_missing();
-
-    my->_cin_complete = fc::async( [=](){ my->process_commands(); } );
-    */
-  }
 
 lotto_cli::~lotto_cli()
 {
@@ -123,6 +68,7 @@ fc::variants lotto_cli::parse_interactive_command(fc::buffered_istream& argument
         return cli::parse_interactive_command(argument_stream, command);
     }
 }
+
 fc::variant lotto_cli::execute_interactive_command(const std::string& command, const fc::variants& arguments)
 {
     if (command == "buy_ticket")

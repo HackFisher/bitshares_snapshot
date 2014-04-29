@@ -49,6 +49,7 @@ void lotto_transaction_validator::validate_output( const trx_output& out, transa
            validate_ticket_output(out, state, block_state);
            break;
 		case claim_secret:
+           FC_ASSERT(out.amount.get_rounded_amount() == 0, "Amount for secret output is required to be zero");
 		   // pass, validation is done in block
 		   break;
         default:

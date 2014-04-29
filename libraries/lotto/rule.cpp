@@ -107,6 +107,9 @@ uint64_t Combination(uint8_t N, uint8_t k)
 		inited = true;
 	}
 
+    FC_ASSERT(N < 256, "N should less than 256.", ("N", N));
+    FC_ASSERT(k < 128, "k should less than 128.", ("k", k));
+
 	if (N < k) return 0;
 	if ((N - k) < k) k = N -k;
 	
