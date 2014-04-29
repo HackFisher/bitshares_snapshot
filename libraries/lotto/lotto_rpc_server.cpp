@@ -53,9 +53,13 @@ namespace bts { namespace lotto {
     fc::variant lotto_rpc_server_impl::draw_ticket(const fc::variants& params)
     {
       FC_ASSERT(params.size() == 1);
-      uint64_t block_num = params[0].as_uint64();
+      uint64_t ticket_num = params[0].as_uint64();
 
-      auto tx = get_lotto_wallet()->draw_ticket(*get_lotto_db(), block_num);
+      // TODO: To be tested. to convert to ticket_number(uint64_t) and ticket_number::as_uint64()
+      ticket_number ticket_num(
+          ticket_num >> 32, (ticket_num << 32) >> 48, (ticket_num << 48) >> 48);
+
+      auto tx = get_lotto_wallet()->draw_ticket(*get_lotto_db(), ticket_num);
 
       _self->get_client()->broadcast_transaction(tx);
       return fc::variant(true);
@@ -67,11 +71,14 @@ namespace bts { namespace lotto {
       asset bid = params[1].as<asset>();
       signed_transactions tx_pool;
 
+      // TODO
       //auto tx = get_lotto_wallet()->qui
 
       //_self->get_client()->broadcast_transaction(tx);
       return fc::variant(true);
     }
+
+    // TODO: query tickets, also show the related jackpots.
 
   } // end namespace detail
 

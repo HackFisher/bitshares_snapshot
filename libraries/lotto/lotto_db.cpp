@@ -83,17 +83,17 @@ namespace bts { namespace lotto {
 		}
 	}
 
-	uint64_t lotto_db::get_jackpot_for_ticket( uint64_t ticket_block_num, uint64_t lucky_number, uint16_t odds, uint16_t amount)
+	asset lotto_db::get_jackpot_for_ticket( output_index out_idx, uint64_t lucky_number, uint16_t odds, uint16_t amount)
     {
-        FC_ASSERT(head_block_num() - ticket_block_num > BTS_LOTTO_BLOCKS_BEFORE_JACKPOTS_DRAW);
+        FC_ASSERT(head_block_num() - out_idx.block_idx > BTS_LOTTO_BLOCKS_BEFORE_JACKPOTS_DRAW);
 		// fc::sha256 winning_number;
 		// using the next block generated block number
-        uint64_t winning_number = my->_block2summary.fetch(ticket_block_num + BTS_LOTTO_BLOCKS_BEFORE_JACKPOTS_DRAW).winning_number;
+        uint64_t winning_number = my->_block2summary.fetch(out_idx.block_idx + BTS_LOTTO_BLOCKS_BEFORE_JACKPOTS_DRAW).winning_number;
 		
         // TODO: what's global_odds, ignore currenly.
 		uint64_t global_odds = 0;
 
-		auto dr = my->_drawing2record.fetch(ticket_block_num + BTS_LOTTO_BLOCKS_BEFORE_JACKPOTS_DRAW);
+		auto dr = my->_drawing2record.fetch(out_idx.block_idx + BTS_LOTTO_BLOCKS_BEFORE_JACKPOTS_DRAW);
         
         return my->_rule_validator->evaluate_jackpot(winning_number, lucky_number, dr.total_jackpot);
 

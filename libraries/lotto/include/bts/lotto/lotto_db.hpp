@@ -3,11 +3,13 @@
 #include <bts/blockchain/asset.hpp>
 #include <bts/blockchain/transaction.hpp>
 #include <bts/blockchain/chain_database.hpp>
+#include <bts/wallet/wallet.hpp>
 
 #include <bts/lotto/lotto_transaction_validator.hpp>
 #include <bts/lotto/lotto_rule_validator.hpp>
 
 namespace bts { namespace lotto {
+using namespace bts::wallet;
 
 namespace detail  { class lotto_db_impl; }
 
@@ -41,7 +43,7 @@ class lotto_db : public bts::blockchain::chain_database
 
 		void set_rule_validator( const rule_validator_ptr& v );
 
-        uint64_t get_jackpot_for_ticket( uint64_t ticket_block_num, uint64_t lucky_number, uint16_t odds, uint16_t amount );
+        asset get_jackpot_for_ticket( output_index out_idx, uint64_t lucky_number, uint16_t odds, uint16_t amount );
 
         /**
          * Performs global validation of a block to make sure that no two transactions conflict. In

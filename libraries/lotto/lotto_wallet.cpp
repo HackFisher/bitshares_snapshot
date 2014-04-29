@@ -56,37 +56,41 @@ bts::blockchain::signed_transaction lotto_wallet::buy_ticket(const uint64_t& luc
     } FC_RETHROW_EXCEPTIONS(warn, "buy_ticket ${luckynumber} with ${odds}", ("name", luckynumber)("amt", odds))
 }
 
-bts::blockchain::signed_transaction lotto_wallet::draw_ticket( lotto_db& lotto_db, const uint32_t& ticket_block_num )
+bts::blockchain::signed_transaction lotto_wallet::draw_ticket( lotto_db& lotto_db, const ticket_number& ticket_num )
 {
 	try {
-        // TODO: more validations?
-        FC_ASSERT(lotto_db.head_block_num() - ticket_block_num > BTS_LOTTO_BLOCKS_BEFORE_JACKPOTS_DRAW);
-        
-		// For each ticket draw transaction, the input.out_ref must have the same block number.
-		auto unspent_outputs = get_unspent_outputs();
-		signed_transaction trx;
+        // TODO: using ticket_num.to_output_index() instead
+        auto out_idx = ticket_num;
+
+        FC_ASSERT(lotto_db.head_block_num() - out_idx.block_idx > BTS_LOTTO_BLOCKS_BEFORE_JACKPOTS_DRAW);
+
+        auto unspent_outputs = get_unspent_outputs();
+        FC_ASSERT(unspent_outputs.find(out_idx) != unspent_outputs.end());
+
+        auto ticket_out = unspent_outputs[out_idx];
+        FC_ASSERT(ticket_out.claim_func == claim_ticket);
+
+        auto claim_ticket = ticket_out.as<claim_ticket_output>();
+
+        signed_transaction trx;
 		auto req_sigs = std::unordered_set<bts::blockchain::address>();
+
+        auto jackpot = lotto_db.get_jackpot_for_ticket(out_idx, claim_ticket.lucky_number, claim_ticket.odds, ticket_out.amount.get_rounded_amount());
         
-		for (auto out : unspent_outputs)
-		{
-			if (out.first.block_idx == ticket_block_num && out.second.claim_func == claim_ticket)
-			{
-                auto out_ref = get_ref_from_output_idx(out.first);
-                auto output = lotto_db.fetch_output(out_ref);
-                
-                auto claim_ticket = output.as<claim_ticket_output>();
-                
-				uint64_t jackpot = lotto_db.get_jackpot_for_ticket(ticket_block_num, claim_ticket.lucky_number, claim_ticket.odds, output.amount.get_rounded_amount());
-				trx.inputs.push_back( trx_input( claim_ticket_input(),  out_ref) );
-				trx.outputs.push_back( trx_output( 
-					claim_by_signature_output( out.second.as<claim_ticket_output>().owner), asset(jackpot, out.second.amount.unit) ) );
-				req_sigs.insert( out.second.as<claim_ticket_output>().owner );
-			}
-		}
+        // Only support jackpot with same unit, but anyway it will be validate in lotto_state in trx validator
+        FC_ASSERT(ticket_out.amount.unit == jackpot.unit);
+
+        trx.inputs.push_back( trx_input( claim_ticket_input(),  get_ref_from_output_idx(out_idx)) );
+
+        auto draw_output = claim_by_signature_output( ticket_out.as<claim_ticket_output>().owner );
+		trx.outputs.push_back( trx_output( draw_output, jackpot ) );
+		
+        // Require the owner to draw the ticket, maybe, ticket draw trx could be deterministric trx, so could be draw automatic.
+        req_sigs.insert( ticket_out.as<claim_ticket_output>().owner );
 
         return collect_inputs_and_sign(trx, asset(), req_sigs);
 		
-	} FC_RETHROW_EXCEPTIONS(warn, "draw_ticket ")
+    } FC_RETHROW_EXCEPTIONS(warn, "draw_ticket with ${ticket_number}", ("ticket_number", ticket_num))
 }
 
 bool lotto_wallet::scan_output( transaction_state& state, const trx_output& out, const output_reference& out_ref, const bts::wallet::output_index& oidx )

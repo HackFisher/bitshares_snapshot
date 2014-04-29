@@ -8,6 +8,9 @@ namespace bts { namespace lotto {
     using namespace bts::blockchain;
     using namespace bts::wallet;
 
+    // TODO convert ticket_number to a struct
+    typedef output_index ticket_number;
+
 	namespace detail { class lotto_wallet_impl; }
     
 	class lotto_wallet : public bts::wallet::wallet
@@ -18,7 +21,7 @@ namespace bts { namespace lotto {
             bts::blockchain::signed_transaction buy_ticket(const uint64_t& luckynumber, const uint16_t& odds,
                                                         asset amount);
 
-			bts::blockchain::signed_transaction draw_ticket( lotto_db& db, const uint32_t& ticket_block_num);
+			bts::blockchain::signed_transaction draw_ticket( lotto_db& db, const ticket_number& ticket_num);
 
         protected:
             virtual bool scan_output( transaction_state& state, const trx_output& out, const output_reference& out_ref, const bts::wallet::output_index& oidx );
