@@ -44,7 +44,7 @@ struct claim_ticket_output
     /**
      *  Who owns the ticket and thus can claim the jackpot
      */
-    address   owner;
+    bts::blockchain::address   owner;
 
     /** The probability of winning... increasing the odds will 
      * cause the amount won to grow by Jackpot * odds, but the
@@ -81,19 +81,20 @@ struct claim_jackpot_output
 {
     static const claim_type_enum type;
 
-    claim_jackpot_output( const address& a ):owner(a), mature_day(0){}
+    claim_jackpot_output(const bts::blockchain::address& a) :owner(a), mature_day(0){}
+    claim_jackpot_output() : mature_day(0){}
 
     /**
      * The beneficiary of the jackpot.
      * Must be the ticket owner or the beneficiary in the ticket
      */
-    address   owner;
+    bts::blockchain::address   owner;
 
     /**
      * After mature days the owner can spent this output
      */
     uint16_t mature_day;
-}
+};
 
 }} //bts::lotto
 
@@ -101,6 +102,6 @@ FC_REFLECT_ENUM(bts::lotto::claim_type_enum, (claim_secret)(claim_ticket)(claim_
 FC_REFLECT(bts::lotto::claim_ticket_input, BOOST_PP_SEQ_NIL);
 FC_REFLECT(bts::lotto::claim_ticket_output, (owner)(odds));
 FC_REFLECT(bts::lotto::claim_secret_input, BOOST_PP_SEQ_NIL);
-FC_REFLECT(bts::lotto::claim_secret_output, (secret)(revealed_secret)(delegate_id))
+FC_REFLECT(bts::lotto::claim_secret_output, (secret)(revealed_secret)(delegate_id));
 FC_REFLECT(bts::lotto::claim_jackpot_input, BOOST_PP_SEQ_NIL);
 FC_REFLECT(bts::lotto::claim_jackpot_output, (owner)(mature_day));
