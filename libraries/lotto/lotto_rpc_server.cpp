@@ -4,6 +4,14 @@
 
 namespace bts { namespace lotto {
 
+#define LOTTO_RPC_METHOD_LIST\
+                (buy_ticket)\
+                (lucky_number)\
+                (draw_ticket)\
+                (query_jackpots)
+
+
+
   namespace detail
   {
     class lotto_rpc_server_impl
@@ -20,15 +28,9 @@ namespace bts { namespace lotto {
         return std::dynamic_pointer_cast<lotto_db>(_self->get_client()->get_chain());
       }
 
-
 #define DECLARE_RPC_METHOD( r, visitor, elem )  fc::variant elem( const fc::variants& );
 #define DECLARE_RPC_METHODS( METHODS ) BOOST_PP_SEQ_FOR_EACH( DECLARE_RPC_METHOD, v, METHODS ) 
-      DECLARE_RPC_METHODS(
-            (buy_ticket)
-            (lucky_number)
-            (draw_ticket)
-            (query_jackpots)
-      )
+        DECLARE_RPC_METHODS( LOTTO_RPC_METHOD_LIST )
 #undef DECLARE_RPC_METHOD
 #undef DECLARE_RPC_METHODS
     };
@@ -139,19 +141,19 @@ TODO:
   {
     my->_self = this;
 
-#define REGISTER_JSON_METHOD(METHODNAME) \
+#define REGISTER_LOTTO_RPC_METHOD( r, visitor, METHODNAME ) \
     do { \
-    method_data data_with_functor(detail::METHODNAME##_metadata); \
-    data_with_functor.method = boost::bind(&detail::lotto_rpc_server_impl::METHODNAME, my.get(), _1); \
-    register_method(data_with_functor); \
-    } while (0)
+        method_data data_with_functor(detail::BOOST_PP_CAT(METHODNAME,_metadata)); \
+        data_with_functor.method = boost::bind(&detail::lotto_rpc_server_impl::METHODNAME, my.get(), _1); \
+        register_method(data_with_functor); \
+    } while (0);
+#define REGISTER_LOTTO_RPC_METHODS( METHODS ) \
+    BOOST_PP_SEQ_FOR_EACH( REGISTER_LOTTO_RPC_METHOD, v, METHODS ) 
 
-    REGISTER_JSON_METHOD(buy_ticket);
-    REGISTER_JSON_METHOD(lucky_number);
-    REGISTER_JSON_METHOD(draw_ticket);
-    REGISTER_JSON_METHOD(query_jackpots);
-
-#undef REGISTER_JSON_METHOD
+    REGISTER_LOTTO_RPC_METHODS( LOTTO_RPC_METHOD_LIST )
+                        
+#undef REGISTER_LOTTO_RPC_METHOD
+#undef REGISTER_LOTTO_RPC_METHODS
   }
 
   lotto_rpc_server::~lotto_rpc_server()

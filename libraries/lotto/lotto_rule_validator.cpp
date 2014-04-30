@@ -32,7 +32,7 @@ namespace bts { namespace lotto {
 		return 0;
 	}
 
-    uint64_t rule_validator::evaluate_jackpot(const uint64_t& winning_number, const uint64_t& lucky_number, const uint64_t& amount)
+    uint64_t rule_validator::evaluate_jackpot(const uint64_t& winning_number, const uint64_t& lucky_number, const uint64_t& total_jackpots)
 	{
 		// This is only one kind of implementation, we call also implement it as dice.
 		uint64_t total_space = TOTAL_SPACE();
@@ -65,9 +65,28 @@ namespace bts { namespace lotto {
 		}
 
 		// TODO switch case... level to find jackpots
-		uint16_t jackpot = 0;
+		uint16_t jackpot = 1;
 
 		// ...
+
+        // 3. jackpot should not be calculated here, 
+		/*
+		fc::sha256::encoder enc;
+		enc.write( (char*)&lucky_number, sizeof(lucky_number) );
+		enc.write( (char*)&winning_number, sizeof(winning_number) );
+		enc.result();
+		fc::bigint  result_bigint( enc.result() );
+
+		// the ticket number must be below the winning threshold to claim the jackpot
+		auto winning_threshold = result_bigint.to_int64 % fc::bigint( global_odds * odds ).to_int64();
+		auto ticket_threshold = amount / odds;
+		if (winning_threshold < ticket_threshold)	// we have a winners
+		{
+			return jackpots;
+		}
+		*/
+
+		// return 0;
 
 		return jackpot;
 	}

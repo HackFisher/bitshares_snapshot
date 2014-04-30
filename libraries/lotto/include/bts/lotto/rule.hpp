@@ -15,7 +15,7 @@
 #include <fc/log/logger.hpp>
 #include <bts/lotto/lotto_db.hpp>
 
-/**
+   /**
     *  @brief encapsulates an combination number in
     *  integer form.   It can be converted to arrays or bits for matching
     *  winning or input purposes and can also be constructed from an combinatorial representation of integer

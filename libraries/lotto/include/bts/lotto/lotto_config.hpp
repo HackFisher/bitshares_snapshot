@@ -1,13 +1,16 @@
 #pragma once
 
-#define BTS_LOTTO_BLOCKS_BEFORE_JACKPOTS_DRAW 100
 /*
-#define BTS_LOTTO_RED_SET_COUNT (35)
-#define BTS_LOTTO_RED_COMBINATION_COUNT (5)
-#define BTS_LOTTO_BLUE_SET_COUNT (12)
-#define BTS_LOTTO_BLUE_COMBINATION_COUNT (2)
+ * The blocks number between ticket purchase block and winning number out block
+ */
+#define BTS_LOTTO_BLOCKS_BEFORE_JACKPOTS_DRAW 100
 
-#define BTS_LOTTO_RED_COMBINATION_COUNT (324632)	// C(35, 5)
-#define BTS_LOTTO_BLUE_COMBINATION_COUNT (66)		// C(12, 2)
-#define BTS_LOTTO_TOTAL_COMBINATION_COUNT (324632 * 66)	// BTS_LOTTO_RED_COMBINATION_COUNT * BTS_LOTTO_BLUE_COMBINATION_COUNT
-*/
+
+// TO be move to rule config file
+
+/*
+ * The blocks number between ticket purchase block and winning number out block
+ * Jackpot outputs in the same draw transanctions must have different mature days.
+ * TODO: This config is to be moved to rule definition, checked by jackpot output.
+ */
+#define BTS_LOTTO_RULE_MAXIMUM_REWARDS_EACH_JACKPOT_OUTPUT 100000000000

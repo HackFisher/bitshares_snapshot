@@ -23,7 +23,7 @@ class rule_validator
 	   */
 	  virtual uint64_t evaluate_total_jackpot(const uint64_t& winning_number, const uint64_t& target_block_num, const uint64_t& available_funds);
       
-      virtual uint64_t evaluate_jackpot(const uint64_t& winning_number, const uint64_t& lucky_number, const uint64_t& amount);
+      virtual uint64_t evaluate_jackpot(const uint64_t& winning_number, const uint64_t& lucky_number, const uint64_t& total_jackpots);
 
    protected:
       lotto_db* _db;

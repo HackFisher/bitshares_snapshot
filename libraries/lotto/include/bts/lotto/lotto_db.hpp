@@ -1,4 +1,3 @@
-
 #pragma once
 #include <bts/blockchain/asset.hpp>
 #include <bts/blockchain/transaction.hpp>
@@ -22,6 +21,7 @@ struct drawing_record
    uint64_t total_paid;		// total jackpot which have been paid in future block.
    uint64_t jackpot_pool;
 };
+
 struct block_summary
 {
    block_summary()
@@ -43,7 +43,10 @@ class lotto_db : public bts::blockchain::chain_database
 
 		void set_rule_validator( const rule_validator_ptr& v );
 
-        asset get_jackpot_for_ticket( output_index out_idx, uint64_t lucky_number, uint16_t odds, uint16_t amount );
+        /**
+         * Calculate the jackpot reward for this ticket.
+         */
+        asset get_jackpot_for_ticket( output_index out_idx, uint64_t lucky_number, uint16_t odds, asset amount );
 
         /**
          * Performs global validation of a block to make sure that no two transactions conflict. In

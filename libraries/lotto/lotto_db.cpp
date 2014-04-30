@@ -40,6 +40,7 @@ namespace bts { namespace lotto {
             chain_database::open( dir, create );
             my->_drawing2record.open( dir / "drawing2record", create );
             my->_block2summary.open( dir / "block2summary", create );
+            my->_block2secret.open( dir / "block2secret", create );
         } FC_RETHROW_EXCEPTIONS( warn, "Error loading domain database ${dir}", ("dir", dir)("create", create) );
     }
 
@@ -47,6 +48,7 @@ namespace bts { namespace lotto {
     {
         my->_drawing2record.close();
         my->_block2summary.close();
+        my->_block2secret.close();
     }
 
 	void lotto_db::set_rule_validator( const rule_validator_ptr& v )
@@ -83,7 +85,7 @@ namespace bts { namespace lotto {
 		}
 	}
 
-	asset lotto_db::get_jackpot_for_ticket( output_index out_idx, uint64_t lucky_number, uint16_t odds, uint16_t amount)
+	asset lotto_db::get_jackpot_for_ticket( output_index out_idx, uint64_t lucky_number, uint16_t odds, asset amount )
     {
         FC_ASSERT(head_block_num() - out_idx.block_idx > BTS_LOTTO_BLOCKS_BEFORE_JACKPOTS_DRAW);
 		// fc::sha256 winning_number;
@@ -95,26 +97,9 @@ namespace bts { namespace lotto {
 
 		auto dr = my->_drawing2record.fetch(out_idx.block_idx + BTS_LOTTO_BLOCKS_BEFORE_JACKPOTS_DRAW);
         
-        return my->_rule_validator->evaluate_jackpot(winning_number, lucky_number, dr.total_jackpot);
+        uint64_t jackpot =  my->_rule_validator->evaluate_jackpot(winning_number, lucky_number, dr.total_jackpot);
 
-		// 3. jackpot should not be calculated here, 
-		/*
-		fc::sha256::encoder enc;
-		enc.write( (char*)&lucky_number, sizeof(lucky_number) );
-		enc.write( (char*)&winning_number, sizeof(winning_number) );
-		enc.result();
-		fc::bigint  result_bigint( enc.result() );
-
-		// the ticket number must be below the winning threshold to claim the jackpot
-		auto winning_threshold = result_bigint.to_int64 % fc::bigint( global_odds * odds ).to_int64();
-		auto ticket_threshold = amount / odds;
-		if (winning_threshold < ticket_threshold)	// we have a winners
-		{
-			return jackpots;
-		}
-		*/
-
-		// return 0;
+        return asset(jackpot, amount.unit);
     }
 
     /**
