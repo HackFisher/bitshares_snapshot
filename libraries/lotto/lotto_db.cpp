@@ -85,6 +85,9 @@ namespace bts { namespace lotto {
 		}
 	}
 
+    /**
+     * TODO: this method should be const, return should be always same with same params
+     */
 	asset lotto_db::get_jackpot_for_ticket( output_index out_idx, uint64_t lucky_number, uint16_t odds, asset amount )
     {
         FC_ASSERT(head_block_num() - out_idx.block_idx > BTS_LOTTO_BLOCKS_BEFORE_JACKPOTS_DRAW);
@@ -100,6 +103,57 @@ namespace bts { namespace lotto {
         uint64_t jackpot =  my->_rule_validator->evaluate_jackpot(winning_number, lucky_number, dr.total_jackpot);
 
         return asset(jackpot, amount.unit);
+    }
+
+    signed_transactions lotto_db::generate_deterministic_transactions()
+    {
+        signed_transactions signed_trxs = chain_database::generate_deterministic_transactions();
+
+        auto ticket_block_num = head_block_num() - BTS_LOTTO_BLOCKS_BEFORE_JACKPOTS_DRAW;
+
+        if (ticket_block_num < 0)
+        {
+            return signed_trxs;
+        }
+
+        // TODO validate unique of deterministric and common trxs
+        // TODO and ticket output should not exsits in deterministric trxs
+        auto ticket_blk = fetch_trx_block(ticket_block_num);
+        for (auto trx : ticket_blk.trxs)
+        {
+            auto inputs = fetch_inputs(trx.inputs);
+            for (auto in : inputs)
+            {
+                // TODO: spent should not happen, e.g. in current/before block's trxs
+                // All ticket are drawn in deterministic way
+                if (in.output.claim_func == claim_ticket && !in.meta_output.is_spent())
+                {
+                    signed_transaction draw_trx;
+                    auto ticket_out = in.output.as<claim_ticket_output>();
+                    auto trx_num = fetch_trx_num(trx.id());
+                    // TODO: why not directly send in.output in to 
+                    auto jackpot = get_jackpot_for_ticket(output_index(trx_num.block_num, trx_num.trx_idx, in.output_num),
+                        ticket_out.lucky_number, ticket_out.odds, in.output.amount);
+                    
+                    uint16_t mature = 0;
+                    while (jackpot.get_rounded_amount() > BTS_LOTTO_RULE_MAXIMUM_REWARDS_EACH_JACKPOT_OUTPUT)
+                    {
+                        claim_jackpot_output jackpot_out(ticket_out.owner, mature);
+                        asset amt(BTS_LOTTO_RULE_MAXIMUM_REWARDS_EACH_JACKPOT_OUTPUT, jackpot.unit);
+                        draw_trx.outputs.push_back( trx_output( jackpot_out, amt ) );
+                        jackpot -= amt;
+                        ++ mature;
+                    }
+
+                    draw_trx.outputs.push_back(trx_output(claim_jackpot_output(ticket_out.owner, mature), jackpot));
+
+                    signed_trxs.push_back(draw_trx);
+                }
+            }
+
+        }
+
+        return signed_trxs;
     }
 
     /**

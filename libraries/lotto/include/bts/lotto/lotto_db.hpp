@@ -49,6 +49,11 @@ class lotto_db : public bts::blockchain::chain_database
         asset get_jackpot_for_ticket( output_index out_idx, uint64_t lucky_number, uint16_t odds, asset amount );
 
         /**
+         * Generate transactions for winners, claim_ticket as in, and claim_jackpot as out
+         */
+        virtual signed_transactions generate_deterministic_transactions();
+
+        /**
          * Performs global validation of a block to make sure that no two transactions conflict. In
          * the case of the lotto only one transaction can claim the jackpot.
          */
