@@ -75,7 +75,7 @@ bts::blockchain::signed_transaction lotto_wallet::draw_ticket( lotto_db& lotto_d
         signed_transaction trx;
 		auto req_sigs = std::unordered_set<bts::blockchain::address>();
 
-        auto jackpot = lotto_db.get_jackpot_for_ticket(out_idx, claim_ticket.lucky_number, claim_ticket.odds, ticket_out.amount);
+        auto jackpot = lotto_db.draw_jackpot_for_ticket(out_idx, claim_ticket.lucky_number, claim_ticket.odds, ticket_out.amount);
         
         // Only support jackpot with same unit, but anyway it will be validate in lotto_state in trx validator
         FC_ASSERT(ticket_out.amount.unit == jackpot.unit);

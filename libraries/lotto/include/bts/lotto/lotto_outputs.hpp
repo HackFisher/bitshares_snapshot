@@ -81,7 +81,7 @@ struct claim_jackpot_output
 {
     static const claim_type_enum type;
 
-    claim_jackpot_output(const bts::blockchain::address& a, const uint16_t m) :owner(a), mature_day(m){}
+    claim_jackpot_output(const bts::blockchain::address& a, const uint16_t& m) :owner(a), mature_day(m){}
     claim_jackpot_output(const bts::blockchain::address& a) :owner(a), mature_day(0){}
     claim_jackpot_output() : mature_day(0){}
 

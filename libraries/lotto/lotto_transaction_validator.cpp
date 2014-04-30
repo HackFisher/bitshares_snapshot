@@ -131,7 +131,7 @@ void lotto_transaction_validator::validate_ticket_input(const meta_trx_input& in
 
 		// returns the jackpot based upon which lottery the ticket was for.
 		// throws an exception if the jackpot was already claimed.
-        auto jackpot = _lotto_db->get_jackpot_for_ticket(trx_loc.block_num, claim_ticket.lucky_number, claim_ticket.odds, in.output.amount);
+        auto jackpot = _lotto_db->draw_jackpot_for_ticket(trx_loc.block_num, claim_ticket.lucky_number, claim_ticket.odds, in.output.amount);
         
         
 

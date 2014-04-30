@@ -88,7 +88,7 @@ namespace bts { namespace lotto {
     /**
      * TODO: this method should be const, return should be always same with same params
      */
-	asset lotto_db::get_jackpot_for_ticket( output_index out_idx, uint64_t lucky_number, uint16_t odds, asset amount )
+	asset lotto_db::draw_jackpot_for_ticket( output_index out_idx, uint64_t lucky_number, uint16_t odds, asset amount )
     {
         FC_ASSERT(head_block_num() - out_idx.block_idx > BTS_LOTTO_BLOCKS_BEFORE_JACKPOTS_DRAW);
 		// fc::sha256 winning_number;
@@ -132,7 +132,7 @@ namespace bts { namespace lotto {
                     auto ticket_out = in.output.as<claim_ticket_output>();
                     auto trx_num = fetch_trx_num(trx.id());
                     // TODO: why not directly send in.output in to 
-                    auto jackpot = get_jackpot_for_ticket(output_index(trx_num.block_num, trx_num.trx_idx, in.output_num),
+                    auto jackpot = draw_jackpot_for_ticket(output_index(trx_num.block_num, trx_num.trx_idx, in.output_num),
                         ticket_out.lucky_number, ticket_out.odds, in.output.amount);
                     
                     uint16_t mature = 0;

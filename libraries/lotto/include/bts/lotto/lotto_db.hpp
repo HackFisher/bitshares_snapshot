@@ -46,7 +46,7 @@ class lotto_db : public bts::blockchain::chain_database
         /**
          * Calculate the jackpot reward for this ticket.
          */
-        asset get_jackpot_for_ticket( output_index out_idx, uint64_t lucky_number, uint16_t odds, asset amount );
+        asset draw_jackpot_for_ticket( output_index out_idx, uint64_t lucky_number, uint16_t odds, asset amount );
 
         /**
          * Generate transactions for winners, claim_ticket as in, and claim_jackpot as out
