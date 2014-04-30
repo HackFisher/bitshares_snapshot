@@ -97,7 +97,7 @@ struct claim_jackpot_output
 
 }} //bts::lotto
 
-FC_REFLECT_ENUM(bts::lotto::claim_type_enum, (claim_secret)(claim_ticket));
+FC_REFLECT_ENUM(bts::lotto::claim_type_enum, (claim_secret)(claim_ticket)(claim_jackpot));
 FC_REFLECT(bts::lotto::claim_ticket_input, BOOST_PP_SEQ_NIL);
 FC_REFLECT(bts::lotto::claim_ticket_output, (owner)(odds));
 FC_REFLECT(bts::lotto::claim_secret_input, BOOST_PP_SEQ_NIL);
