@@ -73,7 +73,7 @@ namespace bts { namespace lotto {
      * Match different combination groups according to group type (N, k)
      * @return the vector of matched count as elements.
      */
-	match match_rankings(const c_rankings& l, const c_rankings& r, const type_balls& balls);
+	const match& match_rankings(const c_rankings& l, const c_rankings& r, const type_balls& balls);
 
     /**
      * Ranking of multi group combination ranked numbers C(N1,k1) * C(N2,k2) * C(N3,k3)
@@ -87,7 +87,7 @@ namespace bts { namespace lotto {
 	 * Numbers in returen value should start from 0, maximum is (N-1), N is group space size
      * @return combination ranked numbers C(N1,k1) * C(N2,k2) * C(N3,k3)
      */
-	c_rankings unranking(uint64_t num, const std::vector<uint64_t>& spaces );
+	const c_rankings& unranking(uint64_t num, const std::vector<uint64_t>& spaces );
 
     /* 
      * Parameters is combination of a group of nature numbers, number in this group is from 0 to N - 1 , N is the group count
@@ -100,7 +100,7 @@ namespace bts { namespace lotto {
      * Convert nature numbers to combination binary
      * Reverse process of ranking
      */
-    combination unranking(uint64_t num, uint8_t k, uint8_t n);
+    const combination& unranking(uint64_t num, uint8_t k, uint8_t n);
 
 } } // namespace bts::lotto
 

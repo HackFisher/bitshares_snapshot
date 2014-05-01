@@ -49,48 +49,72 @@ bts::blockchain::signed_transaction lotto_wallet::buy_ticket(const uint64_t& luc
         ticket_output.odds = odds;
         ticket_output.owner = jackpot_addr;
 
-        // TODO: what's the meaning of amount here?
         trx.outputs.push_back(trx_output(ticket_output, amount));
 
         return collect_inputs_and_sign(trx, amount);
-    } FC_RETHROW_EXCEPTIONS(warn, "buy_ticket ${luckynumber} with ${odds}", ("name", luckynumber)("amt", odds))
+    } FC_RETHROW_EXCEPTIONS(warn, "buy_ticket ${luckynumber} with ${odds}, amount {amt}", ("name", luckynumber)("odds", odds)("amt", amount))
 }
 
-bts::blockchain::signed_transaction lotto_wallet::draw_ticket( lotto_db& lotto_db, const ticket_number& ticket_num )
+const std::map<output_index, trx_output>& lotto_wallet::list_tickets(lotto_db& db)
 {
-	try {
-        // TODO: using ticket_num.to_output_index() instead
-        auto out_idx = ticket_num;
+    try {
+        std::map<output_index, trx_output> tickets_map;
+        for (auto out : get_unspent_outputs())
+        {
+            if (out.second.claim_func = claim_ticket)
+            {
+                tickets_map[out.first] = out.second;
+            }
+        }
 
-        FC_ASSERT(lotto_db.head_block_num() - out_idx.block_idx > BTS_LOTTO_BLOCKS_BEFORE_JACKPOTS_DRAW);
+        return std::move(tickets_map);
+    } FC_RETHROW_EXCEPTIONS(warn, "list tickets")
+}
 
-        auto unspent_outputs = get_unspent_outputs();
-        FC_ASSERT(unspent_outputs.find(out_idx) != unspent_outputs.end());
+const std::map<output_index, trx_output>& lotto_wallet::list_jackpots(lotto_db& db)
+{
+    try {
+        std::map<output_index, trx_output> jackpots_map;
+        for (auto out : get_unspent_outputs())
+        {
+            if (out.second.claim_func = claim_jackpot)
+            {
+                jackpots_map[out.first] = out.second;
+            }
+        }
 
-        auto ticket_out = unspent_outputs[out_idx];
-        FC_ASSERT(ticket_out.claim_func == claim_ticket);
+        return std::move(jackpots_map);
+    } FC_RETHROW_EXCEPTIONS(warn, "list jackpots")
+}
 
-        auto claim_ticket = ticket_out.as<claim_ticket_output>();
+bts::blockchain::signed_transaction lotto_wallet::cash_jackpot(const output_index& jackpot_idx)
+{
+    try {
+        auto unspent_outs = get_unspent_outputs();
+        FC_ASSERT(unspent_outs.find(jackpot_idx) != unspent_outs.end(),
+            "This jackpot does not exsit, or you do not own this jackpot!");
+
+        auto out = unspent_outs[jackpot_idx];
+        FC_ASSERT(out.claim_func == claim_jackpot, "This is not a jackpot!");
+
+        auto jackpot_out = out.as<claim_jackpot_output>();
 
         signed_transaction trx;
-		auto req_sigs = std::unordered_set<bts::blockchain::address>();
+        signature_set          required_sigs;
 
-        auto jackpot = lotto_db.draw_jackpot_for_ticket(out_idx, claim_ticket.lucky_number, claim_ticket.odds, ticket_out.amount);
-        
-        // Only support jackpot with same unit, but anyway it will be validate in lotto_state in trx validator
-        FC_ASSERT(ticket_out.amount.unit == jackpot.unit);
+        FC_ASSERT(is_my_address(jackpot_out.owner));
+        required_sigs.insert(jackpot_out.owner);
 
-        trx.inputs.push_back( trx_input( claim_ticket_input(),  get_ref_from_output_idx(out_idx)) );
+        auto inputs = std::vector<trx_input>();
 
-        auto draw_output = claim_by_signature_output( ticket_out.as<claim_ticket_output>().owner );
-		trx.outputs.push_back( trx_output( draw_output, jackpot ) );
-		
-        // Require the owner to draw the ticket, maybe, ticket draw trx could be deterministric trx, so could be draw automatic.
-        req_sigs.insert( ticket_out.as<claim_ticket_output>().owner );
+        auto signature_output = claim_by_signature_output();
+        signature_output.owner = jackpot_out.owner;
 
-        return collect_inputs_and_sign(trx, asset(), req_sigs);
-		
-    } FC_RETHROW_EXCEPTIONS(warn, "draw_ticket with ${ticket_number}", ("ticket_number", ticket_num))
+        trx.outputs.push_back(trx_output(signature_output, out.amount));
+
+        return collect_inputs_and_sign(trx, asset(), required_sigs, 
+            "cash out jackpot: " + std::string(jackpot_idx) + "; jackpot amount is: " + std::string(out.amount));
+    } FC_RETHROW_EXCEPTIONS(warn, "cash_jackpot ${jackpot_idx}", ("jackpot_idx", jackpot_idx))
 }
 
 bool lotto_wallet::scan_output( transaction_state& state, const trx_output& out, const output_reference& out_ref, const bts::wallet::output_index& oidx )
@@ -116,7 +140,25 @@ bool lotto_wallet::scan_output( transaction_state& state, const trx_output& out,
                 }
                 else if( state.delta_balance.size() )
                 {
-                    // TODO: what is this?
+                    // TODO: then we are buying ticket for someone
+                    state.to[receive_address] = get_send_address_label(receive_address);
+                }
+                return false;
+            }
+            case claim_jackpot:
+            {
+                auto receive_address = out.as<claim_jackpot_output>().owner;
+                if (is_my_address(receive_address))
+                {
+                    cache_output(state.trx.vote, out, out_ref, oidx);
+                    state.from[receive_address] = get_receive_address_label(receive_address);
+                    state.adjust_balance(out.amount, 1);
+                    return true;
+                }
+                else if (state.delta_balance.size())
+                {
+                    // then we are sending funds to someone... 
+                    state.to[receive_address] = get_send_address_label(receive_address);
                 }
                 return false;
             }

@@ -116,7 +116,7 @@ uint64_t Combination(uint8_t N, uint8_t k)
 	return C[N][k];
 }
 
-match match_rankings(const c_rankings& l, const c_rankings& r, const type_balls& balls)
+const match& match_rankings(const c_rankings& l, const c_rankings& r, const type_balls& balls)
 {
 	FC_ASSERT(l.size() == r.size());
 	FC_ASSERT(l.size() == balls.size());
@@ -139,7 +139,7 @@ match match_rankings(const c_rankings& l, const c_rankings& r, const type_balls&
 
 	FC_ASSERT(balls.size() == m.size());
 
-	return m;
+	return std::move(m);
 }
 
 uint64_t ranking(const c_rankings& r, const std::vector<uint64_t>& spaces )
@@ -162,7 +162,7 @@ uint64_t ranking(const c_rankings& r, const std::vector<uint64_t>& spaces )
 
 // unranking to combination rankings
 // TODO: making return value const?
-c_rankings unranking(uint64_t num, const std::vector<uint64_t>& spaces )
+const c_rankings& unranking(uint64_t num, const std::vector<uint64_t>& spaces )
 {
 	c_rankings rs;
 	for (int i = spaces.size() - 1; i >= 0; i --) {
@@ -171,7 +171,7 @@ c_rankings unranking(uint64_t num, const std::vector<uint64_t>& spaces )
 	}
 
 	std::reverse(rs.begin(), rs.end());
-	return rs;
+	return std::move(rs);
 }
 
 uint64_t ranking(const combination& c)
@@ -186,7 +186,7 @@ uint64_t ranking(const combination& c)
 	return n;
 }
 
-combination unranking(uint64_t num, uint8_t k, uint8_t n)
+const combination& unranking(uint64_t num, uint8_t k, uint8_t n)
 {
 	std::vector<uint8_t> c;
     uint8_t max = n;

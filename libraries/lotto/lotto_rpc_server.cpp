@@ -1,14 +1,18 @@
+#include <boost/bind.hpp>
+
+#include <fc/log/logger.hpp>
+
 #include <bts/lotto/lotto_rpc_server.hpp>
 #include <bts/lotto/lotto_wallet.hpp>
-#include <boost/bind.hpp>
 
 namespace bts { namespace lotto {
 
 #define LOTTO_RPC_METHOD_LIST\
                 (buy_ticket)\
                 (lucky_number)\
-                (draw_ticket)\
-                (query_jackpots)
+                (list_tickets)\
+                (list_jackpots)\
+                (cash_jackpot)
 
 
 
@@ -53,7 +57,6 @@ TODO:
       uint64_t lucky_number = params[0].as_uint64();
       uint64_t odds = params[1].as_uint64();
       asset amount = params[2].as<asset>();
-      signed_transactions tx_pool;
 
       auto tx = get_lotto_wallet()->buy_ticket(lucky_number, odds, amount);
 
@@ -83,42 +86,45 @@ TODO: FORMAT: R1 R2 R3 R4 R5 | B1 B2 e.g. 3 6 21 25 31 | 4 7
       return fc::variant(true);
     }
 
-    /*--------------------------draw_ticket--------------------*/
-    static rpc_server::method_data draw_ticket_metadata{ "draw_ticket", nullptr,
-        /* description */  "TODO: draw tickets.",
-        /* returns: */    "bool",
+    /*--------------------------list_tickets--------------------*/
+    static rpc_server::method_data list_tickets_metadata{ "list_tickets", nullptr,
+        /* description */  "TODO: list tickets.",
+        /* returns: */    "map<output_index, trx_output>",
         /* params:          name                 type      required */
-                        { { "ticket_number", "uint64_t", true } },
-        /* prerequisites */ rpc_server::json_authenticated | rpc_server::wallet_open | rpc_server::wallet_unlocked,
+                        {},
+        /* prerequisites */ rpc_server::json_authenticated | rpc_server::wallet_open,
         R"(
 TODO:
     )" };
-    fc::variant lotto_rpc_server_impl::draw_ticket(const fc::variants& params)
+    fc::variant lotto_rpc_server_impl::list_tickets(const fc::variants& params)
     {
-      FC_ASSERT(params.size() == 1);
-      uint64_t ticket_num_param = params[0].as_uint64();
-
-      // TODO: To be tested. to convert to ticket_number(uint64_t) and ticket_number::as_uint64()
-      ticket_number ticket_num(
-          ticket_num_param >> 32, (ticket_num_param << 32) >> 48, (ticket_num_param << 48) >> 48);
-
-      auto tx = get_lotto_wallet()->draw_ticket(*get_lotto_db(), ticket_num);
-
-      _self->get_client()->broadcast_transaction(tx);
-      return fc::variant(true);
+        try
+        {
+            auto tickets = get_lotto_wallet()->list_tickets(*get_lotto_db());
+            return fc::variant(tickets);
+        }
+        catch (const fc::exception& e)
+        {
+            wlog("${e}", ("e", e.to_detail_string()));
+            throw;
+        }
+        catch (...)
+        {
+            throw rpc_wallet_passphrase_incorrect_exception();
+        }
     }
 
-    /*--------------------------query_jackpots--------------------*/
-    static rpc_server::method_data query_jackpots_metadata{ "query_jackpots", nullptr,
+    /*--------------------------list_jackpots--------------------*/
+    static rpc_server::method_data list_jackpots_metadata{ "list_jackpots", nullptr,
         /* description */  "TODO:",
-        /* returns: */    "bool",
+        /* returns: */    "map<output_index, trx_output>",
         /* params:          name                 type      required */
         {},
-        /* prerequisites */ rpc_server::json_authenticated | rpc_server::wallet_open | rpc_server::wallet_unlocked,
+        /* prerequisites */ rpc_server::json_authenticated | rpc_server::wallet_open,
         R"(
 TODO:
     )" };
-    fc::variant lotto_rpc_server_impl::query_jackpots(const fc::variants& params)
+    fc::variant lotto_rpc_server_impl::list_jackpots(const fc::variants& params)
     {
       FC_ASSERT(params.size() == 2); // cmd name path
       std::string name = params[0].as_string();
@@ -132,7 +138,27 @@ TODO:
       return fc::variant(true);
     }
 
-    // TODO: query tickets, also show the related jackpots.
+    /*--------------------------cash_jackpot--------------------*/
+    // TODO: replace parameter with uint64_t?
+    static rpc_server::method_data cash_jackpot_metadata{ "cash_jackpot", nullptr,
+        /* description */  "Cash the jackpot to balance",
+        /* returns: */    "bool",
+        /* params:          name                 type      required */
+        { { "jackpot_idx", "output_idx", true } },
+        /* prerequisites */ rpc_server::json_authenticated | rpc_server::wallet_open | rpc_server::wallet_unlocked,
+        R"(
+TODO:
+    )" };
+    fc::variant lotto_rpc_server_impl::cash_jackpot(const fc::variants& params)
+    {
+        FC_ASSERT(params.size() >= 1);
+        auto jackpot_idx = params[0].as<output_index>();
+
+        auto tx = get_lotto_wallet()->cash_jackpot(jackpot_idx);
+
+        _self->get_client()->broadcast_transaction(tx);
+        return fc::variant(true);
+    }
 
   } // end namespace detail
 
