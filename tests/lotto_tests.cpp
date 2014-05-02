@@ -185,8 +185,12 @@ class LottoTestState
             secret_out.secret = secret_pair.first;
             // reveal secret of last round
             secret_out.revealed_secret = secret_pair.second;
-            
             secret_trx.outputs.push_back(trx_output(secret_out, asset()));
+
+            std::unordered_set<address> required_signatures;
+            wallet1.sign_transaction(secret_trx, required_signatures);
+
+            wlog("secret_trx: ${tx} ", ("tx", secret_trx));
 
             txs.insert(txs.begin(), secret_trx);
             next_block(wallet1, txs);
@@ -296,8 +300,9 @@ BOOST_AUTO_TEST_CASE(wallet_list_tickets)
 
         for (auto ticket : tickets)
         {
+            wlog("out_idx: ${out_idx} ", ("out_idx", ticket.first));
             BOOST_CHECK(ticket.first.block_idx == 1);
-            BOOST_CHECK(ticket.first.trx_idx == 0);
+            BOOST_CHECK(ticket.first.trx_idx == 1);
             auto ticket_out = ticket.second.as<claim_ticket_output>();
             BOOST_CHECK(ticket.second.amount == asset(1.0));
             BOOST_CHECK(ticket_out.lucky_number == 888);

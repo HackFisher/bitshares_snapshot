@@ -67,6 +67,16 @@ transaction_summary lotto_transaction_validator::evaluate( const signed_transact
         }
     }
 
+    for (auto out : tx.outputs)
+    {
+        // TODO: hacking, generate_next_block need fees, or it will ignore the transaction.
+        if (out.claim_func == claim_secret)
+        {
+            sum.fees = 1000;
+            break;
+        }
+    }
+
     return sum;
 }
 
@@ -77,7 +87,6 @@ void lotto_transaction_validator::validate_input( const meta_trx_input& in, tran
      {
         case claim_secret:
 		   // pass, validation is done in block
-		   FC_ASSERT(false, "claim secret in should not happen...");
 		   break;
         case claim_ticket:
            validate_ticket_input(in, state, block_state);

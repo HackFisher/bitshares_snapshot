@@ -184,26 +184,26 @@ namespace bts { namespace lotto {
 		if (blk.block_num == 0) { return block_state; } // don't check anything for the genesis block;
 
 		// At least contain the claim_secret trx
-		FC_ASSERT(deterministic_trxs.size() > 0);
-
+        FC_ASSERT(blk.trxs.size() > 0);
 		validate_secret_transactions(deterministic_trxs, blk.trxs);
 
-		auto secret_out = deterministic_trxs[0].outputs[0].as<claim_secret_output>();
+        auto secret_out = blk.trxs[0].outputs[0].as<claim_secret_output>();
 
 		auto itr = my->_delegate2blocks.find(secret_out.delegate_id);
+
         if( itr.valid() )
         {
             auto block_ids = itr.value();
 
 			// // Get the last secret produced by this delegate
 			auto last_secret = my->_block2secret.fetch(block_ids[block_ids.size() - 1]);
-            
+
             // TODO: reviewing the hash.
 			FC_ASSERT(fc::sha256::hash(secret_out.revealed_secret) == last_secret.secret);
         } else {
 			FC_ASSERT(secret_out.revealed_secret == fc::sha256());   //  this is the first block produced by delegate
         }
-        
+
         for (const signed_transaction& trx : blk.trxs)
         {
             for ( auto i : trx.inputs)
@@ -244,7 +244,7 @@ namespace bts { namespace lotto {
 
 		if (blk.block_num > 0)
 		{
-			head_secret = deterministic_trxs[0].outputs[0].as<claim_secret_output>();
+            head_secret = blk.trxs[0].outputs[0].as<claim_secret_output>();
 		}
 
 		// TODO: the default delegate id of first block is 0, this could influnce delgete2blocks.....
