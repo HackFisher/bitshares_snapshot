@@ -137,10 +137,13 @@ class LottoTestState
             std::vector<address> addrs = addrs1;
             addrs.insert(addrs.end(), addrs2.begin(), addrs2.end());
             auto genblk = generate_genesis_block(addrs);
+            wlog("Start sign block.");
             genblk.sign(auth);
+            wlog("Start push block.\n");
             db.push_block(genblk);
-
+            wlog("Start wallet1 scan.\n");
             wallet1.scan_chain(db);
+            wlog("Start wallet2 scan\n");
             wallet2.scan_chain(db);
         }
 
@@ -159,10 +162,13 @@ class LottoTestState
                 txs.push_back(wallet.send_to_address(LOTTO_TEST_TRRANSFER_AMOUT_FOR_BLOCK, random_addr(wallet)));
 
             auto next_block = wallet.generate_next_block(db, txs);
+            wlog("Start sign block.");
             next_block.sign(auth);
+            wlog("Start push block.\n");
             db.push_block(next_block);
-
+            wlog("Start wallet1 scan.\n");
             wallet1.scan_chain(db);
+            wlog("Start wallet2 scan\n");
             wallet2.scan_chain(db);
             txs.clear();
         }
@@ -272,8 +278,43 @@ BOOST_AUTO_TEST_CASE(trx_validator_lucky_number)
     }
 }
 
-BOOST_AUTO_TEST_CASE(trx_validator_list_tickets)
+BOOST_AUTO_TEST_CASE(wallet_list_tickets)
 {
+    try
+    {
+        LottoTestState state;
+
+        signed_transactions txs;
+        auto signed_trx = state.wallet1.buy_ticket(888, 0, asset(1.0));
+        wlog("tx: ${tx} ", ("tx", signed_trx));
+
+        txs.push_back(signed_trx);
+
+        state.next_block(txs);
+
+        auto tickets = state.wallet1.list_tickets(state.db);
+
+        for (auto ticket : tickets)
+        {
+            BOOST_CHECK(ticket.first.block_idx == 1);
+            BOOST_CHECK(ticket.first.trx_idx == 0);
+            auto ticket_out = ticket.second.as<claim_ticket_output>();
+            BOOST_CHECK(ticket.second.amount == asset(1.0));
+            BOOST_CHECK(ticket_out.lucky_number == 888);
+            BOOST_CHECK(ticket_out.odds == 0);
+        }
+    }
+    catch (const fc::exception& e)
+    {
+        std::cerr << e.to_detail_string() << "\n";
+        elog("${e}", ("e", e.to_detail_string()));
+        throw;
+    }
+    catch (const std::exception& e)
+    {
+        elog("${e}", ("e", e.what()));
+        throw;
+    }
 }
 
 /**
@@ -458,9 +499,9 @@ BOOST_AUTO_TEST_CASE(util_c_ranking)
 BOOST_AUTO_TEST_CASE(util_random_hash)
 {
     fc::sha256 revealed_secret("FFF01234ABCDDDE");
-    std::cout << revealed_secret;
+    std::cout << revealed_secret.str().c_str() << "\n";
     fc::sha256 secret = fc::sha256::hash(revealed_secret);
-    std::cout << secret;
+    std::cout << secret.str().c_str() << "\n";
 
     BOOST_CHECK(revealed_secret != secret);
     BOOST_CHECK(secret._hash[0] == fc::hash64(revealed_secret.data(), 32));

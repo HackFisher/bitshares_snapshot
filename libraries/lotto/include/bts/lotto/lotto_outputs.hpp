@@ -101,7 +101,7 @@ struct claim_jackpot_output
 
 FC_REFLECT_ENUM(bts::lotto::claim_type_enum, (claim_secret)(claim_ticket)(claim_jackpot));
 FC_REFLECT(bts::lotto::claim_ticket_input, BOOST_PP_SEQ_NIL);
-FC_REFLECT(bts::lotto::claim_ticket_output, (owner)(odds));
+FC_REFLECT(bts::lotto::claim_ticket_output, (lucky_number)(owner)(odds));
 FC_REFLECT(bts::lotto::claim_secret_input, BOOST_PP_SEQ_NIL);
 FC_REFLECT(bts::lotto::claim_secret_output, (secret)(revealed_secret)(delegate_id));
 FC_REFLECT(bts::lotto::claim_jackpot_input, BOOST_PP_SEQ_NIL);

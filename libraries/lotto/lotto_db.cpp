@@ -126,13 +126,13 @@ namespace bts { namespace lotto {
         {
             return signed_trxs;
         }
-        auto ticket_block_num = head_block_num() - BTS_LOTTO_BLOCKS_BEFORE_JACKPOTS_DRAW;
+        
 
-        if (ticket_block_num < 0)
+        if (head_block_num() < BTS_LOTTO_BLOCKS_BEFORE_JACKPOTS_DRAW)
         {
             return signed_trxs;
         }
-
+        auto ticket_block_num = head_block_num() - BTS_LOTTO_BLOCKS_BEFORE_JACKPOTS_DRAW;
         // TODO validate unique of deterministric and common trxs
         // TODO and ticket output should not exsits in deterministric trxs
         auto ticket_blk = fetch_trx_block(ticket_block_num);
