@@ -83,7 +83,8 @@ void lotto_transaction_validator::validate_input( const meta_trx_input& in, tran
            validate_ticket_input(in, state, block_state);
            break;
         case claim_jackpot:
-           //TODO:
+           validate_jackpot_input(in, state, block_state);
+           break;
         default:
            transaction_validator::validate_input( in, state, block_state );
      }
@@ -101,7 +102,8 @@ void lotto_transaction_validator::validate_output( const trx_output& out, transa
            validate_ticket_output(out, state, block_state);
            break;
 		case claim_jackpot:
-           // TODO:
+           validate_jackpot_output(out, state, block_state);
+           break;
         default:
            transaction_validator::validate_output( out, state, block_state);
      }

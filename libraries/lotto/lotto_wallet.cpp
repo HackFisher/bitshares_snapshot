@@ -55,7 +55,7 @@ bts::blockchain::signed_transaction lotto_wallet::buy_ticket(const uint64_t& luc
     } FC_RETHROW_EXCEPTIONS(warn, "buy_ticket ${luckynumber} with ${odds}, amount {amt}", ("name", luckynumber)("odds", odds)("amt", amount))
 }
 
-const std::map<output_index, trx_output>& lotto_wallet::list_tickets(lotto_db& db)
+std::map<output_index, trx_output> lotto_wallet::list_tickets(lotto_db& db)
 {
     try {
         std::map<output_index, trx_output> tickets_map;
@@ -67,11 +67,11 @@ const std::map<output_index, trx_output>& lotto_wallet::list_tickets(lotto_db& d
             }
         }
 
-        return std::move(tickets_map);
+        return tickets_map;
     } FC_RETHROW_EXCEPTIONS(warn, "list tickets")
 }
 
-const std::map<output_index, trx_output>& lotto_wallet::list_jackpots(lotto_db& db)
+std::map<output_index, trx_output> lotto_wallet::list_jackpots(lotto_db& db)
 {
     try {
         std::map<output_index, trx_output> jackpots_map;
@@ -83,7 +83,7 @@ const std::map<output_index, trx_output>& lotto_wallet::list_jackpots(lotto_db& 
             }
         }
 
-        return std::move(jackpots_map);
+        return jackpots_map;
     } FC_RETHROW_EXCEPTIONS(warn, "list jackpots")
 }
 

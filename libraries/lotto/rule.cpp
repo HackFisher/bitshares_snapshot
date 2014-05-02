@@ -81,25 +81,25 @@ uint64_t TOTAL_SPACE()
 
 namespace bts { namespace lotto {
 
-uint64_t Combination(uint8_t N, uint8_t k)
+uint64_t Combination(uint16_t N, uint16_t k)
 {
-	static uint64_t C[256][128];
+    static uint64_t C[BTS_LOTTO_MAX_BALL_COUNT][BTS_LOTTO_MAX_BALL_COUNT / 2];
 	static bool inited = false;
 
 	if (!inited) {
 		int i,j;
-		for(j = 0; j < 128; ++j)
+        for (j = 0; j < (BTS_LOTTO_MAX_BALL_COUNT / 2); ++j)
 		{
 			C[0][j] = 0;
 		}
-		for(i = 0; i < 256; ++i)
+        for (i = 0; i < BTS_LOTTO_MAX_BALL_COUNT; ++i)
 		{
 			C[i][0] = 1;
 		}
 
-		for(i = 1; i < 256; ++i)
+        for (i = 1; i < BTS_LOTTO_MAX_BALL_COUNT; ++i)
 		{
-			for(j = 1; j < 128; ++j)
+            for (j = 1; j < (BTS_LOTTO_MAX_BALL_COUNT / 2); ++j)
 			{
 				C[i][j] = C[i-1][j] + C[i-1][j-1];
 			}
@@ -107,19 +107,21 @@ uint64_t Combination(uint8_t N, uint8_t k)
 		inited = true;
 	}
 
-    FC_ASSERT(N < 256, "N should less than 256.", ("N", N));
-    FC_ASSERT(k < 128, "k should less than 128.", ("k", k));
+    if (N < k) return 0;
+    if ((N - k) < k) k = N - k;
 
-	if (N < k) return 0;
-	if ((N - k) < k) k = N -k;
+    FC_ASSERT(N < BTS_LOTTO_MAX_BALL_COUNT, 
+        "N should less than maximum ball count.", ("N", N)("MAX", BTS_LOTTO_MAX_BALL_COUNT));
+    FC_ASSERT(k < BTS_LOTTO_MAX_BALL_COUNT / 2, "k should less than half of maximum ball count.", ("k", k)("MAX", BTS_LOTTO_MAX_BALL_COUNT));
 	
 	return C[N][k];
 }
 
-const match& match_rankings(const c_rankings& l, const c_rankings& r, const type_balls& balls)
+match match_rankings(const c_rankings& l, const c_rankings& r, const type_balls& balls)
 {
 	FC_ASSERT(l.size() == r.size());
 	FC_ASSERT(l.size() == balls.size());
+    FC_ASSERT(balls.size() < BTS_LOTTO_MAX_BALL_COUNT);
 	
 	match m;
 
@@ -128,7 +130,7 @@ const match& match_rankings(const c_rankings& l, const c_rankings& r, const type
 		combination left_combinatioin = unranking(l[i], balls[i].second, balls[i].first);
 		combination right_combinatioin = unranking(r[i], balls[i].second, balls[i].first);
 
-		std::bitset<256> left_bits, right_bits;	// TODO: is size of 256 too big?
+        std::bitset<BTS_LOTTO_MAX_BALL_COUNT> left_bits, right_bits;
 		for (size_t i = 0; i < balls.size(); i++){
 			left_bits[left_combinatioin[i]] = 1;
 			right_bits[right_combinatioin[i]] = 1;
@@ -139,7 +141,7 @@ const match& match_rankings(const c_rankings& l, const c_rankings& r, const type
 
 	FC_ASSERT(balls.size() == m.size());
 
-	return std::move(m);
+    return m;
 }
 
 uint64_t ranking(const c_rankings& r, const std::vector<uint64_t>& spaces )
@@ -162,7 +164,7 @@ uint64_t ranking(const c_rankings& r, const std::vector<uint64_t>& spaces )
 
 // unranking to combination rankings
 // TODO: making return value const?
-const c_rankings& unranking(uint64_t num, const std::vector<uint64_t>& spaces )
+c_rankings unranking(uint64_t num, const std::vector<uint64_t>& spaces )
 {
 	c_rankings rs;
 	for (int i = spaces.size() - 1; i >= 0; i --) {
@@ -171,27 +173,27 @@ const c_rankings& unranking(uint64_t num, const std::vector<uint64_t>& spaces )
 	}
 
 	std::reverse(rs.begin(), rs.end());
-	return std::move(rs);
+    return rs;
 }
 
 uint64_t ranking(const combination& c)
 {
-    std::vector<uint8_t> v(c);
+    std::vector<uint16_t> v(c);
     std::sort(v.begin(), v.end());
 	uint64_t n = 0;
     // sum of C(v[k - 1], k)
-    for (uint32_t i = 1; i <= v.size(); i ++) {
+    for (size_t i = 1; i <= v.size(); i ++) {
 		n += Combination(v[i - 1], i);
     }
 	return n;
 }
 
-const combination& unranking(uint64_t num, uint8_t k, uint8_t n)
+combination unranking(uint64_t num, uint16_t k, uint16_t n)
 {
-	std::vector<uint8_t> c;
-    uint8_t max = n;
+    std::vector<uint16_t> c;
+    uint16_t max = n;
 
-    for (uint8_t i = k; i >=1; i--)
+    for (uint16_t i = k; i >= 1; i--)
     {
         if (num <= 0) {
             c.push_back(i-1);
@@ -214,6 +216,6 @@ const combination& unranking(uint64_t num, uint8_t k, uint8_t n)
 
 	std::sort(c.begin(), c.end());
 
-	return c;
+    return c;
 }
 }}	// namespace bts::lotto

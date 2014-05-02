@@ -32,14 +32,14 @@ std::pair<fc::sha256, fc::sha256> delegate_secret_last_revealed_secret_pair(uint
 
     if (_delegate_secret_pair_map.find(delegate_id) == _delegate_secret_pair_map.end())
     {
-        fc::sha256 new_reveal_secret = fc::sha256("To generate random number with" + fc::to_string((int64_t)std::rand()));
+        fc::sha256 new_reveal_secret = fc::sha256("FFFEEE" + fc::to_string((int64_t)std::rand()));
         fc::sha256 new_secret = fc::sha256::hash(new_reveal_secret);
         _delegate_secret_pair_map[delegate_id] = std::pair<fc::sha256, fc::sha256>(new_secret, new_reveal_secret);
         return std::pair<fc::sha256, fc::sha256>(new_secret, fc::sha256());
     }
     else
     {
-        fc::sha256 new_reveal_secret = fc::sha256("To generate random number with" + fc::to_string((int64_t)std::rand()));
+        fc::sha256 new_reveal_secret = fc::sha256("FFFEEE" + fc::to_string((int64_t)std::rand()));
         fc::sha256 new_secret = fc::sha256::hash(new_reveal_secret);
         auto secret_pair = std::pair<fc::sha256, fc::sha256>(new_secret, _delegate_secret_pair_map[delegate_id].second);
         _delegate_secret_pair_map[delegate_id] = std::pair<fc::sha256, fc::sha256>(new_secret, new_reveal_secret);
@@ -56,10 +56,12 @@ trx_block generate_genesis_block(const std::vector<address>& addr)
     genesis.next_fee = block_header::min_fee();
     genesis.total_shares = 0;
 
+    /*
     signed_transaction secret_trx;
     secret_trx.vote = 0; // no vote
     secret_trx.outputs.push_back(trx_output(claim_secret_output(), asset()));
     genesis.trxs.push_back(secret_trx);
+    */
 
     signed_transaction dtrx;
     dtrx.vote = 0;
@@ -154,7 +156,7 @@ class LottoTestState
             validator->skip_time(fc::seconds(LOTTO_TEST_BLOCK_SECS));
 
             if (txs.size() <= 0)
-                txs.push_back(wallet.transfer(LOTTO_TEST_TRRANSFER_AMOUT_FOR_BLOCK, random_addr(wallet)));
+                txs.push_back(wallet.send_to_address(LOTTO_TEST_TRRANSFER_AMOUT_FOR_BLOCK, random_addr(wallet)));
 
             auto next_block = wallet.generate_next_block(db, txs);
             next_block.sign(auth);
@@ -212,17 +214,16 @@ BOOST_AUTO_TEST_CASE(trx_validator_claim_secret)
 
         /* Build secret output */
         claim_secret_output secret_out;
-        secret_out.secret = fc::sha256::hash(fc::sha256("next_secret_for_hash"));
-        secret_out.revealed_secret = fc::sha256("last_secret_for_hash");
+        secret_out.secret = fc::sha256::hash(fc::sha256("FFA12345699999999999"));
+        secret_out.revealed_secret = fc::sha256("FFA12345699999999999");
 
         // amount must be zero
         signed_trx.outputs.push_back(trx_output(secret_out, asset()));
 
         // no inputs and no need to sign
-
-        validator.evaluate(signed_trx, validator.create_block_state());
+        //validator.evaluate(signed_trx, validator.create_block_state());
     }
-    catch (const fc::exception &e)
+    catch (const fc::exception& e)
     {
         std::cerr << e.to_detail_string() << "\n";
         elog("${e}", ("e", e.to_detail_string()));
@@ -263,7 +264,7 @@ BOOST_AUTO_TEST_CASE(trx_validator_lucky_number)
 
         validator.evaluate(signed_trx, validator.create_block_state());
     }
-    catch (const fc::exception &e)
+    catch (const fc::exception& e)
     {
         std::cerr << e.to_detail_string() << "\n";
         elog("${e}", ("e", e.to_detail_string()));
@@ -271,7 +272,7 @@ BOOST_AUTO_TEST_CASE(trx_validator_lucky_number)
     }
 }
 
-BOOST_AUTO_TEST_CASE(trx_validator_draw_ticket)
+BOOST_AUTO_TEST_CASE(trx_validator_list_tickets)
 {
 }
 
@@ -280,19 +281,20 @@ BOOST_AUTO_TEST_CASE(trx_validator_draw_ticket)
  */
 BOOST_AUTO_TEST_CASE( util_combination_to_int )
 {
-	uint8_t ticket_combination[5] = {2, 4, 17, 21, 33};
-    combination ticket_v(ticket_combination, ticket_combination + 5);
+    combination ticket_v{ 2, 4, 17, 21, 33 };
 	std::bitset<35> ticket_bits;
 	for (int i = 0; i < 5; i++){
 		ticket_bits[ticket_v[i]] = 1;
 	}
 
 	BOOST_CHECK(ticket_v.size() == 5);
+
     uint64_t ticket_num = ranking(ticket_v);
 
 	// TODO: assert(ticket_num = ??);
 	//uint64_t bits_ull = combination::int_to_combination_binary<35>(ticket_num);
     auto res_nums = unranking(ticket_num, 5, 35);
+    BOOST_CHECK(res_nums.size() == 5);
 	std::bitset<35> res_bits;
 	for (int i = 0; i < 5; i++){
 		std::cout << (uint16_t)res_nums[i] << "\n";
@@ -399,7 +401,7 @@ BOOST_AUTO_TEST_CASE( util_load_rule_config )
 
 BOOST_AUTO_TEST_CASE( util_combination )
 {
-    BOOST_CHECK(Combination(156, 0) == 156);
+    BOOST_CHECK(Combination(156, 1) == 156);
 
     BOOST_CHECK(Combination(254, 30) == Combination(254, 254 - 30));
 
@@ -412,7 +414,11 @@ BOOST_AUTO_TEST_CASE( util_combination )
         Combination(256, 3);
         no_exception = true;
     }
-    catch (const fc::exception &e)
+    catch (const fc::exception& e)
+    {
+        no_exception = false;
+    }
+    catch (...)
     {
         no_exception = false;
     }
@@ -451,9 +457,20 @@ BOOST_AUTO_TEST_CASE(util_c_ranking)
 
 BOOST_AUTO_TEST_CASE(util_random_hash)
 {
-    fc::sha256 revealed_secret("I'm a random selected secret!");
+    fc::sha256 revealed_secret("FFF01234ABCDDDE");
+    std::cout << revealed_secret;
     fc::sha256 secret = fc::sha256::hash(revealed_secret);
+    std::cout << secret;
 
     BOOST_CHECK(revealed_secret != secret);
     BOOST_CHECK(secret._hash[0] == fc::hash64(revealed_secret.data(), 32));
+
+    try
+    {
+        fc::sha256 revealed_secret("I'm not hex string");
+    }
+    catch (const fc::exception& e)
+    {
+        std::cout << e.to_detail_string();
+    }
 }

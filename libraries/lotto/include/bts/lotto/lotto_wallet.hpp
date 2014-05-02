@@ -25,9 +25,9 @@ namespace bts { namespace lotto {
                                                         asset amount);
 
             // TODO: db is not required?
-            const std::map<output_index, trx_output>& list_tickets(lotto_db& db);
+            std::map<output_index, trx_output> list_tickets(lotto_db& db);
 
-            const std::map<output_index, trx_output>& list_jackpots(lotto_db& db);
+            std::map<output_index, trx_output> list_jackpots(lotto_db& db);
 
             bts::blockchain::signed_transaction cash_jackpot(const output_index& jackpot_idx);
 

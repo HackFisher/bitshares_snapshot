@@ -5,6 +5,8 @@
  */
 #define BTS_LOTTO_BLOCKS_BEFORE_JACKPOTS_DRAW 100
 
+#define BTS_LOTTO_MAX_BALL_COUNT 256
+
 
 // TO be move to rule config file
 

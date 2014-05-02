@@ -26,18 +26,18 @@
 	*  4. TODO: replace vectors and binary with BOOST_BINARY( 100 111000 01 1 110 )
 	*    http://www.boost.org/doc/libs/1_42_0/libs/utility/utility.htm#BOOST_BINARY
     */
-    typedef std::vector<uint8_t> combination;
+    typedef std::vector<uint16_t> combination;
     /* Ranking groups
      * 
      */
     typedef std::vector<uint64_t>						c_rankings;
-    typedef std::vector<uint8_t>						match;
-	typedef std::vector< std::pair<uint8_t,uint8_t> >	type_balls;
+    typedef std::vector<uint16_t>						match;
+    typedef std::vector< std::pair<uint16_t, uint16_t> >	type_balls;
 	typedef std::vector< 
-		std::pair</*level*/ uint8_t, 
+        std::pair</*level*/ uint16_t,
 		/* matches */ std::vector<match>> >				type_prizes;
 
-    /*  Ball counts uint8_t
+    /*  Ball counts uint16_t
      *  
      */
     struct rule_config
@@ -67,13 +67,13 @@ namespace bts { namespace lotto {
      * Calculate combinational number, TODO: inline?
      * @return C(N, k)
      */
-	uint64_t Combination(uint8_t N, uint8_t k);
+    uint64_t Combination(uint16_t N, uint16_t k);
 
     /**
      * Match different combination groups according to group type (N, k)
      * @return the vector of matched count as elements.
      */
-	const match& match_rankings(const c_rankings& l, const c_rankings& r, const type_balls& balls);
+	match match_rankings(const c_rankings& l, const c_rankings& r, const type_balls& balls);
 
     /**
      * Ranking of multi group combination ranked numbers C(N1,k1) * C(N2,k2) * C(N3,k3)
@@ -87,7 +87,7 @@ namespace bts { namespace lotto {
 	 * Numbers in returen value should start from 0, maximum is (N-1), N is group space size
      * @return combination ranked numbers C(N1,k1) * C(N2,k2) * C(N3,k3)
      */
-	const c_rankings& unranking(uint64_t num, const std::vector<uint64_t>& spaces );
+	c_rankings unranking(uint64_t num, const std::vector<uint64_t>& spaces );
 
     /* 
      * Parameters is combination of a group of nature numbers, number in this group is from 0 to N - 1 , N is the group count
@@ -100,7 +100,7 @@ namespace bts { namespace lotto {
      * Convert nature numbers to combination binary
      * Reverse process of ranking
      */
-    const combination& unranking(uint64_t num, uint8_t k, uint8_t n);
+    combination unranking(uint64_t num, uint16_t k, uint16_t n);
 
 } } // namespace bts::lotto
 

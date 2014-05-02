@@ -1,9 +1,14 @@
+#include <fc/reflect/variant.hpp>
 
 #include <bts/db/level_map.hpp>
+#include <bts/blockchain/output_factory.hpp>
 #include <bts/lotto/lotto_db.hpp>
-#include <fc/reflect/variant.hpp>
 #include <bts/lotto/lotto_rule_validator.hpp>
 #include <bts/lotto/lotto_config.hpp>
+
+namespace fc {
+    template<> struct get_typename<std::vector<uint32_t>>        { static const char* name()  { return "std::vector<uint32_t>"; } };
+} // namespace fc
 
 namespace bts { namespace lotto {
 
@@ -26,6 +31,9 @@ namespace bts { namespace lotto {
     lotto_db::lotto_db()
     :my( new detail::lotto_db_impl() )
     {
+        output_factory::instance().register_output<claim_secret_output>();
+        output_factory::instance().register_output<claim_ticket_output>();
+        output_factory::instance().register_output<claim_jackpot_output>();
         set_transaction_validator( std::make_shared<lotto_transaction_validator>(this) );
 		set_rule_validator(std::make_shared<rule_validator>(this));
     }
@@ -40,6 +48,7 @@ namespace bts { namespace lotto {
             chain_database::open( dir, create );
             my->_drawing2record.open( dir / "drawing2record", create );
             my->_block2summary.open( dir / "block2summary", create );
+            my->_delegate2blocks.open(dir / "delegate2blocks", create);
             my->_block2secret.open( dir / "block2secret", create );
         } FC_RETHROW_EXCEPTIONS( warn, "Error loading domain database ${dir}", ("dir", dir)("create", create) );
     }
@@ -48,7 +57,10 @@ namespace bts { namespace lotto {
     {
         my->_drawing2record.close();
         my->_block2summary.close();
+        my->_delegate2blocks.close();
         my->_block2secret.close();
+
+        chain_database::close();
     }
 
 	void lotto_db::set_rule_validator( const rule_validator_ptr& v )
@@ -109,6 +121,11 @@ namespace bts { namespace lotto {
     {
         signed_transactions signed_trxs = chain_database::generate_deterministic_transactions();
 
+        // being in genesis block pushing
+        if (head_block_num() == trx_num::invalid_block_num)
+        {
+            return signed_trxs;
+        }
         auto ticket_block_num = head_block_num() - BTS_LOTTO_BLOCKS_BEFORE_JACKPOTS_DRAW;
 
         if (ticket_block_num < 0)
@@ -187,7 +204,7 @@ namespace bts { namespace lotto {
 			FC_ASSERT(secret_out.revealed_secret == fc::sha256());   //  this is the first block produced by delegate
         }
         
-        for( const signed_transaction& trx : deterministic_trxs )
+        for (const signed_transaction& trx : blk.trxs)
         {
             for ( auto i : trx.inputs)
             {
@@ -233,10 +250,29 @@ namespace bts { namespace lotto {
 		// TODO: the default delegate id of first block is 0, this could influnce delgete2blocks.....
 		my->_block2secret.store(blk.block_num, head_secret);
 
+        auto random = fc::sha256::hash(head_secret.revealed_secret.str());
+        for (uint32_t i = 1; i < 100 && (blk.block_num >= i); ++i)
+        {
+            auto history_secret = my->_block2secret.fetch(blk.block_num - i);
+            random = fc::sha256::hash(history_secret.revealed_secret.str() + random.str()); // where + is concat
+        }
+        // TODO: ToFix: Should block's delegate id be retrieved this way? Then, how to achieve this before store?
+        // TODO: the default delegate id of first block is 0, this could influnce delgete2blocks.....
+        if (blk.block_num > 0)
+        {
+            auto itr = my->_delegate2blocks.find(head_secret.delegate_id);
+            if (itr.valid())
+            {
+                auto block_ids = itr.value();
+                block_ids.push_back(blk.block_num);
+                my->_delegate2blocks.store(head_secret.delegate_id, block_ids);
+            }
+        }
+
         block_summary bs;
         uint64_t ticket_sales = 0;
         uint64_t amout_won = 0;
-        for( const signed_transaction& trx : deterministic_trxs )
+        for (const signed_transaction& trx : blk.trxs)
         {
             for ( auto o : trx.outputs)
             {
@@ -271,17 +307,9 @@ namespace bts { namespace lotto {
         bs.ticket_sales = ticket_sales;
         bs.amount_won = amout_won;
 
-		auto random = fc::sha256::hash(head_secret.revealed_secret.str());
-		for (uint32_t i = 1; i < 100 && (blk.block_num - i >= 0); ++i)
-        {
-			auto history_secret = my->_block2secret.fetch(blk.block_num - i);
-			random = fc::sha256::hash(history_secret.revealed_secret.str() + random.str()); // where + is concat
-        }
-
         // TODO: change wining_number to sha256, and recheck whether sha356 is suitable for hashing.
         bs.winning_number = ((uint64_t)random._hash[0]) <<32 & ((uint64_t)random._hash[0]);
         my->_block2summary.store(blk.block_num, bs);
-
         // the drawing record in this block, corresponding to previous related ticket purchase block (blk.block_num - BTS_LOTTO_BLOCKS_BEFORE_JACKPOTS_DRAW)
         uint64_t last_jackpot_pool = 0;
         if (blk.block_num > 0)
@@ -293,21 +321,10 @@ namespace bts { namespace lotto {
         // just the begin, still not paid
         dr.total_paid = 0;
         dr.jackpot_pool = last_jackpot_pool + bs.ticket_sales - dr.total_jackpot;
-        
         // TODO: how to move to validate()
         FC_ASSERT(dr.jackpot_pool >= 0, "jackpot is out ...");
         // Assert that the jackpot_pool is large than the sum ticket sales of blk.block_num - 99 , blk.block_num - 98 ... blk.block_num.
-        
         my->_drawing2record.store(blk.block_num, dr);
-        
-        // TODO: ToFix: Should block's delegate id be retrieved this way? Then, how to achieve this before store?
-		// TODO: the default delegate id of first block is 0, this could influnce delgete2blocks.....
-		if (blk.block_num > 0)
-		{
-			auto block_ids = my->_delegate2blocks.fetch(head_secret.delegate_id);
-			block_ids.push_back(blk.block_num);
-			my->_delegate2blocks.store(head_secret.delegate_id, block_ids);
-		}
     }
 
     /**
