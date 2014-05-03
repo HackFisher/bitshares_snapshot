@@ -105,10 +105,10 @@ bts::blockchain::signed_transaction lotto_wallet::cash_jackpot(const output_inde
         FC_ASSERT(is_my_address(jackpot_out.owner));
         required_sigs.insert(jackpot_out.owner);
 
-        auto inputs = std::vector<trx_input>();
-
         auto signature_output = claim_by_signature_output();
         signature_output.owner = jackpot_out.owner;
+
+        trx.inputs.push_back(trx_input(get_ref_from_output_idx(jackpot_idx)));
 
         trx.outputs.push_back(trx_output(signature_output, out.amount));
 

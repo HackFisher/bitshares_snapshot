@@ -74,6 +74,7 @@ transaction_summary lotto_transaction_validator::evaluate( const signed_transact
 
     transaction_summary sum = on_evaluate( state, block_state );
 
+    /* TODO: re-check
     for (auto out : tx.outputs)
     {
         // TODO: hacking, generate_next_block need fees, or it will ignore the transaction.
@@ -83,6 +84,7 @@ transaction_summary lotto_transaction_validator::evaluate( const signed_transact
             break;
         }
     }
+    */
 
     return sum;
 }
@@ -191,7 +193,12 @@ void lotto_transaction_validator::validate_jackpot_input(const meta_trx_input& i
        if( in.output.amount.unit == 0 )
        {
           accumulate_votes( in.output.amount.get_rounded_amount(), in.source.block_num, state );
-          block_state->add_input_delegate_votes( in.delegate_id, in.output.amount );
+          // TODO: jackpot_out's trx's vote is always be zero, then...
+          if (in.delegate_id != 0)  // always be 0
+          {
+              block_state->add_input_delegate_votes(in.delegate_id, in.output.amount);
+          }
+          
           block_state->add_output_delegate_votes( state.trx.vote, in.output.amount );
        }
 

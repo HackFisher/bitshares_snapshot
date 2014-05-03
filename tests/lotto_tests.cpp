@@ -87,9 +87,9 @@ trx_block generate_genesis_block(const std::vector<address>& addr)
     {
         signed_transaction trx;
         trx.vote = i + 1;
-        for (uint32_t o = 0; o < 5; ++o)
+        for (uint32_t o = 0; o < 10; ++o)
         {
-            uint64_t amnt = 200000;
+            uint64_t amnt = 100000;
             trx.outputs.push_back(trx_output(claim_by_signature_output(addr[i]), asset(amnt)));
             genesis.total_shares += amnt;
         }
@@ -163,6 +163,7 @@ class LottoTestState
         /* Put these transactions into a block */
         void next_block(lotto_wallet &wallet, signed_transactions &txs)
         {
+            wlog("next_block transactions: ${c}", ("c", txs));
             validator->skip_time(fc::seconds(LOTTO_TEST_BLOCK_SECS));
 
             if (txs.size() <= 0)
@@ -195,8 +196,9 @@ class LottoTestState
             secret_out.revealed_secret = secret_pair.second;
             secret_trx.outputs.push_back(trx_output(secret_out, asset()));
 
+            // TODO: requireing delegate's signature;
             std::unordered_set<address> required_signatures;
-            wallet1.sign_transaction(secret_trx, required_signatures);
+            wallet1.collect_inputs_and_sign(secret_trx, asset(0), required_signatures, "secret transaction");
 
             wlog("secret_trx: ${tx} ", ("tx", secret_trx));
 
@@ -359,6 +361,62 @@ BOOST_AUTO_TEST_CASE(wallet_list_jackpots)
             wlog("jackpot: ${jackpot} ", ("jackpot", jackpot.second));
         }
     }
+    catch (const fc::exception& e)
+    {
+        std::cerr << e.to_detail_string() << "\n";
+        elog("${e}", ("e", e.to_detail_string()));
+        throw;
+    }
+    catch (const std::exception& e)
+    {
+        elog("${e}", ("e", e.what()));
+        throw;
+    }
+}
+
+BOOST_AUTO_TEST_CASE(wallet_cash_jackpot)
+{
+    try
+    {
+        LottoTestState state;
+        lotto_transaction_validator validator(&state.db);
+
+        // Generate 101 blocks, and wait for secerets out...
+        for (size_t i = 0; i < 102; i++)
+        {
+            signed_transactions txs;
+            auto signed_trx = state.wallet1.buy_ticket(888, 0, asset(10000.0));
+            wlog("tx: ${tx} ", ("tx", signed_trx));
+
+            txs.push_back(signed_trx);
+
+            state.next_block(txs);
+        }
+
+        auto jackpots = state.wallet1.list_jackpots(state.db);
+
+        wlog("jackpots count: ${c} ", ("c", jackpots.size()));
+        BOOST_CHECK(jackpots.size() > 0);
+
+        asset old_balance = state.wallet1.get_balance(0);
+        wlog("Current balance is: ${b}", ("b", old_balance));
+
+        signed_transactions trxs;
+        for (auto jackpot : jackpots)
+        {
+            auto trx = state.wallet1.cash_jackpot(jackpot.first);
+            wlog("cash_jackpot tx: ${tx} ", ("tx", trx));
+            validator.evaluate(trx, validator.create_block_state());
+            trxs.push_back(trx);
+        }
+
+        state.next_block(trxs);
+
+        asset new_balance = state.wallet1.get_balance(0);
+        wlog("Current balance is: ${b}", ("b", state.wallet1.get_balance(0)));
+        BOOST_CHECK(new_balance > old_balance);
+    }
+
     catch (const fc::exception& e)
     {
         std::cerr << e.to_detail_string() << "\n";

@@ -71,26 +71,42 @@ namespace bts { namespace lotto {
                     return (uint64_t)random._hash[0];
                 }
 
+                claim_secret_output get_secret_output(const trx_block& blk)
+                {
+                    for (size_t i = 0; i < blk.trxs.size(); i++)
+                    {
+                        for (size_t j = 0; j < blk.trxs[i].outputs.size(); j++)
+                        {
+                            if (blk.trxs[i].outputs[j].claim_func == claim_secret) {
+                                return blk.trxs[i].outputs[j].as<claim_secret_output>();
+                            }
+                        }
+                    }
+
+                    FC_ASSERT(false, "Should not happen, validated");
+                    return claim_secret_output();
+                }
+
                 void store(const trx_block& blk,
                     const signed_transactions& deterministic_trxs,
                     const block_evaluation_state_ptr& state)
                 {
-                    claim_secret_output head_secret;
+                    claim_secret_output secret_out;
 
                     if (blk.block_num > 0)
                     {
-                        head_secret = blk.trxs[0].outputs[0].as<claim_secret_output>();
+                        secret_out = get_secret_output(blk);
                     }
 
                     // TODO: the default delegate id of first block is 0, this could influnce delgete2blocks.....
-                    _block2secret.store(blk.block_num, head_secret);
+                    _block2secret.store(blk.block_num, secret_out);
 
                     // TODO: ToFix: Should block's delegate id be retrieved this way? Then, how to achieve this before store?
                     // TODO: the default delegate id of first block is 0, this should influnce delgete2blocks.....
                     // real delegate is are larger than 0
                     if (blk.block_num > 0)
                     {
-                        auto itr = _delegate2blocks.find(head_secret.delegate_id);
+                        auto itr = _delegate2blocks.find(secret_out.delegate_id);
                         std::vector<uint32_t> block_ids;
                         if (itr.valid())
                         {
@@ -98,7 +114,7 @@ namespace bts { namespace lotto {
                         }
 
                         block_ids.push_back(blk.block_num);
-                        _delegate2blocks.store(head_secret.delegate_id, block_ids);
+                        _delegate2blocks.store(secret_out.delegate_id, block_ids);
                     }
 
                     uint64_t amout_won = 0;
@@ -135,7 +151,7 @@ namespace bts { namespace lotto {
                     bs.amount_won = amout_won;
 
                     // TODO: change wining_number to sha256, and recheck whether sha356 is suitable for hashing.
-                    uint64_t random_number = generate_random_number(blk.block_num, head_secret.revealed_secret.str());
+                    uint64_t random_number = generate_random_number(blk.block_num, secret_out.revealed_secret.str());
                     bs.winning_number = random_number;
                     wlog("winning number is ${r}", ("r", random_number));
 
@@ -205,7 +221,6 @@ namespace bts { namespace lotto {
 
 	void validate_secret_transactions(const signed_transactions& deterministic_trxs, const signed_transactions& trxs)
 	{
-		std::unordered_set<output_reference> ref_outs;
 		for (const signed_transaction& trx : deterministic_trxs)
 		{
 			for (auto out : trx.outputs)
@@ -213,23 +228,23 @@ namespace bts { namespace lotto {
 				FC_ASSERT(out.claim_func != claim_secret, "secret output is no allowed in deterministic transactions");
 			}
 		}
+
+        bool found_secret_out = false;
 		for (size_t i = 0; i < trxs.size(); i++)
 		{
-			if (i == 0)
-			{
-				FC_ASSERT(trxs[0].inputs.size() == 0, "The size of claim secret inputs should be zero.");
-				FC_ASSERT(trxs[0].outputs.size() == 1, "The size of claim secret outputs should be one.");
-
-				FC_ASSERT(trxs[0].outputs[0].claim_func == claim_secret, "The first transaction in this block should be claim secret.");
-			}
-			else
-			{
-				for (auto out : trxs[i].outputs)
-				{
-					FC_ASSERT(out.claim_func != claim_secret, "secret output is no allowed in transactions except the first one");
-				}
-			}
+            for (size_t j = 0; j < trxs[i].outputs.size(); j++)
+            {
+                if (trxs[i].outputs[j].claim_func == claim_secret) {
+                    FC_ASSERT(found_secret_out == false, "There can only one secret out be allowe in each block.");
+                    //Add fees, so the following two requirements are removed.
+                    //FC_ASSERT(trxs[i].inputs.size() == 0, "The size of claim secret inputs should be zero.");
+                    //FC_ASSERT(trxs[0].outputs.size() == 1, "The size of claim secret outputs should be one.");
+                    found_secret_out = true;
+                }
+            }
 		}
+
+        FC_ASSERT(found_secret_out == true, "There is no secret out found.");
 	}
 
     /**
@@ -272,7 +287,6 @@ namespace bts { namespace lotto {
         // TODO validate unique of deterministric and common trxs
         // TODO and ticket output should not exsits in deterministric trxs
         auto ticket_blk = fetch_trx_block(ticket_block_num);
-        wlog("ticket_blk is: ${c} ", ("c", ticket_blk));
         for (auto trx : ticket_blk.trxs)
         {
             for (size_t i = 0; i < trx.outputs.size(); i ++ )
@@ -280,23 +294,19 @@ namespace bts { namespace lotto {
                 auto out = trx.outputs[i];
                 // TODO: spent should not happen, e.g. in current/before block's trxs
                 // All ticket are drawn in deterministic way
-                wlog("ticket out is: ${c} ", ("c", out));
                 if (out.claim_func == claim_ticket /*TODO: && !in.meta_output.is_spent()*/)
                 {
                     signed_transaction draw_trx;
                     draw_trx.vote = 0; // TODO: no vote
                     auto ticket_out = out.as<claim_ticket_output>();
                     auto trx_num = fetch_trx_num(trx.id());
-                    wlog("ticket trx_num is: ${c} ", ("c", trx_num));
                     // TODO: why not directly send in.output in to 
                     auto jackpot = draw_jackpot_for_ticket(output_index(trx_num.block_num, trx_num.trx_idx, i),
                         ticket_out.lucky_number, ticket_out.odds, out.amount);
                     
-                    wlog("jackpot drawn is: ${c} ", ("c", jackpot));
                     uint16_t mature = 0;
                     while (jackpot.get_rounded_amount() > BTS_LOTTO_RULE_MAXIMUM_REWARDS_EACH_JACKPOT_OUTPUT)
                     {
-                        wlog("mature day is: ${c} ", ("c", mature));
                         claim_jackpot_output jackpot_out(ticket_out.owner, mature);
                         asset amt(BTS_LOTTO_RULE_MAXIMUM_REWARDS_EACH_JACKPOT_OUTPUT, jackpot.unit);
                         draw_trx.outputs.push_back( trx_output( jackpot_out, amt ) );
@@ -323,6 +333,7 @@ namespace bts { namespace lotto {
      */
     block_evaluation_state_ptr lotto_db::validate( const trx_block& blk, const signed_transactions& deterministic_trxs )
     {
+        wlog("validate transactions: ${c}", ("c", blk.trxs));
         // TODO: In lotto deterministic_trxs do not validate again
         block_evaluation_state_ptr block_state = chain_database::validate(blk, deterministic_trxs);
 
@@ -332,7 +343,7 @@ namespace bts { namespace lotto {
         FC_ASSERT(blk.trxs.size() > 0);
 		validate_secret_transactions(deterministic_trxs, blk.trxs);
 
-        auto secret_out = blk.trxs[0].outputs[0].as<claim_secret_output>();
+        auto secret_out = my->get_secret_output(blk);
 
 		auto itr = my->_delegate2blocks.find(secret_out.delegate_id);
 
