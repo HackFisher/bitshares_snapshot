@@ -140,6 +140,9 @@ class LottoTestState
                 addrs2.push_back(wallet2.new_receive_address());
             }
 
+            // wallet1 as trustee
+            wallet1.import_key(auth);
+
             std::vector<address> addrs = addrs1;
             addrs.insert(addrs.end(), addrs2.begin(), addrs2.end());
             auto genblk = generate_genesis_block(addrs);
@@ -198,6 +201,7 @@ class LottoTestState
 
             // TODO: requireing delegate's signature;
             std::unordered_set<address> required_signatures;
+            required_signatures.insert(address(auth.get_public_key()));
             wallet1.collect_inputs_and_sign(secret_trx, asset(0), required_signatures, "secret transaction");
 
             wlog("secret_trx: ${tx} ", ("tx", secret_trx));

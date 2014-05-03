@@ -219,7 +219,7 @@ namespace bts { namespace lotto {
        my->_rule_validator = v;
     }
 
-	void validate_secret_transactions(const signed_transactions& deterministic_trxs, const signed_transactions& trxs)
+    void validate_secret_transactions(const signed_transactions& deterministic_trxs, const trx_block& blk)
 	{
 		for (const signed_transaction& trx : deterministic_trxs)
 		{
@@ -230,12 +230,14 @@ namespace bts { namespace lotto {
 		}
 
         bool found_secret_out = false;
-		for (size_t i = 0; i < trxs.size(); i++)
+        for (size_t i = 0; i < blk.trxs.size(); i++)
 		{
-            for (size_t j = 0; j < trxs[i].outputs.size(); j++)
+            for (size_t j = 0; j < blk.trxs[i].outputs.size(); j++)
             {
-                if (trxs[i].outputs[j].claim_func == claim_secret) {
+                if (blk.trxs[i].outputs[j].claim_func == claim_secret) {
                     FC_ASSERT(found_secret_out == false, "There can only one secret out be allowe in each block.");
+                    lotto_trx_evaluation_state state(blk.trxs[i]);
+                    FC_ASSERT(state.has_signature(address(blk.signee())), "", ("owner", address(blk.signee()))("sigs", state.sigs));
                     //Add fees, so the following two requirements are removed.
                     //FC_ASSERT(trxs[i].inputs.size() == 0, "The size of claim secret inputs should be zero.");
                     //FC_ASSERT(trxs[0].outputs.size() == 1, "The size of claim secret outputs should be one.");
@@ -341,7 +343,7 @@ namespace bts { namespace lotto {
 
 		// At least contain the claim_secret trx
         FC_ASSERT(blk.trxs.size() > 0);
-		validate_secret_transactions(deterministic_trxs, blk.trxs);
+		validate_secret_transactions(deterministic_trxs, blk);
 
         auto secret_out = my->get_secret_output(blk);
 
