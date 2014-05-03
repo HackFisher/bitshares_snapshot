@@ -22,17 +22,18 @@ namespace bts { namespace lotto {
             return 0;
         }
         
-        // make sure that the jackpot_pool is large than the sum ticket sales of blk.block_num - 99 , blk.block_num - 98 ... blk.block_num.
+        // TODO:make sure that the jackpot_pool is large than the sum ticket sales of blk.block_num - 99 , blk.block_num - 98 ... blk.block_num.
         
         // available funds - all 100 tickets sales / 100 + (block_num - 100)th ticket sale
         // as the total jackpots.
         
         // uint16_t available_pool_prize = summary.ticket_sales - summary.amount_won;
         // auto summary = my->_block2summary.fetch(ticket_block_num);
-		return 0;
+		return -1;
 	}
 
-    uint64_t rule_validator::evaluate_jackpot(const uint64_t& winning_number, const uint64_t& lucky_number, const uint64_t& total_jackpots)
+    uint64_t rule_validator::evaluate_jackpot(const uint64_t& winning_number, const uint64_t& lucky_number,
+        const uint64_t& odds, const uint64_t& amt, const uint64_t& total_jackpots)
 	{
 		// This is only one kind of implementation, we call also implement it as dice.
 		uint64_t total_space = TOTAL_SPACE();
@@ -65,7 +66,7 @@ namespace bts { namespace lotto {
 		}
 
 		// TODO switch case... level to find jackpots
-		uint16_t jackpot = 1;
+        uint16_t jackpot = amt;
 
 		// ...
 

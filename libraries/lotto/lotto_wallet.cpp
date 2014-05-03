@@ -77,7 +77,7 @@ std::map<output_index, trx_output> lotto_wallet::list_jackpots(lotto_db& db)
         std::map<output_index, trx_output> jackpots_map;
         for (auto out : get_unspent_outputs())
         {
-            if (out.second.claim_func = claim_jackpot)
+            if (out.second.claim_func == claim_jackpot)
             {
                 jackpots_map[out.first] = out.second;
             }

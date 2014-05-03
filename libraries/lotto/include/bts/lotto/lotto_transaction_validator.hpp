@@ -33,6 +33,8 @@ class lotto_transaction_validator : public bts::blockchain::transaction_validato
 
         void validate_jackpot_input(const meta_trx_input& in, transaction_evaluation_state& state, const block_evaluation_state_ptr& block_state);
         void validate_jackpot_output(const trx_output& out, transaction_evaluation_state& state, const block_evaluation_state_ptr& block_state);
+    protected:
+        lotto_db* _lotto_db;
 };
 
 }} // bts::lotto

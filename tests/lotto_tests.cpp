@@ -30,6 +30,12 @@ std::pair<fc::sha256, fc::sha256> delegate_secret_last_revealed_secret_pair(uint
 {
     static std::map<uint16_t, std::pair<fc::sha256, fc::sha256>> _delegate_secret_pair_map;
 
+    if (delegate_id == 0)   // reset
+    {
+        _delegate_secret_pair_map.clear();
+        return std::pair<fc::sha256, fc::sha256>(fc::sha256(), fc::sha256());
+    }
+
     if (_delegate_secret_pair_map.find(delegate_id) == _delegate_secret_pair_map.end())
     {
         fc::sha256 new_reveal_secret = fc::sha256("FFFEEE" + fc::to_string((int64_t)std::rand()));
@@ -149,6 +155,7 @@ class LottoTestState
 
         ~LottoTestState()
         {
+            delegate_secret_last_revealed_secret_pair(0);
             db.close();
             fc::remove_all(path);
         }
@@ -178,7 +185,8 @@ class LottoTestState
             signed_transaction secret_trx;
             claim_secret_output secret_out;
 
-            secret_out.delegate_id = (db.head_block_num() - 1) % 100 + 1;
+            // TODO: delegate id should start 1, 0 is reserved for genesis block secert
+            secret_out.delegate_id = db.head_block_num() % 100 + 1;
             auto secret_pair = delegate_secret_last_revealed_secret_pair(secret_out.delegate_id);
             
             // hash of secret for this round
@@ -307,6 +315,48 @@ BOOST_AUTO_TEST_CASE(wallet_list_tickets)
             BOOST_CHECK(ticket.second.amount == asset(1.0));
             BOOST_CHECK(ticket_out.lucky_number == 888);
             BOOST_CHECK(ticket_out.odds == 0);
+        }
+    }
+    catch (const fc::exception& e)
+    {
+        std::cerr << e.to_detail_string() << "\n";
+        elog("${e}", ("e", e.to_detail_string()));
+        throw;
+    }
+    catch (const std::exception& e)
+    {
+        elog("${e}", ("e", e.what()));
+        throw;
+    }
+}
+
+BOOST_AUTO_TEST_CASE(wallet_list_jackpots)
+{
+    try
+    {
+        LottoTestState state;
+
+        // Generate 101 blocks, and wait for secerets out...
+        for (size_t i = 0; i < 102; i++)
+        {
+            signed_transactions txs;
+            auto signed_trx = state.wallet1.buy_ticket(888, 0, asset(1.0));
+            wlog("tx: ${tx} ", ("tx", signed_trx));
+
+            txs.push_back(signed_trx);
+
+            state.next_block(txs);
+        }
+
+        auto jackpots = state.wallet1.list_jackpots(state.db);
+
+        wlog("jackpots count: ${c} ", ("c", jackpots.size()));
+        BOOST_CHECK(jackpots.size() > 0);
+
+        for (auto jackpot : jackpots)
+        {
+            wlog("out_idx: ${out_idx} ", ("out_idx", jackpot.first));
+            wlog("jackpot: ${jackpot} ", ("jackpot", jackpot.second));
         }
     }
     catch (const fc::exception& e)

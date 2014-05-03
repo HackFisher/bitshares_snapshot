@@ -1,6 +1,7 @@
 #include <algorithm>
 
 #include <fc/io/raw.hpp>
+#include <fc/log/logger.hpp>
 
 #include <bts/lotto/lotto_transaction_validator.hpp>
 #include <bts/lotto/lotto_outputs.hpp>
@@ -13,6 +14,7 @@ namespace bts { namespace lotto {
 lotto_transaction_validator::lotto_transaction_validator(lotto_db* db)
 :transaction_validator(db)
 {
+    _lotto_db = db;
 }
 
 lotto_transaction_validator::~lotto_transaction_validator()
@@ -56,16 +58,21 @@ transaction_summary lotto_transaction_validator::evaluate( const signed_transact
 {
     lotto_trx_evaluation_state state(tx);
 
-    transaction_summary sum = on_evaluate( state, block_state );
-
-    for ( auto in : state.inputs )
+    auto inputs = _lotto_db->fetch_inputs(state.trx.inputs);
+    // TODO: state.inputs is fetch on upstream
+    for (auto in : inputs)
     {
-        if ( in.output.claim_func == claim_ticket )
+        if (in.output.claim_func == claim_ticket)
         {
             validate_ticket_jackpot_transactions(state);
-            break;
+            // TODO: hacking deterministic transactions do not need fees, votes... etc...
+            // DO not need on_evaluate, with assumption that all claim_tickets input are in deterministic trxs 
+            return transaction_summary();
+            //break;
         }
     }
+
+    transaction_summary sum = on_evaluate( state, block_state );
 
     for (auto out : tx.outputs)
     {

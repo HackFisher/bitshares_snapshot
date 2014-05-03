@@ -18,12 +18,146 @@ namespace bts { namespace lotto {
         {
             public:
                 lotto_db_impl(){}
+
+                lotto_db*                                     _self;
+
                 // map drawning number to drawing record
                 bts::db::level_map<uint32_t, drawing_record>  _drawing2record;
                 bts::db::level_map<uint32_t, block_summary>   _block2summary;
                 bts::db::level_map<uint32_t, std::vector<uint32_t>>   _delegate2blocks;
 				bts::db::level_map<uint32_t, claim_secret_output> _block2secret;
-				rule_validator_ptr                           _rule_validator;
+                rule_validator_ptr                           _rule_validator;
+
+                /**
+                * @return <ticket transaction number, paid_jackpot for that ticket>
+                */
+                std::pair<trx_num, uint64_t> jackpot_paid_in_transaction(const signed_transaction& trx)
+                {
+                    uint64_t trx_paid = 0;
+                    trx_num trx_n;
+
+                    for (auto i : trx.inputs)
+                    {
+                        // TODO: Fee? There is no fee in deterministic trxs
+                        auto o = _self->fetch_output(i.output_ref);
+                        trx_n = _self->fetch_trx_num(i.output_ref.trx_hash);
+                        if (o.claim_func == claim_ticket) {
+                            for (auto out : trx.outputs)
+                            {
+                                if (out.claim_func == claim_jackpot) {
+
+                                    trx_paid += out.amount.get_rounded_amount();
+                                }
+                            }
+
+                            // TODO: Many ticket's inputs? Jackpots should draw by each ticket. 
+                            break;
+                        }
+                    }
+
+                    return std::pair<trx_num, uint64_t>(trx_n, trx_paid);
+                }
+
+                uint64_t generate_random_number(const uint32_t& block_num, const fc::string& revealed_secret)
+                {
+                    auto random = fc::sha256::hash(revealed_secret);
+                    for (uint32_t i = 1; i < 100 && (block_num >= i); ++i)
+                    {
+                        auto history_secret = _block2secret.fetch(block_num - i);
+                        // where + is concat
+                        random = fc::sha256::hash(history_secret.revealed_secret.str() + random.str());
+                    }
+
+                    return (uint64_t)random._hash[0];
+                }
+
+                void store(const trx_block& blk,
+                    const signed_transactions& deterministic_trxs,
+                    const block_evaluation_state_ptr& state)
+                {
+                    claim_secret_output head_secret;
+
+                    if (blk.block_num > 0)
+                    {
+                        head_secret = blk.trxs[0].outputs[0].as<claim_secret_output>();
+                    }
+
+                    // TODO: the default delegate id of first block is 0, this could influnce delgete2blocks.....
+                    _block2secret.store(blk.block_num, head_secret);
+
+                    // TODO: ToFix: Should block's delegate id be retrieved this way? Then, how to achieve this before store?
+                    // TODO: the default delegate id of first block is 0, this should influnce delgete2blocks.....
+                    // real delegate is are larger than 0
+                    if (blk.block_num > 0)
+                    {
+                        auto itr = _delegate2blocks.find(head_secret.delegate_id);
+                        std::vector<uint32_t> block_ids;
+                        if (itr.valid())
+                        {
+                            block_ids = itr.value();
+                        }
+
+                        block_ids.push_back(blk.block_num);
+                        _delegate2blocks.store(head_secret.delegate_id, block_ids);
+                    }
+
+                    uint64_t amout_won = 0;
+
+                    // TODO: ticket->jackpot is only allowed in deterministic_trxs
+                    for (auto trx : deterministic_trxs)
+                    {
+                        auto trx_num_paid = jackpot_paid_in_transaction(trx);
+                        if (trx_num_paid.second > 0)
+                        {
+                            auto winning_block_num = trx_num_paid.first.block_num + BTS_LOTTO_BLOCKS_BEFORE_JACKPOTS_DRAW;
+                            amout_won += trx_num_paid.second;
+                            // The in.output should all be tickets, and the out should all be jackpots
+                            auto draw_record = _drawing2record.fetch(winning_block_num);
+                            draw_record.total_paid = draw_record.total_paid + trx_num_paid.second;
+                            _drawing2record.store(winning_block_num, draw_record);
+                        }
+                    }
+
+                    // update block summary
+                    block_summary bs;
+                    uint64_t ticket_sales = 0;
+
+                    for (auto trx : blk.trxs)
+                    {
+                        for (auto o : trx.outputs)
+                        {
+                            if (o.claim_func == claim_ticket) {
+                                ticket_sales += o.amount.get_rounded_amount();
+                            }
+                        }
+                    }
+                    bs.ticket_sales = ticket_sales;
+                    bs.amount_won = amout_won;
+
+                    // TODO: change wining_number to sha256, and recheck whether sha356 is suitable for hashing.
+                    uint64_t random_number = generate_random_number(blk.block_num, head_secret.revealed_secret.str());
+                    bs.winning_number = random_number;
+                    wlog("winning number is ${r}", ("r", random_number));
+
+                    _block2summary.store(blk.block_num, bs);
+
+                    // update jackpots.....
+                    // the drawing record in this block, corresponding to previous related ticket purchase block (blk.block_num - BTS_LOTTO_BLOCKS_BEFORE_JACKPOTS_DRAW)
+                    uint64_t last_jackpot_pool = 0;
+                    if (blk.block_num > 0)
+                    {
+                        last_jackpot_pool = _drawing2record.fetch(blk.block_num - 1).jackpot_pool;
+                    }
+                    drawing_record dr;
+                    dr.total_jackpot = _rule_validator->evaluate_total_jackpot(bs.winning_number, blk.block_num, last_jackpot_pool + bs.ticket_sales);
+                    // just the begin, still not paid
+                    dr.total_paid = 0;
+                    dr.jackpot_pool = last_jackpot_pool + bs.ticket_sales - dr.total_jackpot;
+                    // TODO: how to move to validate()
+                    FC_ASSERT(dr.jackpot_pool >= 0, "jackpot is out ...");
+                    // Assert that the jackpot_pool is large than the sum ticket sales of blk.block_num - 99 , blk.block_num - 98 ... blk.block_num.
+                    _drawing2record.store(blk.block_num, dr);
+                }
             
         };
     }
@@ -36,6 +170,7 @@ namespace bts { namespace lotto {
         output_factory::instance().register_output<claim_jackpot_output>();
         set_transaction_validator( std::make_shared<lotto_transaction_validator>(this) );
 		set_rule_validator(std::make_shared<rule_validator>(this));
+        my->_self = this;
     }
 
     lotto_db::~lotto_db()
@@ -102,7 +237,7 @@ namespace bts { namespace lotto {
      */
 	asset lotto_db::draw_jackpot_for_ticket( output_index out_idx, uint64_t lucky_number, uint16_t odds, asset amount )
     {
-        FC_ASSERT(head_block_num() - out_idx.block_idx > BTS_LOTTO_BLOCKS_BEFORE_JACKPOTS_DRAW);
+        FC_ASSERT(head_block_num() >= out_idx.block_idx + BTS_LOTTO_BLOCKS_BEFORE_JACKPOTS_DRAW);
 		// fc::sha256 winning_number;
 		// using the next block generated block number
         uint64_t winning_number = my->_block2summary.fetch(out_idx.block_idx + BTS_LOTTO_BLOCKS_BEFORE_JACKPOTS_DRAW).winning_number;
@@ -112,7 +247,8 @@ namespace bts { namespace lotto {
 
 		auto dr = my->_drawing2record.fetch(out_idx.block_idx + BTS_LOTTO_BLOCKS_BEFORE_JACKPOTS_DRAW);
         
-        uint64_t jackpot =  my->_rule_validator->evaluate_jackpot(winning_number, lucky_number, dr.total_jackpot);
+        // TODO: pass asset inside?
+        uint64_t jackpot =  my->_rule_validator->evaluate_jackpot(winning_number, lucky_number, odds, amount.get_rounded_amount(), dr.total_jackpot);
 
         return asset(jackpot, amount.unit);
     }
@@ -136,25 +272,31 @@ namespace bts { namespace lotto {
         // TODO validate unique of deterministric and common trxs
         // TODO and ticket output should not exsits in deterministric trxs
         auto ticket_blk = fetch_trx_block(ticket_block_num);
+        wlog("ticket_blk is: ${c} ", ("c", ticket_blk));
         for (auto trx : ticket_blk.trxs)
         {
-            auto inputs = fetch_inputs(trx.inputs);
-            for (auto in : inputs)
+            for (size_t i = 0; i < trx.outputs.size(); i ++ )
             {
+                auto out = trx.outputs[i];
                 // TODO: spent should not happen, e.g. in current/before block's trxs
                 // All ticket are drawn in deterministic way
-                if (in.output.claim_func == claim_ticket && !in.meta_output.is_spent())
+                wlog("ticket out is: ${c} ", ("c", out));
+                if (out.claim_func == claim_ticket /*TODO: && !in.meta_output.is_spent()*/)
                 {
                     signed_transaction draw_trx;
-                    auto ticket_out = in.output.as<claim_ticket_output>();
+                    draw_trx.vote = 0; // TODO: no vote
+                    auto ticket_out = out.as<claim_ticket_output>();
                     auto trx_num = fetch_trx_num(trx.id());
+                    wlog("ticket trx_num is: ${c} ", ("c", trx_num));
                     // TODO: why not directly send in.output in to 
-                    auto jackpot = draw_jackpot_for_ticket(output_index(trx_num.block_num, trx_num.trx_idx, in.output_num),
-                        ticket_out.lucky_number, ticket_out.odds, in.output.amount);
+                    auto jackpot = draw_jackpot_for_ticket(output_index(trx_num.block_num, trx_num.trx_idx, i),
+                        ticket_out.lucky_number, ticket_out.odds, out.amount);
                     
+                    wlog("jackpot drawn is: ${c} ", ("c", jackpot));
                     uint16_t mature = 0;
                     while (jackpot.get_rounded_amount() > BTS_LOTTO_RULE_MAXIMUM_REWARDS_EACH_JACKPOT_OUTPUT)
                     {
+                        wlog("mature day is: ${c} ", ("c", mature));
                         claim_jackpot_output jackpot_out(ticket_out.owner, mature);
                         asset amt(BTS_LOTTO_RULE_MAXIMUM_REWARDS_EACH_JACKPOT_OUTPUT, jackpot.unit);
                         draw_trx.outputs.push_back( trx_output( jackpot_out, amt ) );
@@ -162,6 +304,7 @@ namespace bts { namespace lotto {
                         ++ mature;
                     }
 
+                    draw_trx.inputs.push_back( trx_input( claim_ticket, output_reference( trx.id(), i ) ) );
                     draw_trx.outputs.push_back(trx_output(claim_jackpot_output(ticket_out.owner, mature), jackpot));
 
                     signed_trxs.push_back(draw_trx);
@@ -170,6 +313,7 @@ namespace bts { namespace lotto {
 
         }
 
+        wlog("generate_deterministic_transactions: ${c}", ("c", signed_trxs));
         return signed_trxs;
     }
 
@@ -179,7 +323,8 @@ namespace bts { namespace lotto {
      */
     block_evaluation_state_ptr lotto_db::validate( const trx_block& blk, const signed_transactions& deterministic_trxs )
     {
-		block_evaluation_state_ptr block_state = chain_database::validate(blk, deterministic_trxs);
+        // TODO: In lotto deterministic_trxs do not validate again
+        block_evaluation_state_ptr block_state = chain_database::validate(blk, deterministic_trxs);
 
 		if (blk.block_num == 0) { return block_state; } // don't check anything for the genesis block;
 
@@ -204,27 +349,16 @@ namespace bts { namespace lotto {
 			FC_ASSERT(secret_out.revealed_secret == fc::sha256());   //  this is the first block produced by delegate
         }
 
-        for (const signed_transaction& trx : blk.trxs)
+        for (const signed_transaction& trx : deterministic_trxs)
         {
-            for ( auto i : trx.inputs)
+            auto trx_num_paid = my->jackpot_paid_in_transaction(trx);
+
+            if (trx_num_paid.second > 0)
             {
-                // TODO: need to remove fees?
-				auto o = fetch_output(i.output_ref);
-                auto draw_block_num = fetch_trx_num(i.output_ref.trx_hash).block_num + BTS_LOTTO_BLOCKS_BEFORE_JACKPOTS_DRAW;
-                uint64_t trx_paid = 0;
-                if (o.claim_func == claim_ticket) {
-                    // all the tickets drawing in this trx should belong to the same blocks.
-                    for ( auto out : trx.outputs)
-                    {
-						if (out.claim_func == claim_by_signature) {
-                            trx_paid += out.amount.get_rounded_amount();
-                        }
-                    }
-					// The in.output should all be tickets, and the out should all be jackpots
-                    auto draw_record = my->_drawing2record.fetch(draw_block_num);
-                    FC_ASSERT(draw_record.total_paid + trx_paid <= draw_record.total_jackpot, "The paid jackpots is out of the total jackpot.");
-					break;
-                }
+                auto winning_block_num = trx_num_paid.first.block_num + BTS_LOTTO_BLOCKS_BEFORE_JACKPOTS_DRAW;
+                // The in.output should all be tickets, and the out should all be jackpots
+                auto draw_record = my->_drawing2record.fetch(winning_block_num);
+                FC_ASSERT(draw_record.total_paid + trx_num_paid.second <= draw_record.total_jackpot, "The paid jackpots is out of the total jackpot.");
             }
         }
 
@@ -240,91 +374,7 @@ namespace bts { namespace lotto {
     {
         chain_database::store(blk, deterministic_trxs, state);
 
-		claim_secret_output head_secret;
-
-		if (blk.block_num > 0)
-		{
-            head_secret = blk.trxs[0].outputs[0].as<claim_secret_output>();
-		}
-
-		// TODO: the default delegate id of first block is 0, this could influnce delgete2blocks.....
-		my->_block2secret.store(blk.block_num, head_secret);
-
-        auto random = fc::sha256::hash(head_secret.revealed_secret.str());
-        for (uint32_t i = 1; i < 100 && (blk.block_num >= i); ++i)
-        {
-            auto history_secret = my->_block2secret.fetch(blk.block_num - i);
-            random = fc::sha256::hash(history_secret.revealed_secret.str() + random.str()); // where + is concat
-        }
-        // TODO: ToFix: Should block's delegate id be retrieved this way? Then, how to achieve this before store?
-        // TODO: the default delegate id of first block is 0, this could influnce delgete2blocks.....
-        if (blk.block_num > 0)
-        {
-            auto itr = my->_delegate2blocks.find(head_secret.delegate_id);
-            if (itr.valid())
-            {
-                auto block_ids = itr.value();
-                block_ids.push_back(blk.block_num);
-                my->_delegate2blocks.store(head_secret.delegate_id, block_ids);
-            }
-        }
-
-        block_summary bs;
-        uint64_t ticket_sales = 0;
-        uint64_t amout_won = 0;
-        for (const signed_transaction& trx : blk.trxs)
-        {
-            for ( auto o : trx.outputs)
-            {
-                if (o.claim_func == claim_ticket) {
-                    ticket_sales += o.amount.get_rounded_amount();
-                }
-            }
-
-            for ( auto i : trx.inputs)
-            {
-                // TODO: need to remove fees?
-				auto o = fetch_output(i.output_ref);
-                auto draw_block_num = fetch_trx_num(i.output_ref.trx_hash).block_num + BTS_LOTTO_BLOCKS_BEFORE_JACKPOTS_DRAW;
-                uint64_t trx_paid = 0;
-                if (o.claim_func == claim_ticket) {
-                    // all the tickets drawing in this trx should belong to the same blocks.
-                    for ( auto out : trx.outputs)
-                    {
-						if (out.claim_func == claim_by_signature) {
-                            amout_won += out.amount.get_rounded_amount();
-                            trx_paid += out.amount.get_rounded_amount();
-                        }
-                    }
-					// The in.output should all be tickets, and the out should all be jackpots
-                    auto draw_record = my->_drawing2record.fetch(draw_block_num);
-                    draw_record.total_paid = draw_record.total_paid + trx_paid;
-                    my->_drawing2record.store(draw_block_num, draw_record);
-					break;
-                }
-            }
-        }
-        bs.ticket_sales = ticket_sales;
-        bs.amount_won = amout_won;
-
-        // TODO: change wining_number to sha256, and recheck whether sha356 is suitable for hashing.
-        bs.winning_number = ((uint64_t)random._hash[0]) <<32 & ((uint64_t)random._hash[0]);
-        my->_block2summary.store(blk.block_num, bs);
-        // the drawing record in this block, corresponding to previous related ticket purchase block (blk.block_num - BTS_LOTTO_BLOCKS_BEFORE_JACKPOTS_DRAW)
-        uint64_t last_jackpot_pool = 0;
-        if (blk.block_num > 0)
-        {
-            last_jackpot_pool = my->_drawing2record.fetch(blk.block_num - 1).jackpot_pool;
-        }
-        drawing_record dr;
-        dr.total_jackpot = my->_rule_validator->evaluate_total_jackpot(bs.winning_number, blk.block_num, last_jackpot_pool + bs.ticket_sales);
-        // just the begin, still not paid
-        dr.total_paid = 0;
-        dr.jackpot_pool = last_jackpot_pool + bs.ticket_sales - dr.total_jackpot;
-        // TODO: how to move to validate()
-        FC_ASSERT(dr.jackpot_pool >= 0, "jackpot is out ...");
-        // Assert that the jackpot_pool is large than the sum ticket sales of blk.block_num - 99 , blk.block_num - 98 ... blk.block_num.
-        my->_drawing2record.store(blk.block_num, dr);
+        my->store(blk, deterministic_trxs, state);
     }
 
     /**
