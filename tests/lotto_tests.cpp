@@ -4,7 +4,7 @@
 #include <bts/blockchain/chain_database.hpp>
 #include <bts/blockchain/block_miner.hpp>
 #include <bts/blockchain/config.hpp>
-#include <bts/lotto/rule.hpp>
+#include <bts/lotto/common.hpp>
 #include <bts/lotto/lotto_wallet.hpp>
 #include <bts/lotto/lotto_outputs.hpp>
 #include <fc/filesystem.hpp>
@@ -87,7 +87,7 @@ trx_block generate_genesis_block(const std::vector<address>& addr)
     {
         signed_transaction trx;
         trx.vote = i + 1;
-        for (uint32_t o = 0; o < 10; ++o)
+        for (uint32_t o = 0; o < 20; ++o)
         {
             uint64_t amnt = 100000;
             trx.outputs.push_back(trx_output(claim_by_signature_output(addr[i]), asset(amnt)));
@@ -283,7 +283,7 @@ BOOST_AUTO_TEST_CASE(trx_validator_lucky_number)
         LottoTestState state;
         lotto_transaction_validator validator(&state.db);
 
-        auto signed_trx = state.wallet1.buy_ticket(888, 0, asset(1.0));
+        auto signed_trx = state.wallet1.buy_ticket(888, 0, asset(1));
         wlog("tx: ${tx} ", ("tx", signed_trx));
 
         validator.evaluate(signed_trx, validator.create_block_state());
@@ -303,7 +303,7 @@ BOOST_AUTO_TEST_CASE(wallet_list_tickets)
         LottoTestState state;
 
         signed_transactions txs;
-        auto signed_trx = state.wallet1.buy_ticket(888, 0, asset(1.0));
+        auto signed_trx = state.wallet1.buy_ticket(888, 0, asset(1));
         wlog("tx: ${tx} ", ("tx", signed_trx));
 
         txs.push_back(signed_trx);
@@ -318,7 +318,7 @@ BOOST_AUTO_TEST_CASE(wallet_list_tickets)
             BOOST_CHECK(ticket.first.block_idx == 1);
             BOOST_CHECK(ticket.first.trx_idx == 1);
             auto ticket_out = ticket.second.as<claim_ticket_output>();
-            BOOST_CHECK(ticket.second.amount == asset(1.0));
+            BOOST_CHECK(ticket.second.amount == asset(1));
             BOOST_CHECK(ticket_out.lucky_number == 888);
             BOOST_CHECK(ticket_out.odds == 0);
         }
@@ -346,7 +346,7 @@ BOOST_AUTO_TEST_CASE(wallet_list_jackpots)
         for (size_t i = 0; i < 102; i++)
         {
             signed_transactions txs;
-            auto signed_trx = state.wallet1.buy_ticket(888, 0, asset(1.0));
+            auto signed_trx = state.wallet1.buy_ticket(888, 0, asset(1));
             wlog("tx: ${tx} ", ("tx", signed_trx));
 
             txs.push_back(signed_trx);
@@ -389,7 +389,7 @@ BOOST_AUTO_TEST_CASE(wallet_cash_jackpot)
         for (size_t i = 0; i < 102; i++)
         {
             signed_transactions txs;
-            auto signed_trx = state.wallet1.buy_ticket(888, 0, asset(10000.0));
+            auto signed_trx = state.wallet1.buy_ticket(888, 0, asset(10000));
             wlog("tx: ${tx} ", ("tx", signed_trx));
 
             txs.push_back(signed_trx);
@@ -481,72 +481,86 @@ BOOST_AUTO_TEST_CASE( util_combination_to_int )
 
 BOOST_AUTO_TEST_CASE( util_generate_rule_config )
 {
-    rule_config config;
+    lotto_rule::config config;
     config.version = 1;
     config.id = 1;
     config.name = fc::string("Double color ball lottey");
-    config.balls.push_back(std::pair<uint16_t, uint16_t>(35, 5));
-    config.balls.push_back(std::pair<uint16_t, uint16_t>(12, 2));
+    config.asset_type = 0;
+    config.ball_group.push_back(ball{ 35, 5 });
+    config.ball_group.push_back(ball{ 12, 2 });
 
+    prize prize_1;
+    prize_1.level = 1;
+    group_match match_1;
+    match_1.push_back(5);
+    match_1.push_back(2);
+    prize_1.match_list.push_back(match_1);
     // level 1:
-    uint16_t group_1_match_1[2] = {5, 2};
-    match g1v1(group_1_match_1, group_1_match_1+2);
-    std::vector< match> g1;
-    g1.push_back(g1v1);
-    config.prizes.push_back(std::pair<uint16_t, std::vector<match>>(1, g1));
+    config.prizes.push_back(prize_1);
 
 
     // level 2:
-    uint16_t group_2_match_1[2] = {5, 1};
-    match g2v1(group_2_match_1, group_2_match_1+2);
-    std::vector< match> g2;
-    g2.push_back(g2v1);
-    config.prizes.push_back(std::pair<uint16_t, std::vector<match>>(2, g2));
+    prize prize_2;
+    prize_2.level = 2;
+    group_match match_2;
+    match_2.push_back(5);
+    match_2.push_back(1);
+    prize_2.match_list.push_back(match_2);
+    config.prizes.push_back(prize_2);
 
     // level 3:
-    uint16_t group_3_match_1[2] = {5, 0};
-    match g3v1(group_3_match_1, group_3_match_1+2);
-    std::vector< match> g3;
-    g3.push_back(g3v1);
-    config.prizes.push_back(std::pair<uint16_t, std::vector<match>>(3, g3));
+    prize prize_3;
+    prize_3.level = 3;
+    group_match match_3;
+    match_3.push_back(5);
+    match_3.push_back(0);
+    prize_3.match_list.push_back(match_3);
+    config.prizes.push_back(prize_3);
 
     // level 4:
-    uint16_t group_4_match_1[2] = {4, 2};
-    match g4v1(group_4_match_1, group_4_match_1+2);
-    std::vector< match> g4;
-    g4.push_back(g4v1);
-    config.prizes.push_back(std::pair<uint16_t, std::vector<match>>(4, g4));
+    prize prize_4;
+    prize_4.level = 4;
+    group_match match_4;
+    match_4.push_back(4);
+    match_4.push_back(2);
+    prize_4.match_list.push_back(match_4);
+    config.prizes.push_back(prize_4);
 
     // level 5:
-    uint16_t group_5_match_1[2] = {4, 1};
-    match g5v1(group_5_match_1, group_5_match_1+2);
-    std::vector< match> g5;
-    g5.push_back(g5v1);
-    config.prizes.push_back(std::pair<uint16_t, std::vector<match>>(5, g5));
+    prize prize_5;
+    prize_5.level = 5;
+    group_match match_5;
+    match_5.push_back(4);
+    match_5.push_back(1);
+    prize_5.match_list.push_back(match_5);
+    config.prizes.push_back(prize_5);
 
     // level 6:
-    uint16_t group_6_match_1[2] = {4, 0};
-    match g6v1(group_6_match_1, group_6_match_1+2);
-    uint16_t group_6_match_2[2] = {3, 2};
-    match g6v2(group_6_match_2, group_6_match_2+2);
-    std::vector< match> g6;
-    g6.push_back(g6v1);
-    g6.push_back(g6v2);
-    config.prizes.push_back(std::pair<uint16_t, std::vector<match>>(6, g6));
+    prize prize_6;
+    prize_6.level = 2;
+    group_match match_6_1;
+    match_6_1.push_back(4);
+    match_6_1.push_back(0);
+    prize_6.match_list.push_back(match_6_1);
+    group_match match_6_2;
+    match_6_2.push_back(3);
+    match_6_2.push_back(2);
+    prize_6.match_list.push_back(match_6_2);
+    config.prizes.push_back(prize_6);
 
     fc::variant var(config);
     auto str = fc::json::to_string(var);
 	
     ilog( "block: \n${b}", ("b", str ) );
 
-	const fc::path& p = "rule.json";
-	fc::json::save_to_file(var, p);
+	const fc::path& p = "lotto_rule.json";
+	fc::json::save_to_file(var, p, true);
 }
 
 BOOST_AUTO_TEST_CASE( util_load_rule_config )
 {
-	const rule_config& config = global_rule_config();
-	BOOST_CHECK(config.balls.size() == 2);
+    const lotto_rule::config& config = global_rule_config();
+    BOOST_CHECK(config.ball_group.size() == 2);
 
 	BOOST_CHECK(GROUP_COUNT() == 2);
 
@@ -575,6 +589,7 @@ BOOST_AUTO_TEST_CASE( util_combination )
     catch (const fc::exception& e)
     {
         no_exception = false;
+        elog("${e}", ("e", e.to_detail_string()));
     }
     catch (...)
     {
@@ -593,7 +608,7 @@ BOOST_AUTO_TEST_CASE(util_hash_and)
 {
 	uint32_t left = 1;
 	uint32_t right = 2;
-	uint64_t result = ((1 << 32) & 2);
+    uint64_t result = ((uint64_t)((uint64_t)1 << 32) & 2);
 	BOOST_CHECK((((uint64_t)left << 32) & (uint64_t)right) == result);
 }
 

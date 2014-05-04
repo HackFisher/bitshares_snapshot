@@ -5,7 +5,7 @@
 #include <bts/wallet/wallet.hpp>
 
 #include <bts/lotto/lotto_transaction_validator.hpp>
-#include <bts/lotto/lotto_rule_validator.hpp>
+#include <bts/lotto/lotto_rule.hpp>
 
 namespace bts { namespace lotto {
 using namespace bts::wallet;
@@ -41,14 +41,14 @@ class lotto_db : public bts::blockchain::chain_database
         void             open( const fc::path& dir, bool create );
         void             close();
 
-		void set_rule_validator( const rule_validator_ptr& v );
+        void set_lotto_rule(const lotto_rule_ptr& r);
 
         void validate_secret_transactions(const signed_transactions& deterministic_trxs, const trx_block& blk);
 
         /**
          * Calculate the jackpot reward for this ticket.
          */
-        asset draw_jackpot_for_ticket( output_index out_idx, uint64_t lucky_number, uint16_t odds, asset amount );
+        asset draw_jackpot_for_ticket(const output_index& out_idx, const bts::lotto::claim_ticket_output& ticket, const asset& amount);
 
         /**
          * Generate transactions for winners, claim_ticket as in, and claim_jackpot as out

@@ -10,11 +10,12 @@ include_directories( "${CMAKE_SOURCE_DIR}/libraries/rpc/include" )
 file(GLOB HEADERS "include/bts/lotto/*.hpp")
 
 add_library( bts_lotto
+             common.cpp
              rule.cpp
              lotto_outputs.cpp
              lotto_db.cpp
              lotto_transaction_validator.cpp
-             lotto_rule_validator.cpp
+             lotto_rule.cpp
              lotto_wallet.cpp
              lotto_cli.cpp
              lotto_rpc_server.cpp

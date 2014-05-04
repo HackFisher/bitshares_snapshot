@@ -3,7 +3,7 @@
 #include <bts/db/level_map.hpp>
 #include <bts/blockchain/output_factory.hpp>
 #include <bts/lotto/lotto_db.hpp>
-#include <bts/lotto/lotto_rule_validator.hpp>
+#include <bts/lotto/lotto_rule.hpp>
 #include <bts/lotto/lotto_config.hpp>
 
 namespace fc {
@@ -26,7 +26,8 @@ namespace bts { namespace lotto {
                 bts::db::level_map<uint32_t, block_summary>   _block2summary;
                 bts::db::level_map<uint32_t, std::vector<uint32_t>>   _delegate2blocks;
 				bts::db::level_map<uint32_t, claim_secret_output> _block2secret;
-                rule_validator_ptr                           _rule_validator;
+
+                std::map<asset_type, rule_ptr>          _asset_type2rule_ptr;
 
                 /**
                 * @return <ticket transaction number, paid_jackpot for that ticket>
@@ -165,7 +166,7 @@ namespace bts { namespace lotto {
                         last_jackpot_pool = _drawing2record.fetch(blk.block_num - 1).jackpot_pool;
                     }
                     drawing_record dr;
-                    dr.total_jackpot = _rule_validator->evaluate_total_jackpot(bs.winning_number, blk.block_num, last_jackpot_pool + bs.ticket_sales);
+                    dr.total_jackpot = _asset_type2rule_ptr[0]->evaluate_total_jackpot(bs.winning_number, blk.block_num, last_jackpot_pool + bs.ticket_sales);
                     // just the begin, still not paid
                     dr.total_paid = 0;
                     dr.jackpot_pool = last_jackpot_pool + bs.ticket_sales - dr.total_jackpot;
@@ -185,7 +186,7 @@ namespace bts { namespace lotto {
         output_factory::instance().register_output<claim_ticket_output>();
         output_factory::instance().register_output<claim_jackpot_output>();
         set_transaction_validator( std::make_shared<lotto_transaction_validator>(this) );
-		set_rule_validator(std::make_shared<rule_validator>(this));
+        my->_asset_type2rule_ptr[0] = std::make_shared<lotto_rule>(this);
         my->_self = this;
     }
 
@@ -212,11 +213,6 @@ namespace bts { namespace lotto {
         my->_block2secret.close();
 
         chain_database::close();
-    }
-
-	void lotto_db::set_rule_validator( const rule_validator_ptr& v )
-    {
-       my->_rule_validator = v;
     }
 
     void lotto_db::validate_secret_transactions(const signed_transactions& deterministic_trxs, const trx_block& blk)
@@ -269,7 +265,7 @@ namespace bts { namespace lotto {
     /**
      * TODO: this method should be const, return should be always same with same params
      */
-	asset lotto_db::draw_jackpot_for_ticket( output_index out_idx, uint64_t lucky_number, uint16_t odds, asset amount )
+    asset lotto_db::draw_jackpot_for_ticket(const output_index& out_idx, const bts::lotto::claim_ticket_output& ticket, const asset& amount)
     {
         FC_ASSERT(head_block_num() >= out_idx.block_idx + BTS_LOTTO_BLOCKS_BEFORE_JACKPOTS_DRAW);
 		// fc::sha256 winning_number;
@@ -282,7 +278,7 @@ namespace bts { namespace lotto {
 		auto dr = my->_drawing2record.fetch(out_idx.block_idx + BTS_LOTTO_BLOCKS_BEFORE_JACKPOTS_DRAW);
         
         // TODO: pass asset inside?
-        uint64_t jackpot =  my->_rule_validator->evaluate_jackpot(winning_number, lucky_number, odds, amount.get_rounded_amount(), dr.total_jackpot);
+        uint64_t jackpot = my->_asset_type2rule_ptr[0]->jackpot_for_ticket(winning_number, ticket, amount.get_rounded_amount(), dr.total_jackpot);
 
         return asset(jackpot, amount.unit);
     }
@@ -321,7 +317,7 @@ namespace bts { namespace lotto {
                     auto trx_num = fetch_trx_num(trx.id());
                     // TODO: why not directly send in.output in to 
                     auto jackpot = draw_jackpot_for_ticket(output_index(trx_num.block_num, trx_num.trx_idx, i),
-                        ticket_out.lucky_number, ticket_out.odds, out.amount);
+                        ticket_out, out.amount);
                     
                     uint16_t mature = 0;
                     while (jackpot.get_rounded_amount() > BTS_LOTTO_RULE_MAXIMUM_REWARDS_EACH_JACKPOT_OUTPUT)

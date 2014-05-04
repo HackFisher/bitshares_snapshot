@@ -1,0 +1,18 @@
+{
+    "version":1,
+    "id":1,
+    "name":"Double color ball lottey",
+    "asset_type":0,
+    "ball_group":[
+        {"total_count":35,"combination_count":5},
+        {"total_count":12,"combination_count":2}
+    ],
+    "prizes":[
+        {"level":1,"match_list":[[5,2]]},
+        {"level":2,"match_list":[[5,1]]},
+        {"level":3,"match_list":[[5,0]]},
+        {"level":4,"match_list":[[4,2]]},
+        {"level":5,"match_list":[[4,1]]},
+        {"level":2,"match_list":[[4,0],[3,2]]}
+    ]
+}

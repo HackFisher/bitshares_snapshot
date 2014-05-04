@@ -2,7 +2,7 @@
 #include <bts/cli/cli.hpp>
 #include <bts/lotto/lotto_cli.hpp>
 #include <bts/lotto/lotto_asset.hpp>
-#include <bts/lotto/rule.hpp>
+#include <bts/lotto/common.hpp>
 
 #include <iostream>
 #include <sstream>
@@ -35,8 +35,8 @@ fc::variants lotto_cli::parse_interactive_command(fc::buffered_istream& argument
             }
             
             combination combination;
-            uint16_t ball_select_count = global_rule_config().balls[k].second;
-            uint16_t ball_count = global_rule_config().balls[k].first;
+            uint16_t ball_select_count = global_rule_config().ball_group[k].combination_count;
+            uint16_t ball_count = global_rule_config().ball_group[k].total_count;
             
             for (size_t i = 0; i < ball_select_count; i ++)
             {
@@ -144,14 +144,15 @@ void lotto_cli::format_and_print_result(const std::string& command, const fc::va
         // TODO: to be improved
         auto config = global_rule_config();
         std::cout << "------Start of Rule " << config.name << "-----\n";
-        std::cout << "There are " << config.balls.size() << " groups of balls:" << "\n";
+        std::cout << "There are " << config.ball_group.size() << " groups of balls:" << "\n";
         
-        for (size_t i = 0; i < config.balls.size(); i ++)
+        for (size_t i = 0; i < config.ball_group.size(); i++)
         {
             std::cout << "\n";
             std::cout << "For the " << i << "th group of ball:" << "\n";
-            std::cout << "There are " << (uint16_t)config.balls[i].first << " balls with different numbers in total" << "\n";
-            std::cout << "Player should choose " << (uint16_t)config.balls[i].second << " balls out of " << (uint16_t)config.balls[i].first << " total balls" << "\n";
+            std::cout << "There are " << (uint16_t)config.ball_group[i].total_count << " balls with different numbers in total" << "\n";
+            std::cout << "Player should choose " << (uint16_t)config.ball_group[i].combination_count 
+                << " balls out of " << (uint16_t)config.ball_group[i].total_count << " total balls" << "\n";
         }
         
         std::cout << "\n";
@@ -160,23 +161,23 @@ void lotto_cli::format_and_print_result(const std::string& command, const fc::va
         for (size_t i = 0; i < pz.size(); i ++)
         {
             std::cout << "\n";
-            std::cout << "The " << pz[i].first << " level prize's definition is:\n" ;
+            std::cout << "The " << pz[i].level << " level prize's definition is:\n" ;
             //std::count << pz[i].desc;
             std::cout << "Match count for each group: [";
-            for (size_t j = 0; j < pz[i].second.size(); j ++ )
+            for (size_t j = 0; j < pz[i].match_list.size(); j ++ )
             {
                 if( j != 0)
                 {
                     std::cout << " OR ";
                 }
                 std::cout << "( ";
-                for (size_t k = 0; k < pz[i].second[j].size(); k ++ )
+                for (size_t k = 0; k < pz[i].match_list[j].size(); k++)
                 {
                     if (k != 0)
                     {
                         std::cout << ", ";
                     }
-                    std::cout << "" << (uint16_t)pz[i].second[j][k];
+                    std::cout << "" << (uint16_t)pz[i].match_list[j][k];
                 }
                 std::cout << " )";
             }
