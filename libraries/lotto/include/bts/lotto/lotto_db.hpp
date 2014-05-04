@@ -43,6 +43,8 @@ class lotto_db : public bts::blockchain::chain_database
 
 		void set_rule_validator( const rule_validator_ptr& v );
 
+        void validate_secret_transactions(const signed_transactions& deterministic_trxs, const trx_block& blk);
+
         /**
          * Calculate the jackpot reward for this ticket.
          */

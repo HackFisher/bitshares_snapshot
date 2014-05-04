@@ -219,7 +219,7 @@ namespace bts { namespace lotto {
        my->_rule_validator = v;
     }
 
-    void validate_secret_transactions(const signed_transactions& deterministic_trxs, const trx_block& blk)
+    void lotto_db::validate_secret_transactions(const signed_transactions& deterministic_trxs, const trx_block& blk)
 	{
 		for (const signed_transaction& trx : deterministic_trxs)
 		{
@@ -235,9 +235,26 @@ namespace bts { namespace lotto {
             for (size_t j = 0; j < blk.trxs[i].outputs.size(); j++)
             {
                 if (blk.trxs[i].outputs[j].claim_func == claim_secret) {
+                    auto secret_out = blk.trxs[i].outputs[j].as<claim_secret_output>();
                     FC_ASSERT(found_secret_out == false, "There can only one secret out be allowe in each block.");
                     lotto_trx_evaluation_state state(blk.trxs[i]);
                     FC_ASSERT(state.has_signature(address(blk.signee())), "", ("owner", address(blk.signee()))("sigs", state.sigs));
+                    
+                    auto provided_delegate = lookup_delegate(secret_out.delegate_id);
+                    FC_ASSERT(!!provided_delegate, "unable to find provided delegate id ${id}", ("id", secret_out.delegate_id));
+                    // TODO: validate that the provided delegate is the block signee and scheduled delegate
+                    // see chain_database::validate
+                    if (blk.signee() == get_trustee())
+                    {
+                        // TODO: if this block is signed by trusee, then do not need to validate, just to trust, but this will be changed later
+                    }
+                    else
+                    {
+                        FC_ASSERT(provided_delegate->owner == blk.signee(),
+                            "provided delegate is not same with the signee delegate of the block.", ("provided_del_key", provided_delegate->owner)("block_signee", blk.signee()));
+                    }
+                    
+
                     //Add fees, so the following two requirements are removed.
                     //FC_ASSERT(trxs[i].inputs.size() == 0, "The size of claim secret inputs should be zero.");
                     //FC_ASSERT(trxs[0].outputs.size() == 1, "The size of claim secret outputs should be one.");
