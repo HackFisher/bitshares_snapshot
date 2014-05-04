@@ -126,16 +126,20 @@ TODO:
     )" };
     fc::variant lotto_rpc_server_impl::list_jackpots(const fc::variants& params)
     {
-      FC_ASSERT(params.size() == 2); // cmd name path
-      std::string name = params[0].as_string();
-      asset bid = params[1].as<asset>();
-      signed_transactions tx_pool;
-
-      // TODO
-      //auto tx = get_lotto_wallet()->qui
-
-      //_self->get_client()->broadcast_transaction(tx);
-      return fc::variant(true);
+        try
+        {
+            auto jackpots = get_lotto_wallet()->list_jackpots(*get_lotto_db());
+            return fc::variant(jackpots);
+        }
+        catch (const fc::exception& e)
+        {
+            wlog("${e}", ("e", e.to_detail_string()));
+            throw;
+        }
+        catch (...)
+        {
+            throw rpc_wallet_passphrase_incorrect_exception();
+        }
     }
 
     /*--------------------------cash_jackpot--------------------*/

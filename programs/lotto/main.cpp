@@ -7,6 +7,7 @@
 #include <bts/lotto/lotto_wallet.hpp>
 #include <bts/lotto/lotto_cli.hpp>
 #include <bts/lotto/lotto_rpc_server.hpp>
+#include <bts/lotto/lotto_client.hpp>
 #include <fc/filesystem.hpp>
 #include <fc/thread/thread.hpp>
 #include <fc/log/file_appender.hpp>
@@ -64,6 +65,7 @@ int main(int argc, char** argv)
 		("httpport", boost::program_options::value<uint16_t>(), "port to listen for HTTP JSON-RPC connections")
 		("trustee-private-key", boost::program_options::value<std::string>(), "act as a trustee using the given private key")
 		("trustee-address", boost::program_options::value<std::string>(), "trust the given BTS address to generate blocks")
+        ("wallet-pass", boost::program_options::value<std::string>(), "when run as trustee, wallet password must be provided to unlock wallet for import trustee private key")
 		("genesis-json", boost::program_options::value<std::string>(), "generate a genesis block with the given json file (only for testing, only accepted when the blockchain is empty)");
 
 	boost::program_options::positional_options_description positional_config;
@@ -101,7 +103,7 @@ int main(int argc, char** argv)
 		auto wall = std::make_shared<bts::lotto::lotto_wallet>();
 		wall->set_data_directory(datadir);
 
-		auto c = std::make_shared<bts::client::client>(p2p_mode);
+		auto c = std::make_shared<bts::lotto::lotto_client>(p2p_mode);
         _global_client = c.get();
 		c->set_chain(lotto_db);
 		c->set_wallet(wall);
@@ -109,7 +111,10 @@ int main(int argc, char** argv)
 		if (option_variables.count("trustee-private-key"))
 		{
 			auto key = fc::variant(option_variables["trustee-private-key"].as<std::string>()).as<fc::ecc::private_key>();
-			c->run_trustee(key);
+            
+            FC_ASSERT(option_variables.count("wallet-pass"));
+            c->run_trustee(key);
+            c->run_secret_broadcastor(key, option_variables["wallet-pass"].as<std::string>());
 			// For testing
 			// private key: 066b64941dd05a0af49366a1168bffb08e9aac19c5fe24913242d97097c434b9
 			// bts address : ADmEYU8d5Qmr99hHT8UKbyshwahXbBduY
@@ -118,7 +123,10 @@ int main(int argc, char** argv)
 		else if (fc::exists("trustee.key"))
 		{
 			auto key = fc::json::from_file("trustee.key").as<fc::ecc::private_key>();
+            
+            FC_ASSERT(option_variables.count("wallet-pass"));
 			c->run_trustee(key);
+            c->run_secret_broadcastor(key, option_variables["wallet-pass"].as<std::string>());
 		}
 
 		bts::lotto::lotto_rpc_server_ptr rpc_server = std::make_shared<bts::lotto::lotto_rpc_server>();

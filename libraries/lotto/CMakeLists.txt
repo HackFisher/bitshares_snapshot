@@ -18,6 +18,7 @@ add_library( bts_lotto
              lotto_wallet.cpp
              lotto_cli.cpp
              lotto_rpc_server.cpp
+             lotto_client.cpp
              ${HEADERS}
            )
 

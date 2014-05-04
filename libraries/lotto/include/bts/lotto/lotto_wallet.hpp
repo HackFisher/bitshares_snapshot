@@ -24,6 +24,9 @@ namespace bts { namespace lotto {
             bts::blockchain::signed_transaction buy_ticket(const uint64_t& luckynumber, const uint16_t& odds,
                                                         asset amount);
 
+            bts::blockchain::signed_transaction next_secret(const fc::sha256& hash_secret, const fc::sha256& reveal_last_secret,
+                const uint32_t& delegate_id, address required_signee);
+            
             // TODO: db is not required?
             std::map<output_index, trx_output> list_tickets(lotto_db& db);
 

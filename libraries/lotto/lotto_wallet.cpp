@@ -55,6 +55,32 @@ bts::blockchain::signed_transaction lotto_wallet::buy_ticket(const uint64_t& luc
     } FC_RETHROW_EXCEPTIONS(warn, "buy_ticket ${luckynumber} with ${odds}, amount {amt}", ("name", luckynumber)("odds", odds)("amt", amount))
 }
 
+bts::blockchain::signed_transaction lotto_wallet::next_secret(const fc::sha256& hash_secret, const fc::sha256& reveal_last_secret,
+    const uint32_t& delegate_id, address required_signee)
+{
+    FC_ASSERT(!is_locked());
+    
+    signed_transaction secret_trx;
+    claim_secret_output secret_out;
+
+    secret_out.delegate_id = delegate_id;
+    secret_out.secret = hash_secret;
+    // reveal secret of last round
+    secret_out.revealed_secret = reveal_last_secret;
+    secret_trx.outputs.push_back(trx_output(secret_out, asset()));
+
+    // TODO: requireing delegate's signature;
+    std::unordered_set<address> required_signatures; 
+
+    auto addrs = get_receive_addresses();
+    FC_ASSERT( addrs.find(required_signee) != addrs.end() );
+
+    required_signatures.insert(required_signee);
+    collect_inputs_and_sign(secret_trx, asset(0), required_signatures, "secret transaction");
+
+    return secret_trx;
+}
+
 std::map<output_index, trx_output> lotto_wallet::list_tickets(lotto_db& db)
 {
     try {
