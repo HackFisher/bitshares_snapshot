@@ -321,22 +321,22 @@ namespace bts { namespace lotto {
     }
 
     const uint64_t& lotto_rule::total_space()
+    {
+        static uint64_t total = 0;
+
+        if (total > 0) return total;
+
+        total = 1;
+        const std::vector<uint64_t>& spaces = group_spaces();
+
+        for (size_t i = 0; i < spaces.size(); i++)
         {
-            static uint64_t total = 0;
-
-            if (total > 0) return total;
-
-            total = 1;
-            const std::vector<uint64_t>& spaces = group_spaces();
-
-            for (size_t i = 0; i < spaces.size(); i++)
-            {
-                FC_ASSERT(spaces[i] >= 0);
-                total *= spaces[i];
-            }
-
-            return total;
+            FC_ASSERT(spaces[i] >= 0);
+            total *= spaces[i];
         }
+
+        return total;
+    }
     
     uint64_t lotto_rule::evaluate_total_jackpot(const uint64_t& winning_number, const uint64_t& target_block_num, const uint64_t& available_funds)
     {
@@ -390,15 +390,18 @@ namespace bts { namespace lotto {
 		// TODO switch case... level to find jackpots
         uint16_t jackpot = amt;
 
+        fc::sha256::encoder enc;
+		enc.write( (char*)&ticket.lucky_number, sizeof(ticket.lucky_number) );
+		enc.write( (char*)&winning_number, sizeof(winning_number) );
+		enc.result();
+		fc::bigint  result_bigint( enc.result() );
+
+
 		// ...
 
         // 3. jackpot should not be calculated here, 
 		/*
-		fc::sha256::encoder enc;
-		enc.write( (char*)&lucky_number, sizeof(lucky_number) );
-		enc.write( (char*)&winning_number, sizeof(winning_number) );
-		enc.result();
-		fc::bigint  result_bigint( enc.result() );
+		
 
 		// the ticket number must be below the winning threshold to claim the jackpot
 		auto winning_threshold = result_bigint.to_int64 % fc::bigint( global_odds * odds ).to_int64();

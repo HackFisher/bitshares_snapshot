@@ -1,7 +1,7 @@
 {
     "version":1,
     "id":1,
-    "name":"Double color ball lottey",
+    "name":"Double color ball lottery",
     "asset_type":0,
     "ball_group":[
         {"total_count":35,"combination_count":5},
