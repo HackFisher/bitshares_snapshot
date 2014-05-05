@@ -31,28 +31,28 @@ namespace bts { namespace lotto {
         uint64_t Combination(uint16_t N, uint16_t k)
         {
             static uint64_t C[BTS_LOTTO_MAX_BALL_COUNT][BTS_LOTTO_MAX_BALL_COUNT / 2];
-	        static bool inited = false;
+            static bool inited = false;
 
-	        if (!inited) {
-		        int i,j;
+            if (!inited) {
+                int i,j;
                 for (j = 0; j < (BTS_LOTTO_MAX_BALL_COUNT / 2); ++j)
-		        {
-			        C[0][j] = 0;
-		        }
+                {
+                    C[0][j] = 0;
+                }
                 for (i = 0; i < BTS_LOTTO_MAX_BALL_COUNT; ++i)
-		        {
-			        C[i][0] = 1;
-		        }
+                {
+                    C[i][0] = 1;
+                }
 
                 for (i = 1; i < BTS_LOTTO_MAX_BALL_COUNT; ++i)
-		        {
+                {
                     for (j = 1; j < (BTS_LOTTO_MAX_BALL_COUNT / 2); ++j)
-			        {
-				        C[i][j] = C[i-1][j] + C[i-1][j-1];
-			        }
-		        }
-		        inited = true;
-	        }
+                    {
+                        C[i][j] = C[i-1][j] + C[i-1][j-1];
+                    }
+                }
+                inited = true;
+            }
 
             if (N < k) return 0;
             if ((N - k) < k) k = N - k;
@@ -60,66 +60,66 @@ namespace bts { namespace lotto {
             FC_ASSERT(N < BTS_LOTTO_MAX_BALL_COUNT, 
                 "N should less than maximum ball count.", ("N", N)("MAX", BTS_LOTTO_MAX_BALL_COUNT));
             FC_ASSERT(k < BTS_LOTTO_MAX_BALL_COUNT / 2, "k should less than half of maximum ball count.", ("k", k)("MAX", BTS_LOTTO_MAX_BALL_COUNT));
-	
-	        return C[N][k];
+    
+            return C[N][k];
         }
 
         group_match match_rankings(const c_rankings& l, const c_rankings& r, const type_ball_group& balls)
         {
-	        FC_ASSERT(l.size() == r.size());
-	        FC_ASSERT(l.size() == balls.size());
+            FC_ASSERT(l.size() == r.size());
+            FC_ASSERT(l.size() == balls.size());
             FC_ASSERT(balls.size() < BTS_LOTTO_MAX_BALL_COUNT);
-	
+    
             group_match m;
 
-	        for(size_t i = 0; i < l.size(); i ++)
-	        {
-		        combination left_combinatioin = unranking(l[i], balls[i].combination_count, balls[i].total_count);
+            for(size_t i = 0; i < l.size(); i ++)
+            {
+                combination left_combinatioin = unranking(l[i], balls[i].combination_count, balls[i].total_count);
                 combination right_combinatioin = unranking(r[i], balls[i].combination_count, balls[i].total_count);
 
                 std::bitset<BTS_LOTTO_MAX_BALL_COUNT> left_bits, right_bits;
-		        for (size_t i = 0; i < balls.size(); i++){
-			        left_bits[left_combinatioin[i]] = 1;
-			        right_bits[right_combinatioin[i]] = 1;
-		        }
+                for (size_t i = 0; i < balls.size(); i++){
+                    left_bits[left_combinatioin[i]] = 1;
+                    right_bits[right_combinatioin[i]] = 1;
+                }
 
-		        m.push_back( (left_bits & right_bits).count() );
-	        }
+                m.push_back( (left_bits & right_bits).count() );
+            }
 
-	        FC_ASSERT(balls.size() == m.size());
+            FC_ASSERT(balls.size() == m.size());
 
             return m;
         }
 
         uint64_t ranking(const c_rankings& r, const std::vector<uint64_t>& spaces )
         {
-	        FC_ASSERT( r.size() == spaces.size() );
-	        uint64_t res = 0;
-	        for (uint16_t i = 0; i < spaces.size(); i ++ )
-	        {
-		        FC_ASSERT( r[i] < spaces[i] );
-		        if (i == 0)
-		        {
-			        res += r[i];
-		        } else {
-			        res = res * spaces[i] + r[i];
-		        }
-	        }
+            FC_ASSERT( r.size() == spaces.size() );
+            uint64_t res = 0;
+            for (uint16_t i = 0; i < spaces.size(); i ++ )
+            {
+                FC_ASSERT( r[i] < spaces[i] );
+                if (i == 0)
+                {
+                    res += r[i];
+                } else {
+                    res = res * spaces[i] + r[i];
+                }
+            }
 
-	        return res;
+            return res;
         }
 
         // unranking to combination rankings
         // TODO: making return value const?
         c_rankings unranking(uint64_t num, const std::vector<uint64_t>& spaces )
         {
-	        c_rankings rs;
-	        for (int i = spaces.size() - 1; i >= 0; i --) {
-		        rs.push_back(num % spaces[i]);
-		        num = num / spaces[i];
-	        }
+            c_rankings rs;
+            for (int i = spaces.size() - 1; i >= 0; i --) {
+                rs.push_back(num % spaces[i]);
+                num = num / spaces[i];
+            }
 
-	        std::reverse(rs.begin(), rs.end());
+            std::reverse(rs.begin(), rs.end());
             return rs;
         }
 
@@ -127,12 +127,12 @@ namespace bts { namespace lotto {
         {
             std::vector<uint16_t> v(c);
             std::sort(v.begin(), v.end());
-	        uint64_t n = 0;
+            uint64_t n = 0;
             // sum of C(v[k - 1], k)
             for (size_t i = 1; i <= v.size(); i ++) {
-		        n += Combination(v[i - 1], i);
+                n += Combination(v[i - 1], i);
             }
-	        return n;
+            return n;
         }
 
         combination unranking(uint64_t num, uint16_t k, uint16_t n)
@@ -147,7 +147,7 @@ namespace bts { namespace lotto {
                 } else {
                     for (; max >= 1;)
                     {
-				        uint64_t c_max_i = Combination(max, i);
+                        uint64_t c_max_i = Combination(max, i);
                         if (num >= c_max_i) {
                             c.push_back(max);
 
@@ -161,7 +161,7 @@ namespace bts { namespace lotto {
                 }
             }
 
-	        std::sort(c.begin(), c.end());
+            std::sort(c.begin(), c.end());
 
             return c;
         }
@@ -225,15 +225,15 @@ namespace bts { namespace lotto {
         }
     }
 
-	// Default rule validator implement, TODO: may be move default to another class
+    // Default rule validator implement, TODO: may be move default to another class
     lotto_rule::lotto_rule(lotto_db* db)
         :my(new detail::lotto_rule_impl())
-	{
+    {
         my->_db = db;
-	}
+    }
     lotto_rule::~lotto_rule()
-	{
-	}
+    {
+    }
 
     void lotto_rule::config::print_rule() const
     {
@@ -295,7 +295,7 @@ namespace bts { namespace lotto {
         }
         catch (const fc::exception& e)
         {
-            //ilog("caught exception!: ${e}", ("e", e.to_detail_string()));
+            wlog("caught exception!: ${e}", ("e", e.to_detail_string()));
             throw;
         }
     }
@@ -303,17 +303,17 @@ namespace bts { namespace lotto {
     const std::vector<uint64_t>& lotto_rule::group_spaces()
     {
         static std::vector<uint64_t> spaces;
-        if (spaces.size() > 0)	{
+        if (spaces.size() > 0)    {
             FC_ASSERT(spaces.size() == config_instance().group_count());
 
             return spaces;
         }
 
-        uint8_t group_count = config_instance().group_count();
+        uint16_t group_count = config_instance().group_count();
         for (int i = 0; i < group_count; i++)
         {
-            uint8_t N = config_instance().ball_group[i].total_count;
-            uint8_t k = config_instance().ball_group[i].combination_count;
+            uint16_t N = config_instance().ball_group[i].total_count;
+            uint16_t k = config_instance().ball_group[i].combination_count;
             spaces.push_back(helper::Combination(N, k));
         }
                
@@ -338,7 +338,7 @@ namespace bts { namespace lotto {
         return total;
     }
     
-    uint64_t lotto_rule::evaluate_total_jackpot(const uint64_t& winning_number, const uint64_t& target_block_num, const uint64_t& available_funds)
+    uint64_t lotto_rule::evaluate_total_jackpot(const uint64_t& winning_number, const uint64_t& ticket_sale, const uint64_t& target_block_num, const uint64_t& jackpot_pool)
     {
         if (target_block_num < BTS_LOTTO_BLOCKS_BEFORE_JACKPOTS_DRAW) {
             return 0;
@@ -351,70 +351,69 @@ namespace bts { namespace lotto {
         
         // uint16_t available_pool_prize = summary.ticket_sales - summary.amount_won;
         // auto summary = my->_block2summary.fetch(ticket_block_num);
-		return -1;
-	}
+        return -1;
+    }
 
     uint64_t lotto_rule::jackpot_for_ticket(const uint64_t& winning_number, 
         const bts::lotto::claim_ticket_output& ticket, const uint64_t& amt, const uint64_t& total_jackpots)
-	{
-		// This is only one kind of implementation, we call also implement it as dice.
-		uint64_t total_space = lotto_rule::total_space();
-		uint64_t rule_winning_number = winning_number % total_space;
+    {
+        // This is only one kind of implementation, we call also implement it as dice.
+        uint64_t total_space = lotto_rule::total_space();
+        uint64_t rule_winning_number = winning_number % total_space;
         uint64_t rule_lucky_number = ticket.lucky_number % total_space;
-		c_rankings winning_rs = helper::unranking(rule_winning_number, lotto_rule::group_spaces());
-		c_rankings lucky_rs = helper::unranking(rule_lucky_number, lotto_rule::group_spaces());
+        c_rankings winning_rs = helper::unranking(rule_winning_number, lotto_rule::group_spaces());
+        c_rankings lucky_rs = helper::unranking(rule_lucky_number, lotto_rule::group_spaces());
         group_match m = helper::match_rankings(winning_rs, lucky_rs, config_instance().ball_group);
 
-		const type_prizes& prizes = config_instance().prizes;
+        const type_prizes& prizes = config_instance().prizes;
 
-		// get prize_level, TODO: extract/refactor as utility method
-		uint8_t level;
-		for (size_t i = 0; i < prizes.size(); i ++)
-		{
-			const std::vector<group_match>& matches = prizes[i].match_list;
-			bool found = false;
-			for (size_t j = 0; j < matches.size(); j ++)
-			{
-				if (m == matches[j])
-				{
-					found = true;
-					break;
-				}
-			}
-			if (found)
-			{
-				level = prizes[i].level;
-			}
-		}
+        // get prize_level, TODO: extract/refactor as utility method
+        uint16_t level;
+        for (size_t i = 0; i < prizes.size(); i ++)
+        {
+            const std::vector<group_match>& matches = prizes[i].match_list;
+            bool found = false;
+            for (size_t j = 0; j < matches.size(); j ++)
+            {
+                if (m == matches[j])
+                {
+                    found = true;
+                    break;
+                }
+            }
+            if (found)
+            {
+                level = prizes[i].level;
+            }
+        }
 
-		// TODO switch case... level to find jackpots
-        uint16_t jackpot = amt;
+        // TODO switch case... level to find jackpots
+        uint64_t jackpot = amt;
 
         fc::sha256::encoder enc;
-		enc.write( (char*)&ticket.lucky_number, sizeof(ticket.lucky_number) );
-		enc.write( (char*)&winning_number, sizeof(winning_number) );
-		enc.result();
-		fc::bigint  result_bigint( enc.result() );
+        enc.write( (char*)&ticket.lucky_number, sizeof(ticket.lucky_number) );
+        enc.write( (char*)&winning_number, sizeof(winning_number) );
+        enc.result();
+        //fc::bigint  result_bigint( enc.result() );
 
 
-		// ...
+        // ...
 
         // 3. jackpot should not be calculated here, 
-		/*
-		
+        /*
+        
 
-		// the ticket number must be below the winning threshold to claim the jackpot
-		auto winning_threshold = result_bigint.to_int64 % fc::bigint( global_odds * odds ).to_int64();
-		auto ticket_threshold = amount / odds;
-		if (winning_threshold < ticket_threshold)	// we have a winners
-		{
-			return jackpots;
-		}
-		*/
+        // the ticket number must be below the winning threshold to claim the jackpot
+        auto winning_threshold = result_bigint.to_int64 % fc::bigint( global_odds * odds ).to_int64();
+        auto ticket_threshold = amount / odds;
+        if (winning_threshold < ticket_threshold)    // we have a winners
+        {
+            return jackpots;
+        }
+        */
 
-		// return 0;
+        // return 0;
 
-		return jackpot;
-	}
+        return jackpot;
+    }
 }} // bts::lotto
-

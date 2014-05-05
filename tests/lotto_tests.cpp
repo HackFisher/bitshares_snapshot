@@ -11,6 +11,7 @@
 #include <fc/io/raw.hpp>
 #include <fc/reflect/variant.hpp>
 #include <fc/thread/thread.hpp>
+#include <fc/io/json.hpp>
 #include <bitset>
 #include <boost/shared_ptr.hpp>
 #include <boost/make_shared.hpp>

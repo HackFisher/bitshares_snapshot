@@ -131,7 +131,7 @@ class lotto_rule : public bts::lotto::rule
 	   * using this to update the following blocks' drawing_record's (total_jackpot, total_paid)
 	   * will be used for block validation
 	   */
-	  virtual uint64_t evaluate_total_jackpot(const uint64_t& winning_number, const uint64_t& target_block_num, const uint64_t& available_funds);
+       virtual uint64_t evaluate_total_jackpot(const uint64_t& winning_number, const uint64_t& ticket_sale, const uint64_t& target_block_num, const uint64_t& jackpot_pool);
       
       virtual uint64_t jackpot_for_ticket(const uint64_t& winning_number, 
           const bts::lotto::claim_ticket_output& ticket, const uint64_t& amt, const uint64_t& total_jackpots);
