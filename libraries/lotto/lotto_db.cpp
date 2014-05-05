@@ -26,7 +26,7 @@ namespace bts { namespace lotto {
                 bts::db::level_map<uint32_t, drawing_record>  _drawing2record;
                 bts::db::level_map<uint32_t, block_summary>   _block2summary;
                 bts::db::level_map<uint32_t, std::vector<uint32_t>>   _delegate2blocks;
-				bts::db::level_map<uint32_t, claim_secret_output> _block2secret;
+                bts::db::level_map<uint32_t, claim_secret_output> _block2secret;
 
                 rule_ptr                                        _rule_ptr;
 
@@ -218,18 +218,18 @@ namespace bts { namespace lotto {
     }
 
     void lotto_db::validate_secret_transactions(const signed_transactions& deterministic_trxs, const trx_block& blk)
-	{
-		for (const signed_transaction& trx : deterministic_trxs)
-		{
-			for (auto out : trx.outputs)
-			{
-				FC_ASSERT(out.claim_func != claim_secret, "secret output is no allowed in deterministic transactions");
-			}
-		}
+    {
+        for (const signed_transaction& trx : deterministic_trxs)
+        {
+            for (auto out : trx.outputs)
+            {
+                FC_ASSERT(out.claim_func != claim_secret, "secret output is no allowed in deterministic transactions");
+            }
+        }
 
         bool found_secret_out = false;
         for (size_t i = 0; i < blk.trxs.size(); i++)
-		{
+        {
             for (size_t j = 0; j < blk.trxs[i].outputs.size(); j++)
             {
                 if (blk.trxs[i].outputs[j].claim_func == claim_secret) {
@@ -259,10 +259,10 @@ namespace bts { namespace lotto {
                     found_secret_out = true;
                 }
             }
-		}
+        }
 
         FC_ASSERT(found_secret_out == true, "There is no secret out found.");
-	}
+    }
 
     /**
      * TODO: this method should be const, return should be always same with same params
@@ -270,14 +270,14 @@ namespace bts { namespace lotto {
     asset lotto_db::draw_jackpot_for_ticket(const output_index& out_idx, const bts::lotto::claim_ticket_output& ticket, const asset& amount)
     {
         FC_ASSERT(head_block_num() >= out_idx.block_idx + BTS_LOTTO_BLOCKS_BEFORE_JACKPOTS_DRAW);
-		// fc::sha256 winning_number;
-		// using the next block generated block number
+        // fc::sha256 winning_number;
+        // using the next block generated block number
         uint64_t winning_number = my->_block2summary.fetch(out_idx.block_idx + BTS_LOTTO_BLOCKS_BEFORE_JACKPOTS_DRAW).winning_number;
-		
+        
         // TODO: what's global_odds, ignore currenly.
-		uint64_t global_odds = 0;
+        uint64_t global_odds = 0;
 
-		auto dr = my->_drawing2record.fetch(out_idx.block_idx + BTS_LOTTO_BLOCKS_BEFORE_JACKPOTS_DRAW);
+        auto dr = my->_drawing2record.fetch(out_idx.block_idx + BTS_LOTTO_BLOCKS_BEFORE_JACKPOTS_DRAW);
         
         // TODO: pass asset inside?
         uint64_t jackpot = my->_rule_ptr->jackpot_for_ticket(winning_number, ticket, amount.get_rounded_amount(), dr.total_jackpot);
@@ -354,27 +354,27 @@ namespace bts { namespace lotto {
         // TODO: In lotto deterministic_trxs do not validate again
         block_evaluation_state_ptr block_state = chain_database::validate(blk, deterministic_trxs);
 
-		if (blk.block_num == 0) { return block_state; } // don't check anything for the genesis block;
+        if (blk.block_num == 0) { return block_state; } // don't check anything for the genesis block;
 
-		// At least contain the claim_secret trx
+        // At least contain the claim_secret trx
         FC_ASSERT(blk.trxs.size() > 0);
-		validate_secret_transactions(deterministic_trxs, blk);
+        validate_secret_transactions(deterministic_trxs, blk);
 
         auto secret_out = my->get_secret_output(blk);
 
-		auto itr = my->_delegate2blocks.find(secret_out.delegate_id);
+        auto itr = my->_delegate2blocks.find(secret_out.delegate_id);
 
         if( itr.valid() )
         {
             auto block_ids = itr.value();
 
-			// // Get the last secret produced by this delegate
-			auto last_secret = my->_block2secret.fetch(block_ids[block_ids.size() - 1]);
+            // // Get the last secret produced by this delegate
+            auto last_secret = my->_block2secret.fetch(block_ids[block_ids.size() - 1]);
 
             // TODO: reviewing the hash.
-			FC_ASSERT(fc::sha256::hash(secret_out.revealed_secret) == last_secret.secret);
+            FC_ASSERT(fc::sha256::hash(secret_out.revealed_secret) == last_secret.secret);
         } else {
-			FC_ASSERT(secret_out.revealed_secret == fc::sha256());   //  this is the first block produced by delegate
+            FC_ASSERT(secret_out.revealed_secret == fc::sha256());   //  this is the first block produced by delegate
         }
 
         for (const signed_transaction& trx : deterministic_trxs)
@@ -390,7 +390,7 @@ namespace bts { namespace lotto {
             }
         }
 
-		return block_state;
+        return block_state;
     }
 
     /** 

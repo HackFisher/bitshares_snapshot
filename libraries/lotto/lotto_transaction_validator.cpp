@@ -95,8 +95,8 @@ void lotto_transaction_validator::validate_input( const meta_trx_input& in, tran
      switch( in.output.claim_func )
      {
         case claim_secret:
-		   // pass, validation is done in block
-		   break;
+       // pass, validation is done in block
+       break;
         case claim_ticket:
            validate_ticket_input(in, state, block_state);
            break;
@@ -114,12 +114,12 @@ void lotto_transaction_validator::validate_output( const trx_output& out, transa
      {
         case claim_secret:
            FC_ASSERT(out.amount.get_rounded_amount() == 0, "Amount for secret output is required to be zero");
-		   // pass, validation is done in block
-		   break;
+       // pass, validation is done in block
+       break;
         case claim_ticket:
            validate_ticket_output(out, state, block_state);
            break;
-		case claim_jackpot:
+        case claim_jackpot:
            validate_jackpot_output(out, state, block_state);
            break;
         default:
@@ -129,52 +129,52 @@ void lotto_transaction_validator::validate_output( const trx_output& out, transa
 
 void lotto_transaction_validator::validate_ticket_input(const meta_trx_input& in, transaction_evaluation_state& state, const block_evaluation_state_ptr& block_state)
 {
-	try {
-		auto lotto_state = dynamic_cast<lotto_trx_evaluation_state&>(state);
-		auto claim_ticket = in.output.as<claim_ticket_output>();
+    try {
+    auto lotto_state = dynamic_cast<lotto_trx_evaluation_state&>(state);
+    auto claim_ticket = in.output.as<claim_ticket_output>();
 
         
 
-		auto trx_loc = in.source;
-		auto headnum = _db->head_block_num();
+    auto trx_loc = in.source;
+    auto headnum = _db->head_block_num();
 
-		// ticket must have been purchased in the past 7 days
-		FC_ASSERT( headnum - trx_loc.block_num < (BTS_BLOCKCHAIN_BLOCKS_PER_DAY*7) );
-		// ticket must be before the last drawing... 
-		FC_ASSERT( trx_loc.block_num < (headnum/BTS_BLOCKCHAIN_BLOCKS_PER_DAY)*BTS_BLOCKCHAIN_BLOCKS_PER_DAY );
+    // ticket must have been purchased in the past 7 days
+    FC_ASSERT( headnum - trx_loc.block_num < (BTS_BLOCKCHAIN_BLOCKS_PER_DAY*7) );
+    // ticket must be before the last drawing... 
+    FC_ASSERT( trx_loc.block_num < (headnum/BTS_BLOCKCHAIN_BLOCKS_PER_DAY)*BTS_BLOCKCHAIN_BLOCKS_PER_DAY );
         FC_ASSERT(headnum - trx_loc.block_num > BTS_LOTTO_BLOCKS_BEFORE_JACKPOTS_DRAW);
-		// TODO: For current, the ticket draw trx must be created by the owner.
+    // TODO: For current, the ticket draw trx must be created by the owner.
         FC_ASSERT( lotto_state.has_signature( claim_ticket.owner ), "", ("owner",claim_ticket.owner)("sigs",state.sigs) );
     
-		lotto_db* _lotto_db = dynamic_cast<lotto_db*>(_db);
+    lotto_db* _lotto_db = dynamic_cast<lotto_db*>(_db);
         FC_ASSERT(_lotto_db != nullptr);
 
-		// returns the jackpot based upon which lottery the ticket was for.
-		// throws an exception if the jackpot was already claimed.
+    // returns the jackpot based upon which lottery the ticket was for.
+    // throws an exception if the jackpot was already claimed.
         auto jackpot = _lotto_db->draw_jackpot_for_ticket(trx_loc.block_num, claim_ticket, in.output.amount);
         
         
 
-		if( jackpot > 0 ) // we have a winner!
-		{
-            // For assert jackpot equals output.amount, by add asset to input in state
-            lotto_state.add_input_asset(jackpot);
-            // TODO: improve ticket_winnings to support multi assets
-			lotto_state.ticket_winnings += jackpot.get_rounded_amount();
-		} else {
-			// throws or invalid when they did not win, is there necessary to do this?
+    if( jackpot > 0 ) // we have a winner!
+    {
+        // For assert jackpot equals output.amount, by add asset to input in state
+        lotto_state.add_input_asset(jackpot);
+        // TODO: improve ticket_winnings to support multi assets
+        lotto_state.ticket_winnings += jackpot.get_rounded_amount();
+    } else {
+        // throws or invalid when they did not win, is there necessary to do this?
 
-		}
+    }
 } FC_RETHROW_EXCEPTIONS( warn, "" ) }
 
 void lotto_transaction_validator::validate_ticket_output(const trx_output& out, transaction_evaluation_state& state, const block_evaluation_state_ptr& block_state)
 {
-	try {
+    try {
     auto lotto_state = dynamic_cast<lotto_trx_evaluation_state&>(state);
     lotto_state.total_ticket_sales += out.amount.get_rounded_amount();
     lotto_state.add_output_asset( out.amount );
 
-	// TODO: later we might going to support customize the winner address
+    // TODO: later we might going to support customize the winner address
 } FC_RETHROW_EXCEPTIONS( warn, "" ) }
 
 
@@ -209,7 +209,7 @@ void lotto_transaction_validator::validate_jackpot_input(const meta_trx_input& i
  */
 void lotto_transaction_validator::validate_jackpot_output(const trx_output& out, transaction_evaluation_state& state, const block_evaluation_state_ptr& block_state)
 {
-	try {
+    try {
         FC_ASSERT(out.amount.get_rounded_amount() <= BTS_LOTTO_RULE_MAXIMUM_REWARDS_EACH_JACKPOT_OUTPUT);
 
         state.add_output_asset(out.amount);

@@ -17,12 +17,12 @@ using namespace bts::blockchain;
 
 namespace detail 
 {
-		class lotto_wallet_impl
-		{
-			public:
-				// TODO cache _un_drawed tickets
-				// Temp to store _un_drawed ticket_output in _unspent_output
-		};
+    class lotto_wallet_impl
+    {
+        public:
+            // TODO cache _un_drawed tickets
+            // Temp to store _un_drawed ticket_output in _unspent_output
+    };
 } // namespace detail
 
 lotto_wallet::lotto_wallet()
@@ -41,7 +41,7 @@ bts::blockchain::signed_transaction lotto_wallet::buy_ticket(const uint64_t& luc
         signed_transaction trx;
         // TODO: validate lucknumber, odds, and amount
    
-		auto jackpot_addr = new_receive_address("Owner address for jackpot");
+        auto jackpot_addr = new_receive_address("Owner address for jackpot");
         auto inputs = std::vector<trx_input>();
 
         auto ticket_output = claim_ticket_output();
@@ -158,7 +158,7 @@ bool lotto_wallet::scan_output( transaction_state& state, const trx_output& out,
                 auto receive_address = out.as<claim_ticket_output>().owner; 
                 if (is_my_address( receive_address ))
                 {
-					// Is my ticket do not ajust balance.
+                    // Is my ticket do not ajust balance.
                     cache_output( state.trx.vote, out, out_ref, oidx );
                     state.from[ receive_address ] = get_receive_address_label( receive_address );
                     state.adjust_balance( out.amount, 1 );

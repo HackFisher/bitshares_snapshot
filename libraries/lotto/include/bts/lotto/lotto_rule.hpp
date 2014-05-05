@@ -34,10 +34,10 @@ namespace bts { namespace lotto {
     /* Ranking groups
     *
     */
-    typedef std::vector<uint64_t>						c_rankings;
+    typedef std::vector<uint64_t>                       c_rankings;
 
-    typedef std::vector<ball>	                        type_ball_group;
-    typedef std::vector<prize>				            type_prizes;
+    typedef std::vector<ball>                           type_ball_group;
+    typedef std::vector<prize>                          type_prizes;
 
 namespace detail  { class lotto_rule_impl; }
 
@@ -59,23 +59,23 @@ namespace helper
      * Ranking of multi group combination ranked numbers C(N1,k1) * C(N2,k2) * C(N3,k3)
      * Numbers in c_ranking start from 0, and spaces are the group space size for each group
      * @return the ranking of multi combination groups
-	 */ 
-	uint64_t ranking(const c_rankings& r, const std::vector<uint64_t>& spaces );
+     */ 
+    uint64_t ranking(const c_rankings& r, const std::vector<uint64_t>& spaces );
 
-	/*
+    /*
      * Unranking to combination groups' ranking, this is the reverse process of ranking
-	 * Numbers in returen value should start from 0, maximum is (N-1), N is group space size
+     * Numbers in returen value should start from 0, maximum is (N-1), N is group space size
      * @return combination ranked numbers C(N1,k1) * C(N2,k2) * C(N3,k3)
      */
-	c_rankings unranking(uint64_t num, const std::vector<uint64_t>& spaces );
+    c_rankings unranking(uint64_t num, const std::vector<uint64_t>& spaces );
 
     /* 
      * Parameters is combination of a group of nature numbers, number in this group is from 0 to N - 1 , N is the group count
      * Convert group combination to continous nature nubmers from 0 to C(N, k) - 1, using algorithm combinatorial number system
      * @return ranking value of the combination
      */
-	uint64_t ranking(const combination& c);
-	
+    uint64_t ranking(const combination& c);
+    
     /*
      * Convert nature numbers to combination binary
      * Reverse process of ranking
@@ -98,7 +98,7 @@ class lotto_rule : public bts::lotto::rule
        struct config
        {
            config() :valid(false), version(0), id(0), name(""), asset_type(0){}
-           bool											   valid;
+           bool                                               valid;
            uint16_t                                        version;
            uint32_t                                        id;
            fc::string                                      name;
@@ -126,11 +126,11 @@ class lotto_rule : public bts::lotto::rule
        lotto_rule(lotto_db* db);
        virtual ~lotto_rule();
 
-	  /**
-	   * Provided with winning_number, calculated the total jackpots will be in the block
-	   * using this to update the following blocks' drawing_record's (total_jackpot, total_paid)
-	   * will be used for block validation
-	   */
+      /**
+       * Provided with winning_number, calculated the total jackpots will be in the block
+       * using this to update the following blocks' drawing_record's (total_jackpot, total_paid)
+       * will be used for block validation
+       */
        virtual uint64_t evaluate_total_jackpot(const uint64_t& winning_number, const uint64_t& ticket_sale, const uint64_t& target_block_num, const uint64_t& jackpot_pool);
       
       virtual uint64_t jackpot_for_ticket(const uint64_t& winning_number, 
