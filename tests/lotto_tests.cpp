@@ -4,7 +4,6 @@
 #include <bts/blockchain/chain_database.hpp>
 #include <bts/blockchain/block_miner.hpp>
 #include <bts/blockchain/config.hpp>
-#include <bts/lotto/common.hpp>
 #include <bts/lotto/lotto_wallet.hpp>
 #include <bts/lotto/lotto_outputs.hpp>
 #include <fc/filesystem.hpp>
@@ -20,6 +19,7 @@
 using namespace bts::wallet;
 using namespace bts::blockchain;
 using namespace bts::lotto;
+using namespace bts::lotto::helper;
 
 #define LOTTO_TEST_NUM_WALLET_ADDRS   10
 #define LOTTO_TEST_BLOCK_SECS         (5 * 60)
@@ -559,16 +559,15 @@ BOOST_AUTO_TEST_CASE( util_generate_rule_config )
 
 BOOST_AUTO_TEST_CASE( util_load_rule_config )
 {
-    const lotto_rule::config& config = global_rule_config();
-    BOOST_CHECK(config.ball_group.size() == 2);
+    BOOST_CHECK(lotto_rule::config_instance().ball_group.size() == 2);
 
-	BOOST_CHECK(GROUP_COUNT() == 2);
+	BOOST_CHECK(lotto_rule::config_instance().group_count() == 2);
 
-	BOOST_CHECK(TOTAL_SPACE() == Combination(35, 5) * Combination(12, 2));
+	BOOST_CHECK(lotto_rule::total_space() == Combination(35, 5) * Combination(12, 2));
 
-	BOOST_CHECK(GROUP_SPACES()[0] == Combination(35, 5));
+	BOOST_CHECK(lotto_rule::group_spaces()[0] == Combination(35, 5));
 
-	BOOST_CHECK(GROUP_SPACES()[1] == Combination(12, 2));
+	BOOST_CHECK(lotto_rule::group_spaces()[1] == Combination(12, 2));
 }
 
 BOOST_AUTO_TEST_CASE( util_combination )

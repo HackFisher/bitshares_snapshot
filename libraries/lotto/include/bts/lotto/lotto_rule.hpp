@@ -1,4 +1,6 @@
 #pragma once
+#include <iostream>
+
 #include <fc/reflect/variant.hpp>
 
 #include <bts/lotto/rule.hpp>
@@ -39,6 +41,50 @@ namespace bts { namespace lotto {
 
 namespace detail  { class lotto_rule_impl; }
 
+namespace helper
+{
+    /**
+     * Calculate combinational number, TODO: inline?
+     * @return C(N, k)
+     */
+    uint64_t Combination(uint16_t N, uint16_t k);
+
+    /**
+     * Match different combination groups according to group type (N, k)
+     * @return the vector of matched count as elements.
+     */
+    group_match match_rankings(const c_rankings& l, const c_rankings& r, const type_ball_group& balls);
+
+    /**
+     * Ranking of multi group combination ranked numbers C(N1,k1) * C(N2,k2) * C(N3,k3)
+     * Numbers in c_ranking start from 0, and spaces are the group space size for each group
+     * @return the ranking of multi combination groups
+	 */ 
+	uint64_t ranking(const c_rankings& r, const std::vector<uint64_t>& spaces );
+
+	/*
+     * Unranking to combination groups' ranking, this is the reverse process of ranking
+	 * Numbers in returen value should start from 0, maximum is (N-1), N is group space size
+     * @return combination ranked numbers C(N1,k1) * C(N2,k2) * C(N3,k3)
+     */
+	c_rankings unranking(uint64_t num, const std::vector<uint64_t>& spaces );
+
+    /* 
+     * Parameters is combination of a group of nature numbers, number in this group is from 0 to N - 1 , N is the group count
+     * Convert group combination to continous nature nubmers from 0 to C(N, k) - 1, using algorithm combinatorial number system
+     * @return ranking value of the combination
+     */
+	uint64_t ranking(const combination& c);
+	
+    /*
+     * Convert nature numbers to combination binary
+     * Reverse process of ranking
+     */
+    combination unranking(uint64_t num, uint16_t k, uint16_t n);
+
+    uint64_t lucky_number_from_variants(const fc::variants& params);
+}
+
 class lotto_db;
 /**
  *  @class lotto_rule
@@ -59,7 +105,23 @@ class lotto_rule : public bts::lotto::rule
            bts::blockchain::asset::unit_type               asset_type;
            type_ball_group                                 ball_group;
            type_prizes                                     prizes;
+
+           uint16_t group_count() const
+           {
+               if (!valid) return 0;
+               
+               return ball_group.size();
+           }
+
+           // TODO: to be improved
+           void print_rule() const;
        };
+
+       static const lotto_rule::config& lotto_rule::config_instance();
+
+       static const std::vector<uint64_t>& group_spaces();
+
+       static const uint64_t& total_space();
 
        lotto_rule(lotto_db* db);
        virtual ~lotto_rule();

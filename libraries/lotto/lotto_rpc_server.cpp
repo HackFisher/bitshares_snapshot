@@ -53,6 +53,7 @@ TODO:
     )" };
     fc::variant lotto_rpc_server_impl::buy_ticket(const fc::variants& params)
     {
+        // TODO: do more interactive cli and check with the inputs...
       FC_ASSERT(params.size() == 3);
       uint64_t lucky_number = params[0].as_uint64();
       uint64_t odds = params[1].as_uint64();
@@ -76,6 +77,7 @@ TODO: FORMAT: R1 R2 R3 R4 R5 | B1 B2 e.g. 3 6 21 25 31 | 4 7
     )" };
     fc::variant lotto_rpc_server_impl::lucky_number(const fc::variants& params)
     {
+        // TODO: do more interactive cli and check with the inputs...
       FC_ASSERT(params.size() == 1);
       uint64_t lucky_number = params[0].as_uint64();
       asset amount(1.0);
