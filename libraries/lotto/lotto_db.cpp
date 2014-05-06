@@ -6,6 +6,7 @@
 #include <bts/lotto/betting_rule.hpp>
 #include <bts/lotto/lotto_rule.hpp>
 #include <bts/lotto/lotto_config.hpp>
+#include <bts/lotto/ticket_factory.hpp>
 
 namespace fc {
     template<> struct get_typename<std::vector<uint32_t>>        { static const char* name()  { return "std::vector<uint32_t>"; } };
@@ -107,6 +108,8 @@ namespace bts { namespace lotto {
         output_factory::instance().register_output<claim_secret_output>();
         output_factory::instance().register_output<claim_ticket_output>();
         output_factory::instance().register_output<claim_jackpot_output>();
+        ticket_factory::instance().register_ticket<ticket_for_betting_data>();
+        ticket_factory::instance().register_ticket<ticket_for_lottery_data>();
         set_transaction_validator( std::make_shared<lotto_transaction_validator>(this) );
         // my->_rule_ptr = std::make_shared<lotto_rule>(this);
         my->_rule_ptr = std::make_shared<betting_rule>(this);
