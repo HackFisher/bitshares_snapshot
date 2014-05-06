@@ -7,6 +7,7 @@
 #include <fc/io/raw.hpp>
 #include <fc/io/json.hpp>
 #include <fc/log/logger.hpp>
+#include <bts/db/level_map.hpp>
 
 #include <algorithm>
 #include <bitset>
@@ -21,6 +22,9 @@ namespace bts { namespace lotto {
         {
             public:
                 lotto_rule_impl(){}
+
+                // map drawning number to drawing record
+                bts::db::level_map<uint32_t, drawing_record>  _drawing2record;
 
                 lotto_db* _db;
         };
@@ -235,6 +239,18 @@ namespace bts { namespace lotto {
     {
     }
 
+    void lotto_rule::open( const fc::path& dir, bool create )
+    {
+        try {
+            my->_drawing2record.open( dir / "lotto_rule" / "drawing2record", create );
+        } FC_RETHROW_EXCEPTIONS( warn, "Error loading domain database ${dir}", ("dir", dir)("create", create) );
+    }
+
+    void lotto_rule::close() 
+    {
+        my->_drawing2record.close();
+    }
+
     void lotto_rule::config::print_rule() const
     {
         std::cout << "------Start of Rule " << name << "-----\n";
@@ -338,7 +354,7 @@ namespace bts { namespace lotto {
         return total;
     }
     
-    uint64_t lotto_rule::evaluate_total_jackpot(const uint64_t& winning_number, const uint64_t& ticket_sale, const uint64_t& target_block_num, const uint64_t& jackpot_pool)
+    uint64_t lotto_rule::evaluate_total_jackpot(const uint64_t& block_random_number, const uint64_t& ticket_sale, const uint64_t& target_block_num, const uint64_t& jackpot_pool)
     {
         if (target_block_num < BTS_LOTTO_BLOCKS_BEFORE_JACKPOTS_DRAW) {
             return 0;
@@ -354,12 +370,15 @@ namespace bts { namespace lotto {
         return -1;
     }
 
-    uint64_t lotto_rule::jackpot_for_ticket(const uint64_t& winning_number, 
-        const bts::lotto::claim_ticket_output& ticket, const uint64_t& amt, const uint64_t& total_jackpots)
+    uint64_t lotto_rule::jackpot_for_ticket(const uint64_t& block_random_number, 
+        const bts::lotto::claim_ticket_output& ticket, const uint64_t& amt, const output_index& out_idx)
     {
+
+        uint64_t total_jackpots = my->_drawing2record.fetch(out_idx.block_idx + BTS_LOTTO_BLOCKS_BEFORE_JACKPOTS_DRAW).total_jackpot;
+
         // This is only one kind of implementation, we call also implement it as dice.
         uint64_t total_space = lotto_rule::total_space();
-        uint64_t rule_winning_number = winning_number % total_space;
+        uint64_t rule_winning_number = block_random_number % total_space;
         uint64_t rule_lucky_number = ticket.lucky_number % total_space;
         c_rankings winning_rs = helper::unranking(rule_winning_number, lotto_rule::group_spaces());
         c_rankings lucky_rs = helper::unranking(rule_lucky_number, lotto_rule::group_spaces());
@@ -392,7 +411,7 @@ namespace bts { namespace lotto {
 
         fc::sha256::encoder enc;
         enc.write( (char*)&ticket.lucky_number, sizeof(ticket.lucky_number) );
-        enc.write( (char*)&winning_number, sizeof(winning_number) );
+        enc.write( (char*)&block_random_number, sizeof(block_random_number) );
         enc.result();
         //fc::bigint  result_bigint( enc.result() );
 
@@ -415,5 +434,109 @@ namespace bts { namespace lotto {
         // return 0;
 
         return jackpot;
+    }
+
+    void lotto_rule::validate( const trx_block& blk, const signed_transactions& deterministic_trxs )
+    {
+        for (const signed_transaction& trx : deterministic_trxs)
+        {
+            auto trx_num_paid = jackpot_paid_in_transaction(trx);
+
+            if (trx_num_paid.second > 0)
+            {
+                auto winning_block_num = trx_num_paid.first.block_num + BTS_LOTTO_BLOCKS_BEFORE_JACKPOTS_DRAW;
+                // The in.output should all be tickets, and the out should all be jackpots
+                auto draw_record = my->_drawing2record.fetch(winning_block_num);
+                FC_ASSERT(draw_record.total_paid + trx_num_paid.second <= draw_record.total_jackpot, "The paid jackpots is out of the total jackpot.");
+            }
+        }
+    }
+
+    /*
+    
+    */
+
+    /**
+     * @return <ticket transaction number, paid_jackpot for that ticket>
+     */
+    std::pair<trx_num, uint64_t> lotto_rule::jackpot_paid_in_transaction(const signed_transaction& trx)
+    {
+        uint64_t trx_paid = 0;
+        trx_num trx_n;
+
+        for (auto i : trx.inputs)
+        {
+            // TODO: Fee? There is no fee in deterministic trxs
+            auto o = my->_db->fetch_output(i.output_ref);
+            trx_n = my->_db->fetch_trx_num(i.output_ref.trx_hash);
+            if (o.claim_func == claim_ticket) {
+                for (auto out : trx.outputs)
+                {
+                    if (out.claim_func == claim_jackpot) {
+
+                        trx_paid += out.amount.get_rounded_amount();
+                    }
+                }
+
+                // TODO: Many ticket's inputs? Jackpots should draw by each ticket. 
+                break;
+            }
+        }
+
+        return std::pair<trx_num, uint64_t>(trx_n, trx_paid);
+    }
+
+    void lotto_rule::store( const trx_block& blk, const signed_transactions& deterministic_trxs, const block_evaluation_state_ptr& state )
+    {
+        uint64_t amout_won = 0;
+
+        // TODO: ticket->jackpot is only allowed in deterministic_trxs
+        for (auto trx : deterministic_trxs)
+        {
+            auto trx_num_paid = jackpot_paid_in_transaction(trx);
+            if (trx_num_paid.second > 0)
+            {
+                auto winning_block_num = trx_num_paid.first.block_num + BTS_LOTTO_BLOCKS_BEFORE_JACKPOTS_DRAW;
+                amout_won += trx_num_paid.second;
+                // The in.output should all be tickets, and the out should all be jackpots
+                auto draw_record = my->_drawing2record.fetch(winning_block_num);
+                draw_record.total_paid = draw_record.total_paid + trx_num_paid.second;
+                my->_drawing2record.store(winning_block_num, draw_record);
+            }
+        }
+
+                    
+
+        drawing_record dr;
+        uint64_t ticket_sales = 0;
+
+        for (auto trx : blk.trxs)
+        {
+            for (auto o : trx.outputs)
+            {
+                if (o.claim_func == claim_ticket) {
+                    ticket_sales += o.amount.get_rounded_amount();
+                }
+            }
+        }
+        dr.ticket_sales = ticket_sales;
+        dr.amount_won = amout_won;
+
+        // update jackpots.....
+        // the drawing record in this block, corresponding to previous related ticket purchase block (blk.block_num - BTS_LOTTO_BLOCKS_BEFORE_JACKPOTS_DRAW)
+        uint64_t last_jackpot_pool = 0;
+        if (blk.block_num > 0)
+        {
+            last_jackpot_pool = my->_drawing2record.fetch(blk.block_num - 1).jackpot_pool;
+        }
+                    
+        dr.total_jackpot = evaluate_total_jackpot(my->_db->fetch_blk_random_number(blk.block_num), dr.ticket_sales, blk.block_num, last_jackpot_pool);
+        // just the begin, still not paid
+        dr.total_paid = 0;
+        dr.jackpot_pool = last_jackpot_pool + dr.ticket_sales - dr.total_jackpot;
+        // TODO: how to move to validate()
+        FC_ASSERT(dr.jackpot_pool >= 0, "jackpot is out ...");
+        // Assert that the jackpot_pool is large than the sum ticket sales of blk.block_num - 99 , blk.block_num - 98 ... blk.block_num.
+        my->_drawing2record.store(blk.block_num, dr);
     }
 }} // bts::lotto

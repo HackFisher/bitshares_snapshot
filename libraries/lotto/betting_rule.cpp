@@ -18,20 +18,20 @@ namespace bts {
 
         }
 
-        uint64_t betting_rule::evaluate_total_jackpot(const uint64_t& winning_number, const uint64_t& ticket_sale, const uint64_t& target_block_num, const uint64_t& jackpot_pool)
+        uint64_t betting_rule::evaluate_total_jackpot(const uint64_t& block_random_number, const uint64_t& ticket_sale, const uint64_t& target_block_num, const uint64_t& jackpot_pool)
         {
             return (ticket_sale + jackpot_pool) * 99 / 100;
         }
 
-        uint64_t betting_rule::jackpot_for_ticket(const uint64_t& winning_number,
-            const bts::lotto::claim_ticket_output& ticket, const uint64_t& amt, const uint64_t& total_jackpots)
+        uint64_t betting_rule::jackpot_for_ticket(const uint64_t& block_random_number,
+            const bts::lotto::claim_ticket_output& ticket, const uint64_t& amt, const output_index& out_idx)
         {
             // https://bitsharestalk.org/index.php?topic=4502.0
-            uint64_t ticket_sale = total_jackpots; // TODO: Fix it.
+            uint64_t ticket_sale = 0; // total_jackpots; // TODO: Fix it. my->_drawing2record.fetch(out_idx.block_idx + BTS_LOTTO_BLOCKS_BEFORE_JACKPOTS_DRAW).ticket_sale;
             uint64_t ticket_lucky_number = ticket.lucky_number;
             uint16_t ticket_odds = ticket.odds;
             uint64_t ticket_amount = amt;
-            uint64_t random_number = winning_number;
+            uint64_t random_number = block_random_number;
             uint64_t winners_count = /*Total ticket count*/ 100 / 3;    // global odds?
 
             uint64_t jackpot = 0;
@@ -40,7 +40,7 @@ namespace bts {
 
             // calcualte hash
             fc::sha256::encoder enc;
-            enc.write((char*)&winning_number, sizeof(winning_number));
+            enc.write((char*)&block_random_number, sizeof(block_random_number));
             enc.write((char*)&ticket.lucky_number, sizeof(ticket.lucky_number));
             uint64_t hash = enc.result()._hash[0];
 

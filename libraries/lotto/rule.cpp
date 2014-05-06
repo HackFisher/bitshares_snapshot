@@ -20,5 +20,22 @@ namespace bts { namespace lotto {
     rule::~rule()
     {
     }
+
+    void                  rule::open( const fc::path& dir, bool create)
+    {
+    }
+
+    void                  rule::close()
+    {
+    }
+
+    void rule::validate( const trx_block& blk, const signed_transactions& deterministic_trxs )
+    {
+
+    }
+
+    void rule::store( const trx_block& blk, const signed_transactions& deterministic_trxs, const block_evaluation_state_ptr& state )
+    {
+    }
 } } // bts::lotto
 

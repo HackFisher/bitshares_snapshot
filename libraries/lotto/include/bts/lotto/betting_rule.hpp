@@ -19,7 +19,7 @@ namespace bts { namespace lotto {
             virtual uint64_t evaluate_total_jackpot(const uint64_t& winning_number, const uint64_t& ticket_sale, const uint64_t& target_block_num, const uint64_t& jackpot_pool);
 
             virtual uint64_t jackpot_for_ticket(const uint64_t& winning_number,
-                const bts::lotto::claim_ticket_output& ticket, const uint64_t& amt, const uint64_t& total_jackpots);
+                const bts::lotto::claim_ticket_output& ticket, const uint64_t& amt, const output_index& out_idx);
 
         protected:
             std::unique_ptr<detail::betting_rule_impl> my;

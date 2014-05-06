@@ -24,6 +24,8 @@ class lotto_transaction_validator : public bts::blockchain::transaction_validato
         lotto_transaction_validator(lotto_db* db);
         virtual ~lotto_transaction_validator();
 
+        void evaluate_ticket_jackpot_transactions(lotto_trx_evaluation_state& state);
+
         virtual transaction_summary evaluate( const signed_transaction& trx, const block_evaluation_state_ptr& block_state );
         virtual void validate_input( const meta_trx_input& in, transaction_evaluation_state& state, const block_evaluation_state_ptr& block_state );
         virtual void validate_output( const trx_output& out, transaction_evaluation_state& state, const block_evaluation_state_ptr& block_state );

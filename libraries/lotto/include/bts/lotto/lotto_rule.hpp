@@ -6,6 +6,20 @@
 #include <bts/lotto/rule.hpp>
 
 namespace bts { namespace lotto {
+    struct drawing_record
+    {
+       drawing_record()
+       :total_jackpot(0),total_paid(0), jackpot_pool(0),amount_won(0), ticket_sales(0){}
+
+       uint64_t total_jackpot;  // total jackpot of this block
+       uint64_t total_paid;     // total jackpot which have been paid in future block.
+       uint64_t jackpot_pool;
+
+       // from block_summary
+       uint64_t ticket_sales;   // total ticket sales in the blocks, from 0 to .... current
+       uint64_t amount_won;     // total pay out amount from 0 to previous block
+    };
+
     /**
     *  @brief encapsulates an combination number in
     *  integer form.   It can be converted to arrays or bits for matching
@@ -126,15 +140,24 @@ class lotto_rule : public bts::lotto::rule
        lotto_rule(lotto_db* db);
        virtual ~lotto_rule();
 
+       std::pair<trx_num, uint64_t> jackpot_paid_in_transaction(const signed_transaction& trx);
+
+       virtual void                  open( const fc::path& dir, bool create = true );
+       virtual void                  close();
+
       /**
-       * Provided with winning_number, calculated the total jackpots will be in the block
+       * Provided with block random_number, calculated the total jackpots will be in the block
        * using this to update the following blocks' drawing_record's (total_jackpot, total_paid)
        * will be used for block validation
        */
-       virtual uint64_t evaluate_total_jackpot(const uint64_t& winning_number, const uint64_t& ticket_sale, const uint64_t& target_block_num, const uint64_t& jackpot_pool);
+       virtual uint64_t evaluate_total_jackpot(const uint64_t& block_random_number, const uint64_t& ticket_sale, const uint64_t& target_block_num, const uint64_t& jackpot_pool);
       
-      virtual uint64_t jackpot_for_ticket(const uint64_t& winning_number, 
-          const bts::lotto::claim_ticket_output& ticket, const uint64_t& amt, const uint64_t& total_jackpots);
+       virtual uint64_t jackpot_for_ticket(const uint64_t& block_random_number, 
+          const bts::lotto::claim_ticket_output& ticket, const uint64_t& amt, const output_index& out_idx);
+
+       virtual void validate( const trx_block& blk, const signed_transactions& deterministic_trxs );
+
+       virtual void store( const trx_block& blk, const signed_transactions& deterministic_trxs, const block_evaluation_state_ptr& state );
 
    protected:
        std::unique_ptr<detail::lotto_rule_impl> my;
@@ -143,6 +166,7 @@ typedef std::shared_ptr<lotto_rule> lotto_rule_ptr;
 
 }} // bts::lotto
 #include <fc/reflect/reflect.hpp>
+FC_REFLECT( bts::lotto::drawing_record, (total_jackpot)(total_paid)(jackpot_pool)(ticket_sales)(amount_won) )
 FC_REFLECT(bts::lotto::ball, (total_count)(combination_count))
 FC_REFLECT(bts::lotto::prize, (level)(match_list))
 FC_REFLECT(bts::lotto::lotto_rule::config, (version)(id)(name)(asset_type)(ball_group)(prizes))

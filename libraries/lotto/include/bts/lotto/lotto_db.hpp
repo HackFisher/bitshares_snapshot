@@ -12,24 +12,12 @@ using namespace bts::wallet;
 
 namespace detail  { class lotto_db_impl; }
 
-struct drawing_record
-{
-   drawing_record()
-   :total_jackpot(0),total_paid(0), jackpot_pool(0){}
-
-   uint64_t total_jackpot;  // total jackpot of this block
-   uint64_t total_paid;     // total jackpot which have been paid in future block.
-   uint64_t jackpot_pool;
-};
-
 struct block_summary
 {
    block_summary()
-   :ticket_sales(0),amount_won(0), winning_number(0){}
+   :random_number(0){}
 
-   uint64_t ticket_sales;   // total ticket sales in the blocks, from 0 to .... current
-   uint64_t amount_won;     // total pay out amount from 0 to previous block
-   uint64_t winning_number; // the previous block uses this value to calculate jackpot, this value is generated according current block's info
+   uint64_t random_number; // the previous block uses this value to calculate jackpot, this value is generated according current block's info
 };
 
 class lotto_db : public bts::blockchain::chain_database
@@ -49,6 +37,8 @@ class lotto_db : public bts::blockchain::chain_database
          * Calculate the jackpot reward for this ticket.
          */
         asset draw_jackpot_for_ticket(const output_index& out_idx, const bts::lotto::claim_ticket_output& ticket, const asset& amount);
+
+        uint64_t fetch_blk_random_number( const uint32_t& blk_index );
 
         /**
          * Generate transactions for winners, claim_ticket as in, and claim_jackpot as out
@@ -82,6 +72,4 @@ typedef std::shared_ptr<lotto_db> lotto_db_ptr;
 
 }} // bts::lotto
 
-
-FC_REFLECT( bts::lotto::drawing_record, (total_jackpot)(total_paid)(jackpot_pool) )
-FC_REFLECT( bts::lotto::block_summary, (ticket_sales)(amount_won)(winning_number))
+FC_REFLECT( bts::lotto::block_summary, (random_number))
