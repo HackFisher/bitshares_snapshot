@@ -29,15 +29,8 @@ namespace bts { namespace lotto {
             virtual void                  open( const fc::path& dir, bool create = true );
             virtual void                  close();
 
-            /**
-            * Provided with winning_number, calculated the total jackpots will be in the block
-            * using this to update the following blocks' drawing_record's (total_jackpot, total_paid)
-            * will be used for block validation
-            */
-            virtual uint64_t evaluate_total_jackpot(const uint64_t& winning_number, const uint64_t& ticket_sale, const uint64_t& target_block_num, const uint64_t& jackpot_pool) = 0;
-
-            virtual uint64_t jackpot_for_ticket(const uint64_t& winning_number,
-                const bts::lotto::claim_ticket_output& ticket, const uint64_t& amt, const output_index& out_idx) = 0;
+            virtual asset jackpot_for_ticket(
+                const bts::lotto::claim_ticket_output& ticket, const asset& amt, const output_index& out_idx) = 0;
 
             virtual void validate( const trx_block& blk, const signed_transactions& deterministic_trxs );
 

@@ -143,7 +143,7 @@ namespace bts { namespace lotto {
             FC_ASSERT(_lotto_db != nullptr);
 
             // returns the jackpot based upon which lottery the ticket was for.
-            auto jackpot = _lotto_db->draw_jackpot_for_ticket(trx_loc.block_num, claim_ticket, in.output.amount);
+            auto jackpot = _lotto_db->get_rule_ptr()->jackpot_for_ticket(claim_ticket, in.output.amount, output_index(trx_loc.block_num, trx_loc.trx_idx, in.output_num));
 
             if( jackpot > 0 ) // we have a winner!
             {

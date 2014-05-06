@@ -109,7 +109,7 @@ namespace bts { namespace lotto {
         output_factory::instance().register_output<claim_jackpot_output>();
         set_transaction_validator( std::make_shared<lotto_transaction_validator>(this) );
         // my->_rule_ptr = std::make_shared<lotto_rule>(this);
-        my->_rule_ptr = std::make_shared<betting_rule>();
+        my->_rule_ptr = std::make_shared<betting_rule>(this);
         my->_self = this;
     }
 
@@ -125,7 +125,7 @@ namespace bts { namespace lotto {
             my->_delegate2blocks.open(dir / "delegate2blocks", create);
             my->_block2secret.open( dir / "block2secret", create );
             my->_rule_ptr->open(dir, create);
-        } FC_RETHROW_EXCEPTIONS( warn, "Error loading domain database ${dir}", ("dir", dir)("create", create) );
+        } FC_RETHROW_EXCEPTIONS( warn, "Error loading lotto database ${dir}", ("dir", dir)("create", create) );
     }
 
     void lotto_db::close() 
@@ -136,6 +136,11 @@ namespace bts { namespace lotto {
         my->_rule_ptr->close();
 
         chain_database::close();
+    }
+
+    rule_ptr lotto_db::get_rule_ptr()
+    {
+        return my->_rule_ptr;
     }
 
     void lotto_db::validate_secret_transactions(const signed_transactions& deterministic_trxs, const trx_block& blk)
@@ -185,25 +190,6 @@ namespace bts { namespace lotto {
         FC_ASSERT(found_secret_out == true, "There is no secret out found.");
     }
 
-    /**
-     * TODO: this method should be const, return should be always same with same params
-     */
-    asset lotto_db::draw_jackpot_for_ticket(const output_index& out_idx, const bts::lotto::claim_ticket_output& ticket, const asset& amount)
-    {
-        FC_ASSERT(head_block_num() >= out_idx.block_idx + BTS_LOTTO_BLOCKS_BEFORE_JACKPOTS_DRAW);
-        // fc::sha256 random_number;
-        // using the next block generated block number
-        uint64_t random_number = my->_block2summary.fetch(out_idx.block_idx + BTS_LOTTO_BLOCKS_BEFORE_JACKPOTS_DRAW).random_number;
-        
-        // TODO: what's global_odds, ignore currenly.
-        uint64_t global_odds = 0;
-
-        // TODO: pass asset inside?
-        uint64_t jackpot = my->_rule_ptr->jackpot_for_ticket(random_number, ticket, amount.get_rounded_amount(), out_idx);
-
-        return asset(jackpot, amount.unit);
-    }
-
     signed_transactions lotto_db::generate_deterministic_transactions()
     {
         signed_transactions signed_trxs = chain_database::generate_deterministic_transactions();
@@ -239,8 +225,8 @@ namespace bts { namespace lotto {
                     auto ticket_out = out.as<claim_ticket_output>();
                     auto trx_num = fetch_trx_num(trx.id());
                     // TODO: why not directly send in.output in to 
-                    auto jackpot = draw_jackpot_for_ticket(output_index(trx_num.block_num, trx_num.trx_idx, i),
-                        ticket_out, out.amount);
+                    auto jackpot = my->_rule_ptr->jackpot_for_ticket(
+                        ticket_out, out.amount, output_index(trx_num.block_num, trx_num.trx_idx, i));
                     
                     if (jackpot.get_rounded_amount() > 0)   // There is a jackpot for this ticket
                     {
@@ -340,6 +326,6 @@ namespace bts { namespace lotto {
     uint64_t lotto_db::fetch_blk_random_number( const uint32_t& k )
     { try {
         return my->_block2summary.fetch(k).random_number;
-    } FC_RETHROW_EXCEPTIONS( warn, "block index ${k}", ("k",k) ) }
+    } FC_RETHROW_EXCEPTIONS( warn, "fetching random number, block index ${k}", ("k",k) ) }
 
 }} // bts::lotto

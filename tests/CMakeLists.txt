@@ -2,15 +2,10 @@ include_directories( ${CMAKE_SOURCE_DIR}/libraries/blockchain/include )
 include_directories( ${CMAKE_SOURCE_DIR}/libraries/db/include )
 include_directories( ${CMAKE_SOURCE_DIR}/libraries/wallet/include )
 include_directories( ${CMAKE_SOURCE_DIR}/libraries/net/include )
-include_directories( ${CMAKE_SOURCE_DIR}/libraries/lotto/include )
 
 add_executable( blockchain_tests blockchain_tests.cpp )
 target_link_libraries( blockchain_tests bts_wallet bts_blockchain bts_net bitcoin_import fc ${BOOST_LIBRARIES} ${OPENSSL_LIBRARIES} ${PLATFORM_SPECIFIC_LIBS} ${crypto_library})
 
-add_executable( lotto_tests lotto_tests.cpp )
-target_link_libraries( lotto_tests bts_lotto bts_wallet bts_blockchain bitcoin_import fc ${BOOST_LIBRARIES} ${OPENSSL_LIBRARIES} ${PLATFORM_SPECIFIC_LIBS} ${crypto_library})
-
-include_directories( ${CMAKE_SOURCE_DIR}/libraries/net/include )
 include_directories( ${CMAKE_SOURCE_DIR}/libraries/client/include )
 
 if( WIN32 )
@@ -57,3 +52,4 @@ endif (WIN32)
 target_link_libraries( bts_xt_client_tests bts_client bts_rpc bts_net bts_wallet bts_blockchain fc ${Boost_LIBRARIES} ${OPENSSL_LIBRARIES} ${RPCRT4} ${crypto_library})
 
 add_subdirectory( dns )
+add_subdirectory( lotto )

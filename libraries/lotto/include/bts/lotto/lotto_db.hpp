@@ -29,14 +29,9 @@ class lotto_db : public bts::blockchain::chain_database
         void             open( const fc::path& dir, bool create );
         void             close();
 
-        void set_lotto_rule(const lotto_rule_ptr& r);
+        rule_ptr get_rule_ptr();
 
         void validate_secret_transactions(const signed_transactions& deterministic_trxs, const trx_block& blk);
-
-        /**
-         * Calculate the jackpot reward for this ticket.
-         */
-        asset draw_jackpot_for_ticket(const output_index& out_idx, const bts::lotto::claim_ticket_output& ticket, const asset& amount);
 
         uint64_t fetch_blk_random_number( const uint32_t& blk_index );
 

@@ -243,7 +243,7 @@ namespace bts { namespace lotto {
     {
         try {
             my->_drawing2record.open( dir / "lotto_rule" / "drawing2record", create );
-        } FC_RETHROW_EXCEPTIONS( warn, "Error loading domain database ${dir}", ("dir", dir)("create", create) );
+        } FC_RETHROW_EXCEPTIONS( warn, "Error loading lotto rule database ${dir}", ("dir", dir)("create", create) );
     }
 
     void lotto_rule::close() 
@@ -370,15 +370,23 @@ namespace bts { namespace lotto {
         return -1;
     }
 
-    uint64_t lotto_rule::jackpot_for_ticket(const uint64_t& block_random_number, 
-        const bts::lotto::claim_ticket_output& ticket, const uint64_t& amt, const output_index& out_idx)
+    asset lotto_rule::jackpot_for_ticket(
+        const bts::lotto::claim_ticket_output& ticket, const asset& amt, const output_index& out_idx)
     {
 
         uint64_t total_jackpots = my->_drawing2record.fetch(out_idx.block_idx + BTS_LOTTO_BLOCKS_BEFORE_JACKPOTS_DRAW).total_jackpot;
 
+        FC_ASSERT(my->_db->head_block_num() >= out_idx.block_idx + BTS_LOTTO_BLOCKS_BEFORE_JACKPOTS_DRAW);
+        // fc::sha256 random_number;
+        // using the next block generated block number
+        uint64_t random_number = my->_db->fetch_blk_random_number(out_idx.block_idx + BTS_LOTTO_BLOCKS_BEFORE_JACKPOTS_DRAW);
+
+        // TODO: what's global_odds, ignore currenly.
+        uint64_t global_odds = 0;
+
         // This is only one kind of implementation, we call also implement it as dice.
         uint64_t total_space = lotto_rule::total_space();
-        uint64_t rule_winning_number = block_random_number % total_space;
+        uint64_t rule_winning_number = random_number % total_space;
         uint64_t rule_lucky_number = ticket.lucky_number % total_space;
         c_rankings winning_rs = helper::unranking(rule_winning_number, lotto_rule::group_spaces());
         c_rankings lucky_rs = helper::unranking(rule_lucky_number, lotto_rule::group_spaces());
@@ -407,11 +415,11 @@ namespace bts { namespace lotto {
         }
 
         // TODO switch case... level to find jackpots
-        uint64_t jackpot = amt;
+        asset jackpot = amt;
 
         fc::sha256::encoder enc;
         enc.write( (char*)&ticket.lucky_number, sizeof(ticket.lucky_number) );
-        enc.write( (char*)&block_random_number, sizeof(block_random_number) );
+        enc.write( (char*)&random_number, sizeof(random_number) );
         enc.result();
         //fc::bigint  result_bigint( enc.result() );
 
