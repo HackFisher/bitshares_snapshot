@@ -1,4 +1,5 @@
 #pragma once
+
 #include <fc/reflect/variant.hpp>
 
 #include <bts/blockchain/asset.hpp>
@@ -16,9 +17,7 @@ namespace bts { namespace lotto {
     }
     /**
     *  @class rule
-    *  @brief base class used for evaluating rule and calculating jackpots
-    *
-    *  TODO: This lotto_rule can be implemented by inheritance lotto DACs.
+    *  @brief base class of rule layer, to define rule specific things.
     */
     class rule
     {
