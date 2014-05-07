@@ -320,8 +320,9 @@ BOOST_AUTO_TEST_CASE(wallet_list_tickets)
             BOOST_CHECK(ticket.first.trx_idx == 1);
             auto ticket_out = ticket.second.as<claim_ticket_output>();
             BOOST_CHECK(ticket.second.amount == asset(1));
-            BOOST_CHECK(ticket_out.lucky_number == 888);
-            BOOST_CHECK(ticket_out.odds == 0);
+            auto t = ticket_out.ticket.as<betting_ticket>();
+            BOOST_CHECK(t.lucky_number == 888);
+            BOOST_CHECK(t.odds == 0);
         }
     }
     catch (const fc::exception& e)

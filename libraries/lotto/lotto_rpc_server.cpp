@@ -56,7 +56,7 @@ TODO:
         // TODO: do more interactive cli and check with the inputs...
       FC_ASSERT(params.size() == 3);
       uint64_t lucky_number = params[0].as_uint64();
-      uint64_t odds = params[1].as_uint64();
+      uint16_t odds = params[1].as<uint16_t>();
       asset amount = params[2].as<asset>();
 
       auto tx = get_lotto_wallet()->buy_ticket(lucky_number, odds, amount);
@@ -80,7 +80,7 @@ TODO: FORMAT: R1 R2 R3 R4 R5 | B1 B2 e.g. 3 6 21 25 31 | 4 7
         // TODO: do more interactive cli and check with the inputs...
       FC_ASSERT(params.size() == 1);
       uint64_t lucky_number = params[0].as_uint64();
-      asset amount(1.0);
+      asset amount(1);
 
       auto tx = get_lotto_wallet()->buy_ticket(lucky_number, 1, amount);
 

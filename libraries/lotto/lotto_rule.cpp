@@ -371,7 +371,7 @@ namespace bts { namespace lotto {
     }
 
     asset lotto_rule::jackpot_for_ticket(
-        const bts::lotto::claim_ticket_output& ticket, const asset& amt, const output_index& out_idx)
+        const bts::lotto::claim_ticket_output& ticket_output, const asset& amt, const output_index& out_idx)
     {
 
         uint64_t total_jackpots = my->_drawing2record.fetch(out_idx.block_idx + BTS_LOTTO_BLOCKS_BEFORE_JACKPOTS_DRAW).total_jackpot;
@@ -383,11 +383,12 @@ namespace bts { namespace lotto {
 
         // TODO: what's global_odds, ignore currenly.
         uint64_t global_odds = 0;
+        uint64_t lucky_number = ticket_output.ticket.as<lottery_ticket>().lucky_number;
 
         // This is only one kind of implementation, we call also implement it as dice.
         uint64_t total_space = lotto_rule::total_space();
         uint64_t rule_winning_number = random_number % total_space;
-        uint64_t rule_lucky_number = ticket.lucky_number % total_space;
+        uint64_t rule_lucky_number = lucky_number % total_space;
         c_rankings winning_rs = helper::unranking(rule_winning_number, lotto_rule::group_spaces());
         c_rankings lucky_rs = helper::unranking(rule_lucky_number, lotto_rule::group_spaces());
         group_match m = helper::match_rankings(winning_rs, lucky_rs, config_instance().ball_group);
@@ -418,7 +419,7 @@ namespace bts { namespace lotto {
         asset jackpot = amt;
 
         fc::sha256::encoder enc;
-        enc.write( (char*)&ticket.lucky_number, sizeof(ticket.lucky_number) );
+        enc.write( (char*)&lucky_number, sizeof(lucky_number) );
         enc.write( (char*)&random_number, sizeof(random_number) );
         enc.result();
         //fc::bigint  result_bigint( enc.result() );

@@ -12,35 +12,31 @@ namespace bts {
             {
             public:
                 virtual ~ticket_converter_base(){};
-                virtual void to_variant(const ticket_data& in, fc::variant& out) = 0;
-                virtual void from_variant(const fc::variant& in, ticket_data& output) = 0;
+                virtual void to_variant(const output_ticket& in, fc::variant& out) = 0;
+                virtual void from_variant(const fc::variant& in, output_ticket& output) = 0;
             };
 
             template<typename TicketType>
             class ticket_converter : public ticket_converter_base
             {
             public:
-                virtual void to_variant(const ticket_data& in, fc::variant& output)
+                virtual void to_variant(const output_ticket& in, fc::variant& output)
                 {
                     FC_ASSERT(in.ticket_func == TicketType::type);
                     fc::mutable_variant_object obj;
 
-                    obj["owner"] = in.owner;
                     obj["ticket_func"] = in.ticket_func;
-                    obj["data"] = fc::raw::unpack<TicketType>(in.data);
+                    obj["ticket_data"] = fc::raw::unpack<TicketType>(in.ticket_data);
 
                     output = std::move(obj);
                 }
-                virtual void from_variant(const fc::variant& in, ticket_data& output)
+                virtual void from_variant(const fc::variant& in, output_ticket& output)
                 {
-                    auto obj = in.get_object();
-                    output.owner = obj["owner"].as<bts::blockchain::address>();
-
                     // already done once outside in ticket.cpp
-                    output.ticket_func = obj["ticket_func"].as<ticket_type>();
+                    output.ticket_func = in["ticket_func"].as<ticket_type>();
 
                     FC_ASSERT(output.ticket_func == TicketType::type);
-                    output.data = fc::raw::pack(obj["data"].as<TicketType>());
+                    output.ticket_data = fc::raw::pack(in["ticket_data"].as<TicketType>());
                 }
             };
 
@@ -51,9 +47,9 @@ namespace bts {
             }
 
             /// defined in ticket.cpp
-            void to_variant(const ticket_data& in, fc::variant& output);
+            void to_variant(const output_ticket& in, fc::variant& output);
             /// defined in ticket.cpp
-            void from_variant(const fc::variant& in, ticket_data& output);
+            void from_variant(const fc::variant& in, output_ticket& output);
         private:
 
             std::unordered_map<int, std::shared_ptr<ticket_converter_base> > _converters;

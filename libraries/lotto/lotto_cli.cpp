@@ -28,10 +28,9 @@ fc::variant lotto_cli::execute_interactive_command(const std::string& command, c
     {
         FC_ASSERT(arguments.size() == 3);
         
-        
         auto required_input = arguments[2].as<asset>();
         // _create_sendtoaddress_transaction takes the same arguments as sendtoaddress
-        auto result = execute_interactive_command("getbalance", fc::variants());
+        auto result = cli::execute_interactive_command("getbalance", fc::variants());
         auto curr_bal = result.as<bts::blockchain::asset>();
             
         std::cout<<"current balance: "<< curr_bal.get_rounded_amount() <<" "<<fc::variant((asset_type)curr_bal.unit).as_string()<<"\n";
@@ -48,8 +47,9 @@ fc::variant lotto_cli::execute_interactive_command(const std::string& command, c
             std::getline( std::cin, line );
             if( line == "yes" || line == "y" )
             {
-                execute_interactive_command(command, arguments);
-                std::cout<<"order submitted\n";
+                std::cout << "order submitted\n";
+                return cli::execute_interactive_command(command, arguments);
+                
             }
             else
             {
@@ -69,8 +69,8 @@ fc::variant lotto_cli::execute_interactive_command(const std::string& command, c
         std::getline( std::cin, line );
         if( line == "yes" || line == "y" )
         {
-            execute_interactive_command(command, arguments);
-            std::cout<<"order submitted\n";
+            std::cout << "order submitted\n";
+            return cli::execute_interactive_command(command, arguments);
         }
         else
         {
@@ -81,6 +81,8 @@ fc::variant lotto_cli::execute_interactive_command(const std::string& command, c
     {
         return cli::execute_interactive_command(command, arguments);
     }
+
+    return fc::variant();
 }
 void lotto_cli::format_and_print_result(const std::string& command, const fc::variant& result)
 {

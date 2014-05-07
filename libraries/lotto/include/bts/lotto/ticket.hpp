@@ -7,6 +7,7 @@
 #include <fc/crypto/ripemd160.hpp>
 #include <fc/crypto/elliptic.hpp>
 #include <fc/reflect/reflect.hpp>
+#include <fc/io/raw.hpp>
 #include <fc/io/enum_type.hpp>
 #include <fc/io/varint.hpp>
 
@@ -25,12 +26,12 @@ namespace bts { namespace lotto {
 
     typedef uint8_t ticket_type;
 
-    struct ticket_for_betting_data
+    struct betting_ticket
     {
         static const ticket_type_enum type;
-        ticket_for_betting_data(const uint64_t& l, const uint64_t& o) 
+        betting_ticket(const uint64_t& l, const uint16_t& o)
             :lucky_number(l), odds(o){}
-        ticket_for_betting_data(){}
+        betting_ticket(){}
         /**
          *  This is the number chosen by the user or at
          *  random, ie: their lotto ticket number.
@@ -45,12 +46,12 @@ namespace bts { namespace lotto {
         uint16_t                   odds;
     };
 
-    struct ticket_for_lottery_data
+    struct lottery_ticket
     {
         static const ticket_type_enum type;
-        ticket_for_lottery_data(const uint64_t& l)
+        lottery_ticket(const uint64_t& l)
             :lucky_number(l){}
-        ticket_for_lottery_data(){}
+        lottery_ticket(){}
         /**
          *  This is the number chosen by the user or at
          *  random, ie: their lotto ticket number.
@@ -59,28 +60,26 @@ namespace bts { namespace lotto {
         uint64_t                   lucky_number;
     };
 
-    struct ticket_data
+    struct output_ticket
     {
         template<typename TicketType>
-        ticket_data(const TicketType& t, const bts::blockchain::address& a)
-            :owner(a)
+        output_ticket(const TicketType& t)
         {
-            claim_func = TicketType::type;
-            claim_data = fc::raw::pack(t);
+            ticket_func = TicketType::type;
+            ticket_data = fc::raw::pack(t);
         }
 
         template<typename TicketType>
         TicketType as()const
         {
-            FC_ASSERT(claim_func == TicketType::type, "", ("ticket_func", ticket_func)("TicketType", TicketType::type));
-            return fc::raw::unpack<TicketType>(data);
+            FC_ASSERT(ticket_func == TicketType::type, "", ("ticket_func", ticket_func)("TicketType", TicketType::type));
+            return fc::raw::unpack<TicketType>(ticket_data);
         }
 
-        ticket_data(){}
-
-        bts::blockchain::address                    owner;
+        output_ticket(){}
+        
         ticket_type                                 ticket_func;
-        std::vector<char>                           data;
+        std::vector<char>                           ticket_data;
     };
 } } // bts::lotto
 
@@ -91,10 +90,10 @@ FC_REFLECT_ENUM(bts::lotto::ticket_type_enum,
 )
 
 namespace fc {
-    void to_variant(const bts::lotto::ticket_data& var, variant& vo);
-    void from_variant(const variant& var, bts::lotto::ticket_data& vo);
+    void to_variant(const bts::lotto::output_ticket& var, variant& vo);
+    void from_variant(const variant& var, bts::lotto::output_ticket& vo);
 };
 
-FC_REFLECT(bts::lotto::ticket_for_betting_data, (lucky_number)(odds))
-FC_REFLECT(bts::lotto::ticket_for_lottery_data, (lucky_number))
-FC_REFLECT(bts::lotto::ticket_data, (owner)(ticket_func)(data))
+FC_REFLECT(bts::lotto::betting_ticket, (lucky_number)(odds))
+FC_REFLECT(bts::lotto::lottery_ticket, (lucky_number))
+FC_REFLECT(bts::lotto::output_ticket, (ticket_func)(ticket_data))

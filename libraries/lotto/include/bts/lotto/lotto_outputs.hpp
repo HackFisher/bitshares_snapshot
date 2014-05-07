@@ -5,6 +5,7 @@
  *  @brief defines extended output types in lotto
  */
 #include <bts/blockchain/outputs.hpp>
+#include <bts/lotto/ticket.hpp>
 
 namespace bts { namespace lotto {
    
@@ -33,24 +34,14 @@ struct claim_ticket_output
 {
     static const claim_type_enum type;
     
-    claim_ticket_output():lucky_number(0), odds(1){}
+    claim_ticket_output(){}
 
     /**
-     *  This is the number chosen by the user or at 
-     *  random, ie: their lotto ticket number.
+     *  Who owns the ticket and thus can receive the jackpot
      */
-    uint64_t                   lucky_number;
+    bts::blockchain::address                    owner;
 
-    /**
-     *  Who owns the ticket and thus can claim the jackpot
-     */
-    bts::blockchain::address   owner;
-
-    /** The probability of winning... increasing the odds will 
-     * cause the amount won to grow by Jackpot * odds, but the
-     * probability of winning decreases by 2*odds.
-     */
-    uint16_t                   odds; 
+    output_ticket ticket;
 };
 
 struct claim_secret_input
@@ -101,7 +92,7 @@ struct claim_jackpot_output
 
 FC_REFLECT_ENUM(bts::lotto::claim_type_enum, (claim_secret)(claim_ticket)(claim_jackpot));
 FC_REFLECT(bts::lotto::claim_ticket_input, BOOST_PP_SEQ_NIL);
-FC_REFLECT(bts::lotto::claim_ticket_output, (lucky_number)(owner)(odds));
+FC_REFLECT(bts::lotto::claim_ticket_output, (owner)(ticket));
 FC_REFLECT(bts::lotto::claim_secret_input, BOOST_PP_SEQ_NIL);
 FC_REFLECT(bts::lotto::claim_secret_output, (secret)(revealed_secret)(delegate_id));
 FC_REFLECT(bts::lotto::claim_jackpot_input, BOOST_PP_SEQ_NIL);

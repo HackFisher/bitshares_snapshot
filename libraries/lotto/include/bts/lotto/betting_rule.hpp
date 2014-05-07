@@ -17,7 +17,7 @@ namespace bts { namespace lotto {
             virtual void                  close();
 
             virtual asset jackpot_for_ticket(
-                const bts::lotto::claim_ticket_output& ticket, const asset& amt, const output_index& out_idx);
+                const bts::lotto::claim_ticket_output& ticket_output, const asset& amt, const output_index& out_idx);
 
             virtual void store(const trx_block& blk, const signed_transactions& deterministic_trxs, const block_evaluation_state_ptr& state);
 

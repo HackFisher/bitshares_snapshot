@@ -37,12 +37,13 @@ namespace bts {
         }
 
         asset betting_rule::jackpot_for_ticket(
-            const bts::lotto::claim_ticket_output& ticket, const asset& amt, const output_index& out_idx)
+            const bts::lotto::claim_ticket_output& ticket_output, const asset& amt, const output_index& out_idx)
         {
             // https://bitsharestalk.org/index.php?topic=4502.0
             uint64_t random_number = my->_db->fetch_blk_random_number(out_idx.block_idx + BTS_LOTTO_BLOCKS_BEFORE_JACKPOTS_DRAW);
             
             uint64_t ticket_sale = my->_block2ticket_sale.fetch(out_idx.block_idx);
+            auto ticket = ticket_output.ticket.as<betting_ticket>();
             uint64_t ticket_lucky_number = ticket.lucky_number;
             uint16_t ticket_odds = ticket.odds;
             uint64_t ticket_amount = amt.get_rounded_amount();
