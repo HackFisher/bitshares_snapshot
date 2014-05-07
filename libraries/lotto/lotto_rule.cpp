@@ -299,15 +299,15 @@ namespace bts { namespace lotto {
 
     const lotto_rule::config& lotto_rule::config_instance()
     {
-        static std::unique_ptr<lotto_rule::config> config_ptr;
-        if (config_ptr->valid) return *config_ptr;
+        static lotto_rule::config config;
+        if (config.valid) return config;
 
         try {
             FC_ASSERT(fc::exists("lotto_rule.json"));
-            *config_ptr = fc::json::from_file("lotto_rule.json").as<lotto_rule::config>();
+            config = fc::json::from_file("lotto_rule.json").as<lotto_rule::config>();
             // TODO: validation and assert
-            config_ptr->valid = true;
-            return *config_ptr;
+            config.valid = true;
+            return config;
         }
         catch (const fc::exception& e)
         {

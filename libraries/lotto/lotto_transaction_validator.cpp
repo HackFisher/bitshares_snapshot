@@ -134,7 +134,7 @@ namespace bts { namespace lotto {
                 // ticket must be before the last drawing... do not understand, draw by day? to remove it.
                 // FC_ASSERT( trx_loc.block_num < (headnum/BTS_BLOCKCHAIN_BLOCKS_PER_DAY)*BTS_BLOCKCHAIN_BLOCKS_PER_DAY );
                 
-                FC_ASSERT(headnum > BTS_LOTTO_BLOCKS_BEFORE_JACKPOTS_DRAW  + trx_loc.block_num);
+                FC_ASSERT(headnum >= BTS_LOTTO_BLOCKS_BEFORE_JACKPOTS_DRAW  + trx_loc.block_num);
                 // TODO: For current, the ticket draw trx must be created by the owner.
                 // FC_ASSERT( lotto_state.has_signature( claim_ticket.owner ), "", ("owner",claim_ticket.owner)("sigs",state.sigs) );
             }
@@ -144,13 +144,18 @@ namespace bts { namespace lotto {
 
             // returns the jackpot based upon which lottery the ticket was for.
             auto jackpot = _lotto_db->get_rule_ptr()->jackpot_for_ticket(claim_ticket, in.output.amount, output_index(trx_loc.block_num, trx_loc.trx_idx, in.output_num));
-
-            if( jackpot > 0 ) // we have a winner!
+            if( jackpot.get_rounded_amount() > 0 ) // we have a winner!
             {
                 // @see state.balance_assets();
-                lotto_state.add_input_asset(jackpot);
+                state.add_input_asset(jackpot);
                 // TODO: improve ticket_winnings to support multi assets
                 lotto_state.ticket_winnings += jackpot.get_rounded_amount();
+                if (in.output.amount.unit == 0)
+                {
+                    accumulate_votes(in.output.amount.get_rounded_amount(), in.source.block_num, state);
+                    block_state->add_input_delegate_votes(in.delegate_id, in.output.amount);
+                    block_state->add_output_delegate_votes(state.trx.vote, in.output.amount);
+                }
             } else {
                 /**
                  * throws or invalid when they did not win
@@ -200,7 +205,7 @@ namespace bts { namespace lotto {
     {
         try {
             FC_ASSERT(out.amount.get_rounded_amount() <= BTS_LOTTO_RULE_MAXIMUM_REWARDS_EACH_JACKPOT_OUTPUT);
-
+            wlog("validate_jackpot_output jackpots: ${j}", ("j", out.amount));
             state.add_output_asset(out.amount);
 
     } FC_RETHROW_EXCEPTIONS( warn, "" ) }

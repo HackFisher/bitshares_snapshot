@@ -168,6 +168,7 @@ class LottoTestState
         void next_block(lotto_wallet &wallet, signed_transactions &txs)
         {
             wlog("next_block transactions: ${c}", ("c", txs));
+            wlog("Current head block number is ${n}", ("n", db.head_block_num()));
             validator->skip_time(fc::seconds(LOTTO_TEST_BLOCK_SECS));
 
             if (txs.size() <= 0)
@@ -263,7 +264,7 @@ BOOST_AUTO_TEST_CASE(trx_validator_buy_ticket)
         LottoTestState state;
         lotto_transaction_validator validator(&state.db);
 
-        auto signed_trx = state.wallet1.buy_ticket(88, 0, asset(10));
+        auto signed_trx = state.wallet1.buy_ticket(88, 1, asset(100));
         wlog("tx: ${tx} ", ("tx", signed_trx));
 
         validator.evaluate(signed_trx, validator.create_block_state());
@@ -284,7 +285,7 @@ BOOST_AUTO_TEST_CASE(trx_validator_lucky_number)
         LottoTestState state;
         lotto_transaction_validator validator(&state.db);
 
-        auto signed_trx = state.wallet1.buy_ticket(888, 0, asset(1));
+        auto signed_trx = state.wallet1.buy_ticket(888, 1, asset(100));
         wlog("tx: ${tx} ", ("tx", signed_trx));
 
         validator.evaluate(signed_trx, validator.create_block_state());
@@ -304,7 +305,7 @@ BOOST_AUTO_TEST_CASE(wallet_list_tickets)
         LottoTestState state;
 
         signed_transactions txs;
-        auto signed_trx = state.wallet1.buy_ticket(888, 0, asset(1));
+        auto signed_trx = state.wallet1.buy_ticket(888, 1, asset(100));
         wlog("tx: ${tx} ", ("tx", signed_trx));
 
         txs.push_back(signed_trx);
@@ -319,10 +320,10 @@ BOOST_AUTO_TEST_CASE(wallet_list_tickets)
             BOOST_CHECK(ticket.first.block_idx == 1);
             BOOST_CHECK(ticket.first.trx_idx == 1);
             auto ticket_out = ticket.second.as<claim_ticket_output>();
-            BOOST_CHECK(ticket.second.amount == asset(1));
+            BOOST_CHECK(ticket.second.amount == asset(100));
             auto t = ticket_out.ticket.as<betting_ticket>();
             BOOST_CHECK(t.lucky_number == 888);
-            BOOST_CHECK(t.odds == 0);
+            BOOST_CHECK(t.odds == 1);
         }
     }
     catch (const fc::exception& e)
@@ -348,7 +349,7 @@ BOOST_AUTO_TEST_CASE(wallet_list_jackpots)
         for (size_t i = 0; i < 102; i++)
         {
             signed_transactions txs;
-            auto signed_trx = state.wallet1.buy_ticket(888, 0, asset(1));
+            auto signed_trx = state.wallet1.buy_ticket(888, 1, asset(100));
             wlog("tx: ${tx} ", ("tx", signed_trx));
 
             txs.push_back(signed_trx);
@@ -391,7 +392,7 @@ BOOST_AUTO_TEST_CASE(wallet_cash_jackpot)
         for (size_t i = 0; i < 102; i++)
         {
             signed_transactions txs;
-            auto signed_trx = state.wallet1.buy_ticket(888, 0, asset(10000));
+            auto signed_trx = state.wallet1.buy_ticket(888, 1, asset(10000));
             wlog("tx: ${tx} ", ("tx", signed_trx));
 
             txs.push_back(signed_trx);

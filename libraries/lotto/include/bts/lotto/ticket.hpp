@@ -83,17 +83,16 @@ namespace bts { namespace lotto {
     };
 } } // bts::lotto
 
-FC_REFLECT_ENUM(bts::lotto::ticket_type_enum,
-    (null_ticket_type)
-    (ticket_for_betting)
-    (ticket_for_lottery)
-)
-
 namespace fc {
     void to_variant(const bts::lotto::output_ticket& var, variant& vo);
     void from_variant(const variant& var, bts::lotto::output_ticket& vo);
 };
 
+FC_REFLECT_ENUM(bts::lotto::ticket_type_enum,
+    (null_ticket_type)
+    (ticket_for_betting)
+    (ticket_for_lottery)
+    )
 FC_REFLECT(bts::lotto::betting_ticket, (lucky_number)(odds))
 FC_REFLECT(bts::lotto::lottery_ticket, (lucky_number))
 FC_REFLECT(bts::lotto::output_ticket, (ticket_func)(ticket_data))
