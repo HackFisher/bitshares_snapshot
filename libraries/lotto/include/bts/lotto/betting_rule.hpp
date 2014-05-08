@@ -4,13 +4,11 @@
 namespace bts { namespace lotto {
     namespace detail  { class betting_rule_impl; }
 
-    class lotto_db;
-
     class betting_rule : public rule
     {
         public:
 
-            betting_rule(lotto_db* db);
+            betting_rule(lotto_db* db, ticket_type t, asset::unit_type u);
             virtual ~betting_rule();
 
             virtual void                  open(const fc::path& dir, bool create = true);
@@ -23,7 +21,8 @@ namespace bts { namespace lotto {
         protected:
             std::unique_ptr<detail::betting_rule_impl> my;
     };
-        typedef std::shared_ptr<betting_rule> betting_rule_ptr;
+
+    typedef std::shared_ptr<betting_rule> betting_rule_ptr;
 
 } } // bts::lotto
 

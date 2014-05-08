@@ -5,7 +5,8 @@
 #include <bts/wallet/wallet.hpp>
 
 #include <bts/lotto/lotto_transaction_validator.hpp>
-#include <bts/lotto/lotto_rule.hpp>
+#include <bts/lotto/rule.hpp>
+#include <bts/lotto/ticket.hpp>
 
 namespace bts { namespace lotto {
 using namespace bts::wallet;

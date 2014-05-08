@@ -155,6 +155,10 @@ namespace bts { namespace lotto {
     void lotto_transaction_validator::validate_ticket_output(const trx_output& out, transaction_evaluation_state& state, const block_evaluation_state_ptr& block_state)
     {
         try {
+            auto claim_ticket = out.as<claim_ticket_output>();
+            asset::unit_type u = _lotto_db->get_rule_ptr(claim_ticket.ticket.ticket_func)->get_asset_unit();
+            FC_ASSERT(u == out.amount.unit,"Ticket amount's unit should be same with ticket's unit ${u}", ("u", u));
+            
             auto lotto_state = dynamic_cast<lotto_trx_evaluation_state&>(state);
             lotto_state.total_ticket_sales += out.amount.get_rounded_amount();
             lotto_state.add_output_asset( out.amount );

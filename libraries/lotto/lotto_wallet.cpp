@@ -45,7 +45,8 @@ bts::blockchain::signed_transaction lotto_wallet::buy_ticket(const uint64_t& luc
         auto inputs = std::vector<trx_input>();
 
         auto ticket_output = claim_ticket_output();
-        ticket_output.ticket = output_ticket(betting_ticket(luckynumber, odds));
+        auto t = betting_ticket(luckynumber, odds);
+        ticket_output.ticket = output_ticket(t);
         ticket_output.owner = jackpot_addr;
 
         trx.outputs.push_back(trx_output(ticket_output, amount));

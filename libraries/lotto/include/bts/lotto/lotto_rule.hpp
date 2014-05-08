@@ -137,7 +137,7 @@ class lotto_rule : public rule
 
        static const uint64_t& total_space();
 
-       lotto_rule(lotto_db* db);
+       lotto_rule(lotto_db* db, ticket_type t, asset::unit_type u);
        virtual ~lotto_rule();
 
        std::pair<trx_num, uint64_t> jackpot_paid_in_transaction(const signed_transaction& trx);

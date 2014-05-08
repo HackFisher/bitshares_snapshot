@@ -5,7 +5,9 @@
 namespace bts {
     namespace lotto {
         const ticket_type_enum betting_ticket::type = ticket_type_enum::ticket_for_betting;
+        const lotto_asset_type betting_ticket::unit = lotto_asset_type::bet;
         const ticket_type_enum lottery_ticket::type = ticket_type_enum::ticket_for_lottery;
+        const lotto_asset_type lottery_ticket::unit = lotto_asset_type::lto;
 
         ticket_factory& ticket_factory::instance()
         {

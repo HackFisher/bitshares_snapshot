@@ -13,10 +13,12 @@ namespace bts { namespace lotto {
     }
 
     // Default rule validator implement, TODO: may be move default to another class
-    rule::rule(lotto_db* db)
+    rule::rule(lotto_db* db, ticket_type t, asset::unit_type u)
         :my(new detail::rule_impl())
     {
         _lotto_db = db;
+        _ticket_type = t;
+        _unit_type = u;
     }
     rule::~rule()
     {

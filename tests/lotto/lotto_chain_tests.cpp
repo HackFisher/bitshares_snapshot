@@ -20,7 +20,6 @@
 using namespace bts::wallet;
 using namespace bts::blockchain;
 using namespace bts::lotto;
-using namespace bts::lotto::helper;
 
 #define LOTTO_TEST_NUM_WALLET_ADDRS   10
 #define LOTTO_TEST_BLOCK_SECS         (5 * 60)

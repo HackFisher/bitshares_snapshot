@@ -7,6 +7,8 @@
 #include <fc/io/enum_type.hpp>
 #include <fc/io/varint.hpp>
 
+#include <bts/lotto/lotto_asset.hpp>
+
 namespace bts { namespace lotto {
     /**
      *  @enum ticket_type_enum
@@ -23,7 +25,8 @@ namespace bts { namespace lotto {
 
     struct betting_ticket
     {
-        static const ticket_type_enum type;
+        static const ticket_type_enum   type;
+        static const lotto_asset_type   unit;
 
         betting_ticket(const uint64_t& l, const uint16_t& o)
             :lucky_number(l), odds(o){}
@@ -33,18 +36,19 @@ namespace bts { namespace lotto {
          *  random, ie: their lotto ticket number.
          */
         // TODO: to be deleted betting do not need this field
-        uint64_t                   lucky_number;
+        uint64_t                        lucky_number;
 
         /** The probability of winning... increasing the odds will
          * cause the amount won to grow by Jackpot * odds, but the
          * probability of winning decreases by 2*odds.
          */
-        uint16_t                   odds;
+        uint16_t                        odds;
     };
 
     struct lottery_ticket
     {
-        static const ticket_type_enum type;
+        static const ticket_type_enum   type;
+        static const lotto_asset_type   unit;
 
         lottery_ticket(const uint64_t& l)
             :lucky_number(l){}
@@ -54,7 +58,7 @@ namespace bts { namespace lotto {
          *  random, ie: their lotto ticket number.
          */
         // TODO: to be deleted betting do not need this field
-        uint64_t                   lucky_number;
+        uint64_t                        lucky_number;
     };
 
     struct output_ticket

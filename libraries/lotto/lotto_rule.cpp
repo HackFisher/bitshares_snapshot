@@ -228,8 +228,8 @@ namespace bts { namespace lotto {
     }
 
     // Default rule validator implement, TODO: may be move default to another class
-    lotto_rule::lotto_rule(lotto_db* db)
-        :rule(db), my(new detail::lotto_rule_impl())
+    lotto_rule::lotto_rule(lotto_db* db, ticket_type t, asset::unit_type u)
+        :rule(db, t, u), my(new detail::lotto_rule_impl())
     {
     }
     lotto_rule::~lotto_rule()
@@ -369,6 +369,10 @@ namespace bts { namespace lotto {
 
     asset lotto_rule::jackpot_for_ticket(const meta_ticket_output& meta_ticket_out)
     {
+        auto ticket = meta_ticket_out.ticket_out.ticket.as<lottery_ticket>();
+        FC_ASSERT(meta_ticket_out.ticket_out.ticket.ticket_func == get_ticket_type());
+        FC_ASSERT(ticket.unit == get_asset_unit());
+        FC_ASSERT(ticket.unit == meta_ticket_out.amount.unit);
 
         auto headnum = _lotto_db->head_block_num();
 
@@ -393,7 +397,7 @@ namespace bts { namespace lotto {
 
         // TODO: what's global_odds, ignore currenly.
         uint64_t global_odds = 0;
-        uint64_t lucky_number = meta_ticket_out.ticket_out.ticket.as<lottery_ticket>().lucky_number;
+        uint64_t lucky_number = ticket.lucky_number;
 
         // This is only one kind of implementation, we call also implement it as dice.
         uint64_t total_space = lotto_rule::total_space();

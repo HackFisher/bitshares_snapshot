@@ -8,11 +8,11 @@
 #include <bts/blockchain/chain_database.hpp>
 #include <bts/wallet/wallet.hpp>
 #include <bts/lotto/lotto_outputs.hpp>
-#include <bts/lotto/lotto_db.hpp>
 
 namespace bts { namespace lotto {
     using namespace bts::wallet;
 
+    class lotto_db;
     /**
      *  @class meta_trx_input
      *
@@ -43,7 +43,7 @@ namespace bts { namespace lotto {
     class rule
     {
         public:
-            rule(lotto_db* db);
+            rule(lotto_db* db, ticket_type t, asset::unit_type u);
             virtual ~rule();
 
             virtual void                  open( const fc::path& dir, bool create = true );
@@ -55,8 +55,21 @@ namespace bts { namespace lotto {
 
             virtual void store( const trx_block& blk, const signed_transactions& deterministic_trxs, const block_evaluation_state_ptr& state );
 
+            ticket_type get_ticket_type()
+            {
+                return _ticket_type;
+            }
+
+            asset::unit_type get_asset_unit()
+            {
+                return _unit_type;
+            }
+
         protected:
-            lotto_db* _lotto_db;
+            lotto_db*           _lotto_db;
+            ticket_type         _ticket_type;
+            asset::unit_type    _unit_type;
+
         private:
             std::unique_ptr<detail::rule_impl> my;
     };

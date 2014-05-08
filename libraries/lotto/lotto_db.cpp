@@ -116,8 +116,10 @@ namespace bts { namespace lotto {
         ticket_factory::instance().register_ticket<lottery_ticket>();
         set_transaction_validator( std::make_shared<lotto_transaction_validator>(this) );
 
-        my->_rules[betting_ticket::type] = std::make_shared<betting_rule>(this);
-        my->_rules[lottery_ticket::type] = std::make_shared<betting_rule>(this);
+        // betting rule using asset unit 0
+        my->_rules[betting_ticket::type] = std::make_shared<betting_rule>(this, betting_ticket::type, betting_ticket::unit);
+        // betting rule using asset unit 1
+        my->_rules[lottery_ticket::type] = std::make_shared<lotto_rule>(this, lottery_ticket::type, lottery_ticket::unit);
         my->_self = this;
     }
 

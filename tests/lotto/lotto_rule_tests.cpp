@@ -2,6 +2,7 @@
 #include <boost/test/unit_test.hpp>
 #include <bts/lotto/lotto_wallet.hpp>
 #include <bts/lotto/lotto_outputs.hpp>
+#include <bts/lotto/lotto_rule.hpp>
 #include <fc/filesystem.hpp>
 #include <fc/log/logger.hpp>
 #include <fc/io/raw.hpp>
