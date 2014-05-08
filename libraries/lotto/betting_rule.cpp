@@ -24,7 +24,7 @@ namespace bts { namespace lotto {
     void betting_rule::open(const fc::path& dir, bool create)
     {
         try {
-            my->_block2ticket_sale.open(dir / "betting_rule" / "_block2ticket_sale", create);
+            my->_block2ticket_sale.open(dir / "betting_rule" / "block2ticket_sale", create);
         } FC_RETHROW_EXCEPTIONS(warn, "Error loading betting rule database ${dir}", ("dir", dir)("create", create));
     }
 
