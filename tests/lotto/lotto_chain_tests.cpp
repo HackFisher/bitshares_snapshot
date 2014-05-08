@@ -57,7 +57,7 @@ std::pair<fc::sha256, fc::sha256> delegate_secret_last_revealed_secret_pair(uint
 trx_block generate_genesis_block(const std::vector<address>& addr)
 {
     trx_block genesis;
-    genesis.version = 0;
+    genesis.version = BTS_BLOCKCHAIN_VERSION;
     genesis.block_num = 0;
     genesis.timestamp = fc::time_point::now();
     genesis.next_fee = block_header::min_fee();

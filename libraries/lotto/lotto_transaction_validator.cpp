@@ -122,28 +122,14 @@ namespace bts { namespace lotto {
     {
         try {
             auto lotto_state = dynamic_cast<lotto_trx_evaluation_state&>(state);
+
             auto claim_ticket = in.output.as<claim_ticket_output>();
 
             auto trx_loc = in.source;
-            auto headnum = _db->head_block_num();
-
-            // To be move to rule specific valide api, different rule may have different rule validation
-            {
-                // TODO: ticket must have been purchased in the past 7 days, do not understand, draw by day? to remove it.
-                // FC_ASSERT( headnum - trx_loc.block_num < (BTS_BLOCKCHAIN_BLOCKS_PER_DAY*7) );
-                // ticket must be before the last drawing... do not understand, draw by day? to remove it.
-                // FC_ASSERT( trx_loc.block_num < (headnum/BTS_BLOCKCHAIN_BLOCKS_PER_DAY)*BTS_BLOCKCHAIN_BLOCKS_PER_DAY );
-                
-                FC_ASSERT(headnum >= BTS_LOTTO_BLOCKS_BEFORE_JACKPOTS_DRAW  + trx_loc.block_num);
-                // TODO: For current, the ticket draw trx must be created by the owner.
-                // FC_ASSERT( lotto_state.has_signature( claim_ticket.owner ), "", ("owner",claim_ticket.owner)("sigs",state.sigs) );
-            }
-            
-            lotto_db* _lotto_db = dynamic_cast<lotto_db*>(_db);
-            FC_ASSERT(_lotto_db != nullptr);
 
             // returns the jackpot based upon which lottery the ticket was for.
-            auto jackpot = _lotto_db->get_rule_ptr()->jackpot_for_ticket(claim_ticket, in.output.amount, output_index(trx_loc.block_num, trx_loc.trx_idx, in.output_num));
+            auto jackpot = _lotto_db->get_rule_ptr(claim_ticket.ticket.ticket_func)
+                ->jackpot_for_ticket(meta_ticket_output(trx_loc, in.output_num, claim_ticket, in.output.amount));
             if( jackpot.get_rounded_amount() > 0 ) // we have a winner!
             {
                 // @see state.balance_assets();

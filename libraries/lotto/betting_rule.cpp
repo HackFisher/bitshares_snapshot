@@ -10,13 +10,12 @@ namespace bts {
     namespace lotto {
         namespace detail
         { 
-            class betting_rule_impl            {            public:                betting_rule_impl(){}                bts::db::level_map<uint32_t, uint64_t>  _block2ticket_sale;                lotto_db* _db;            };
+            class betting_rule_impl            {            public:                betting_rule_impl(){}                bts::db::level_map<uint32_t, uint64_t>  _block2ticket_sale;            };
         }
 
         betting_rule::betting_rule(lotto_db* db)
-            :my(new detail::betting_rule_impl())
+            :rule(db), my(new detail::betting_rule_impl())
         {
-            my->_db = db;
         }
 
         betting_rule::~betting_rule()
@@ -36,18 +35,21 @@ namespace bts {
             my->_block2ticket_sale.close();
         }
 
-        asset betting_rule::jackpot_for_ticket(
-            const bts::lotto::claim_ticket_output& ticket_output, const asset& amt, const output_index& out_idx)
+        asset betting_rule::jackpot_for_ticket(const meta_ticket_output& meta_ticket_out)
         {
             try {
-                // https://bitsharestalk.org/index.php?topic=4502.0
-                uint64_t random_number = my->_db->fetch_blk_random_number(out_idx.block_idx + BTS_LOTTO_BLOCKS_BEFORE_JACKPOTS_DRAW);
+                auto headnum = _lotto_db->head_block_num();
 
-                uint64_t ticket_sale = my->_block2ticket_sale.fetch(out_idx.block_idx);
-                auto ticket = ticket_output.ticket.as<betting_ticket>();
+                FC_ASSERT(headnum >= BTS_LOTTO_BLOCKS_BEFORE_JACKPOTS_DRAW  + meta_ticket_out.out_idx.block_idx);
+
+                // https://bitsharestalk.org/index.php?topic=4502.0
+                uint64_t random_number = _lotto_db->fetch_blk_random_number(meta_ticket_out.out_idx.block_idx + BTS_LOTTO_BLOCKS_BEFORE_JACKPOTS_DRAW);
+
+                uint64_t ticket_sale = my->_block2ticket_sale.fetch(meta_ticket_out.out_idx.block_idx);
+                auto ticket = meta_ticket_out.ticket_out.ticket.as<betting_ticket>();
                 uint64_t ticket_lucky_number = ticket.lucky_number;
                 uint16_t ticket_odds = ticket.odds;
-                uint64_t ticket_amount = amt.get_rounded_amount();
+                uint64_t ticket_amount = meta_ticket_out.amount.get_rounded_amount();
                 uint64_t winners_count = /*Total ticket count*/ 10 / 3;    // global odds?
 
                 uint64_t jackpot = 0;
@@ -62,7 +64,7 @@ namespace bts {
 
                 if (ticket_odds == 0)
                 {
-                    return asset(0, amt.unit);
+                    return asset(0, meta_ticket_out.amount.unit);
                 }
 
                 // uint64_t range = (ticket_odds * ticket_sale) / (ticket_amount * winners_count);
@@ -77,9 +79,9 @@ namespace bts {
                 }
 
 
-                return asset(jackpot, amt.unit);
+                return asset(jackpot, meta_ticket_out.amount.unit);
 
-            } FC_RETHROW_EXCEPTIONS(warn, "Error calculating jackpots for betting ticket ${out_index}", ("out_index", out_idx)("amt", amt));
+            } FC_RETHROW_EXCEPTIONS(warn, "Error calculating jackpots for betting ticket ${m}", ("m", meta_ticket_out));
         }
 
         void betting_rule::store(const trx_block& blk, const signed_transactions& deterministic_trxs, const block_evaluation_state_ptr& state)

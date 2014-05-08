@@ -1,9 +1,5 @@
 #pragma once
 
-#include <bts/blockchain/address.hpp>
-#include <bts/blockchain/pts_address.hpp>
-#include <bts/blockchain/asset.hpp>
-
 #include <fc/crypto/ripemd160.hpp>
 #include <fc/crypto/elliptic.hpp>
 #include <fc/reflect/reflect.hpp>
@@ -12,7 +8,6 @@
 #include <fc/io/varint.hpp>
 
 namespace bts { namespace lotto {
-
     /**
      *  @enum ticket_type_enum
      *  @brief Enumerates the types of supported ticket types
@@ -29,6 +24,7 @@ namespace bts { namespace lotto {
     struct betting_ticket
     {
         static const ticket_type_enum type;
+
         betting_ticket(const uint64_t& l, const uint16_t& o)
             :lucky_number(l), odds(o){}
         betting_ticket(){}
@@ -49,6 +45,7 @@ namespace bts { namespace lotto {
     struct lottery_ticket
     {
         static const ticket_type_enum type;
+
         lottery_ticket(const uint64_t& l)
             :lucky_number(l){}
         lottery_ticket(){}

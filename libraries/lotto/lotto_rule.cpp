@@ -25,8 +25,6 @@ namespace bts { namespace lotto {
 
                 // map drawning number to drawing record
                 bts::db::level_map<uint32_t, drawing_record>  _drawing2record;
-
-                lotto_db* _db;
         };
     }
 
@@ -231,9 +229,8 @@ namespace bts { namespace lotto {
 
     // Default rule validator implement, TODO: may be move default to another class
     lotto_rule::lotto_rule(lotto_db* db)
-        :my(new detail::lotto_rule_impl())
+        :rule(db), my(new detail::lotto_rule_impl())
     {
-        my->_db = db;
     }
     lotto_rule::~lotto_rule()
     {
@@ -370,20 +367,33 @@ namespace bts { namespace lotto {
         return -1;
     }
 
-    asset lotto_rule::jackpot_for_ticket(
-        const bts::lotto::claim_ticket_output& ticket_output, const asset& amt, const output_index& out_idx)
+    asset lotto_rule::jackpot_for_ticket(const meta_ticket_output& meta_ticket_out)
     {
 
-        uint64_t total_jackpots = my->_drawing2record.fetch(out_idx.block_idx + BTS_LOTTO_BLOCKS_BEFORE_JACKPOTS_DRAW).total_jackpot;
+        auto headnum = _lotto_db->head_block_num();
 
-        FC_ASSERT(my->_db->head_block_num() >= out_idx.block_idx + BTS_LOTTO_BLOCKS_BEFORE_JACKPOTS_DRAW);
+        // To be move to rule specific valide api, different rule may have different rule validation
+        {
+            // TODO: ticket must have been purchased in the past 7 days, do not understand, draw by day? to remove it.
+            // FC_ASSERT( headnum - trx_loc.block_num < (BTS_BLOCKCHAIN_BLOCKS_PER_DAY*7) );
+            // ticket must be before the last drawing... do not understand, draw by day? to remove it.
+            // FC_ASSERT( trx_loc.block_num < (headnum/BTS_BLOCKCHAIN_BLOCKS_PER_DAY)*BTS_BLOCKCHAIN_BLOCKS_PER_DAY );
+                
+            FC_ASSERT(headnum >= BTS_LOTTO_BLOCKS_BEFORE_JACKPOTS_DRAW  + meta_ticket_out.out_idx.block_idx);
+            // TODO: For current, the ticket draw trx must be created by the owner.
+            // FC_ASSERT( lotto_state.has_signature( claim_ticket.owner ), "", ("owner",claim_ticket.owner)("sigs",state.sigs) );
+        }
+
+        uint64_t total_jackpots = my->_drawing2record.fetch(meta_ticket_out.out_idx.block_idx + BTS_LOTTO_BLOCKS_BEFORE_JACKPOTS_DRAW).total_jackpot;
+
+        FC_ASSERT(_lotto_db->head_block_num() >= meta_ticket_out.out_idx.block_idx + BTS_LOTTO_BLOCKS_BEFORE_JACKPOTS_DRAW);
         // fc::sha256 random_number;
         // using the next block generated block number
-        uint64_t random_number = my->_db->fetch_blk_random_number(out_idx.block_idx + BTS_LOTTO_BLOCKS_BEFORE_JACKPOTS_DRAW);
+        uint64_t random_number = _lotto_db->fetch_blk_random_number(meta_ticket_out.out_idx.block_idx + BTS_LOTTO_BLOCKS_BEFORE_JACKPOTS_DRAW);
 
         // TODO: what's global_odds, ignore currenly.
         uint64_t global_odds = 0;
-        uint64_t lucky_number = ticket_output.ticket.as<lottery_ticket>().lucky_number;
+        uint64_t lucky_number = meta_ticket_out.ticket_out.ticket.as<lottery_ticket>().lucky_number;
 
         // This is only one kind of implementation, we call also implement it as dice.
         uint64_t total_space = lotto_rule::total_space();
@@ -416,7 +426,7 @@ namespace bts { namespace lotto {
         }
 
         // TODO switch case... level to find jackpots
-        asset jackpot = amt;
+        asset jackpot = meta_ticket_out.amount;
 
         fc::sha256::encoder enc;
         enc.write( (char*)&lucky_number, sizeof(lucky_number) );
@@ -476,8 +486,8 @@ namespace bts { namespace lotto {
         for (auto i : trx.inputs)
         {
             // TODO: Fee? There is no fee in deterministic trxs
-            auto o = my->_db->fetch_output(i.output_ref);
-            trx_n = my->_db->fetch_trx_num(i.output_ref.trx_hash);
+            auto o = _lotto_db->fetch_output(i.output_ref);
+            trx_n = _lotto_db->fetch_trx_num(i.output_ref.trx_hash);
             if (o.claim_func == claim_ticket) {
                 for (auto out : trx.outputs)
                 {
@@ -539,7 +549,7 @@ namespace bts { namespace lotto {
             last_jackpot_pool = my->_drawing2record.fetch(blk.block_num - 1).jackpot_pool;
         }
                     
-        dr.total_jackpot = evaluate_total_jackpot(my->_db->fetch_blk_random_number(blk.block_num), dr.ticket_sales, blk.block_num, last_jackpot_pool);
+        dr.total_jackpot = evaluate_total_jackpot(_lotto_db->fetch_blk_random_number(blk.block_num), dr.ticket_sales, blk.block_num, last_jackpot_pool);
         // just the begin, still not paid
         dr.total_paid = 0;
         dr.jackpot_pool = last_jackpot_pool + dr.ticket_sales - dr.total_jackpot;

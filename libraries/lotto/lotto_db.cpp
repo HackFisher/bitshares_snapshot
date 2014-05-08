@@ -27,7 +27,7 @@ namespace bts { namespace lotto {
                 bts::db::level_map<uint32_t, std::vector<uint32_t>>   _delegate2blocks;
                 bts::db::level_map<uint32_t, claim_secret_output> _block2secret;
 
-                rule_ptr                                        _rule_ptr;
+                std::unordered_map< ticket_type, rule_ptr > _rules;
 
                 uint64_t generate_random_number(const uint32_t& block_num, const fc::string& revealed_secret)
                 {
@@ -96,7 +96,10 @@ namespace bts { namespace lotto {
                     wlog("block random number is ${r}", ("r", random_number));
                     _block2summary.store(blk.block_num, bs);
 
-                    _rule_ptr->store(blk, deterministic_trxs, state);
+                    for (auto r : _rules)
+                    {
+                        r.second->store(blk, deterministic_trxs, state);
+                    }
                 }
             
         };
@@ -108,11 +111,13 @@ namespace bts { namespace lotto {
         output_factory::instance().register_output<claim_secret_output>();
         output_factory::instance().register_output<claim_ticket_output>();
         output_factory::instance().register_output<claim_jackpot_output>();
+
         ticket_factory::instance().register_ticket<betting_ticket>();
         ticket_factory::instance().register_ticket<lottery_ticket>();
         set_transaction_validator( std::make_shared<lotto_transaction_validator>(this) );
-        // my->_rule_ptr = std::make_shared<lotto_rule>(this);
-        my->_rule_ptr = std::make_shared<betting_rule>(this);
+
+        my->_rules[betting_ticket::type] = std::make_shared<betting_rule>(this);
+        my->_rules[lottery_ticket::type] = std::make_shared<betting_rule>(this);
         my->_self = this;
     }
 
@@ -127,7 +132,10 @@ namespace bts { namespace lotto {
             my->_block2summary.open( dir / "block2summary", create );
             my->_delegate2blocks.open(dir / "delegate2blocks", create);
             my->_block2secret.open( dir / "block2secret", create );
-            my->_rule_ptr->open(dir, create);
+            for(auto r : my->_rules)
+            {
+                r.second->open(dir, create);
+            }
         } FC_RETHROW_EXCEPTIONS( warn, "Error loading lotto database ${dir}", ("dir", dir)("create", create) );
     }
 
@@ -136,14 +144,17 @@ namespace bts { namespace lotto {
         my->_block2summary.close();
         my->_delegate2blocks.close();
         my->_block2secret.close();
-        my->_rule_ptr->close();
+        for(auto r : my->_rules)
+        {
+            r.second->close();
+        }
 
         chain_database::close();
     }
 
-    rule_ptr lotto_db::get_rule_ptr()
+    rule_ptr lotto_db::get_rule_ptr(const ticket_type& type)
     {
-        return my->_rule_ptr;
+        return my->_rules[type];
     }
 
     void lotto_db::validate_secret_transactions(const signed_transactions& deterministic_trxs, const trx_block& blk)
@@ -228,8 +239,7 @@ namespace bts { namespace lotto {
                     auto ticket_out = out.as<claim_ticket_output>();
                     auto trx_num = fetch_trx_num(trx.id());
                     // TODO: why not directly send in.output in to 
-                    auto jackpot = my->_rule_ptr->jackpot_for_ticket(
-                        ticket_out, out.amount, output_index(trx_num.block_num, trx_num.trx_idx, i));
+                    auto jackpot = my->_rules[ticket_out.ticket.ticket_func]->jackpot_for_ticket(meta_ticket_output(trx_num, i, ticket_out, out.amount));
                     
                     if (jackpot.get_rounded_amount() > 0)   // There is a jackpot for this ticket
                     {
@@ -297,7 +307,11 @@ namespace bts { namespace lotto {
             FC_ASSERT(secret_out.revealed_secret == fc::sha256());   //  this is the first block produced by delegate
         }
 
-        my->_rule_ptr->validate(blk, deterministic_trxs);
+        for (auto r : my->_rules)
+        {
+            // TODO: the parameters of the validate need to be changed, only validate rule sepecific tickets
+            r.second->validate(blk, deterministic_trxs);
+        }
 
         return block_state;
     }

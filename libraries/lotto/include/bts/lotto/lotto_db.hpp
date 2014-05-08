@@ -29,7 +29,7 @@ class lotto_db : public bts::blockchain::chain_database
         void             open( const fc::path& dir, bool create );
         void             close();
 
-        rule_ptr get_rule_ptr();
+        rule_ptr get_rule_ptr(const ticket_type& type);
 
         void validate_secret_transactions(const signed_transactions& deterministic_trxs, const trx_block& blk);
 
