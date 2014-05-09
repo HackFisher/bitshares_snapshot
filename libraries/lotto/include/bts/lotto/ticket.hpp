@@ -17,8 +17,9 @@ namespace bts { namespace lotto {
     enum ticket_type_enum
     {
         null_ticket_type = 0,
-        ticket_for_betting = 1,
-        ticket_for_lottery = 2
+        ticket_for_dice    = 1,
+        ticket_for_betting = 2,
+        ticket_for_lottery = 3
     };
 
     typedef uint8_t ticket_type;
@@ -61,6 +62,18 @@ namespace bts { namespace lotto {
         uint64_t                        lucky_number;
     };
 
+    struct dice_ticket
+    {
+        static const ticket_type_enum   type;
+        static const lotto_asset_type   unit;
+
+        dice_ticket(const uint16_t& o)
+            : odds(o)
+        {}
+
+        uint16_t                        odds;
+    };
+
     struct output_ticket
     {
         template<typename TicketType>
@@ -91,6 +104,7 @@ namespace fc {
 
 FC_REFLECT_ENUM(bts::lotto::ticket_type_enum,
     (null_ticket_type)
+    (ticket_for_dice)
     (ticket_for_betting)
     (ticket_for_lottery)
     )

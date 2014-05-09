@@ -21,6 +21,7 @@ add_library( bts_lotto
              lotto_rpc_server.cpp
              lotto_client.cpp
              betting_rule.cpp
+             dice_rule.cpp
              ${HEADERS}
            )
 

@@ -49,7 +49,7 @@ namespace bts { namespace lotto {
             virtual void                  open( const fc::path& dir, bool create = true );
             virtual void                  close();
 
-            virtual asset jackpot_for_ticket(const meta_ticket_output& meta_ticket_out) = 0;
+            virtual asset jackpot_payout(const meta_ticket_output& meta_ticket_out) = 0;
 
             virtual void validate( const trx_block& blk, const signed_transactions& deterministic_trxs );
 

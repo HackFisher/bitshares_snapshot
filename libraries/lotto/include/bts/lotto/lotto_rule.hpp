@@ -152,7 +152,7 @@ class lotto_rule : public rule
        */
        uint64_t evaluate_total_jackpot(const uint64_t& block_random_number, const uint64_t& ticket_sale, const uint64_t& target_block_num, const uint64_t& jackpot_pool);
       
-       virtual asset jackpot_for_ticket(const meta_ticket_output& meta_ticket_out);
+       virtual asset jackpot_payout(const meta_ticket_output& meta_ticket_out);
 
        virtual void validate( const trx_block& blk, const signed_transactions& deterministic_trxs );
 

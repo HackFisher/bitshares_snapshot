@@ -7,9 +7,10 @@ namespace bts { namespace lotto {
     enum lotto_asset_type
     {
         /** basic lotto share unit */
-        bet         = 0,
-        lto         = 1
+        dic         = 0,
+        bet         = 1,
+        lto         = 2
     };
 }} //bts::lotto
 
-FC_REFLECT_ENUM(bts::lotto::lotto_asset_type, (bet)(lto));
+FC_REFLECT_ENUM(bts::lotto::lotto_asset_type, (dic)(bet)(lto));

@@ -367,7 +367,7 @@ namespace bts { namespace lotto {
         return -1;
     }
 
-    asset lotto_rule::jackpot_for_ticket(const meta_ticket_output& meta_ticket_out)
+    asset lotto_rule::jackpot_payout(const meta_ticket_output& meta_ticket_out)
     {
         auto ticket = meta_ticket_out.ticket_out.ticket.as<lottery_ticket>();
         FC_ASSERT(meta_ticket_out.ticket_out.ticket.ticket_func == get_ticket_type());

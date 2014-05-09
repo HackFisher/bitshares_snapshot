@@ -33,7 +33,7 @@ namespace bts { namespace lotto {
         my->_block2ticket_sale.close();
     }
 
-    asset betting_rule::jackpot_for_ticket(const meta_ticket_output& meta_ticket_out)
+    asset betting_rule::jackpot_payout(const meta_ticket_output& meta_ticket_out)
     {
         try {
             FC_ASSERT(meta_ticket_out.ticket_out.ticket.ticket_func == get_ticket_type());

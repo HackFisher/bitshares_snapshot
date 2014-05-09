@@ -3,6 +3,7 @@
 #include <bts/db/level_map.hpp>
 #include <bts/blockchain/output_factory.hpp>
 #include <bts/lotto/lotto_db.hpp>
+#include <bts/lotto/dice_rule.hpp>
 #include <bts/lotto/betting_rule.hpp>
 #include <bts/lotto/lotto_rule.hpp>
 #include <bts/lotto/lotto_config.hpp>
@@ -112,13 +113,15 @@ namespace bts { namespace lotto {
         output_factory::instance().register_output<claim_ticket_output>();
         output_factory::instance().register_output<claim_jackpot_output>();
 
+        ticket_factory::instance().register_ticket<dice_ticket>();
         ticket_factory::instance().register_ticket<betting_ticket>();
         ticket_factory::instance().register_ticket<lottery_ticket>();
         set_transaction_validator( std::make_shared<lotto_transaction_validator>(this) );
 
-        // betting rule using asset unit 0
-        my->_rules[betting_ticket::type] = std::make_shared<betting_rule>(this, betting_ticket::type, betting_ticket::unit);
+        my->_rules[dice_ticket::type] = std::make_shared<dice_rule>(this, dice_ticket::type, dice_ticket::unit);
         // betting rule using asset unit 1
+        my->_rules[betting_ticket::type] = std::make_shared<betting_rule>(this, betting_ticket::type, betting_ticket::unit);
+        // betting rule using asset unit 2
         my->_rules[lottery_ticket::type] = std::make_shared<lotto_rule>(this, lottery_ticket::type, lottery_ticket::unit);
         my->_self = this;
     }
@@ -241,7 +244,7 @@ namespace bts { namespace lotto {
                     auto ticket_out = out.as<claim_ticket_output>();
                     auto trx_num = fetch_trx_num(trx.id());
                     // TODO: why not directly send in.output in to 
-                    auto jackpot = my->_rules[ticket_out.ticket.ticket_func]->jackpot_for_ticket(meta_ticket_output(trx_num, i, ticket_out, out.amount));
+                    auto jackpot = my->_rules[ticket_out.ticket.ticket_func]->jackpot_payout(meta_ticket_output(trx_num, i, ticket_out, out.amount));
                     
                     if (jackpot.get_rounded_amount() > 0)   // There is a jackpot for this ticket
                     {

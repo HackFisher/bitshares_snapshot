@@ -129,7 +129,7 @@ namespace bts { namespace lotto {
 
             // returns the jackpot based upon which lottery the ticket was for.
             auto jackpot = _lotto_db->get_rule_ptr(claim_ticket.ticket.ticket_func)
-                ->jackpot_for_ticket(meta_ticket_output(trx_loc, in.output_num, claim_ticket, in.output.amount));
+                ->jackpot_payout(meta_ticket_output(trx_loc, in.output_num, claim_ticket, in.output.amount));
             if( jackpot.get_rounded_amount() > 0 ) // we have a winner!
             {
                 // @see state.balance_assets();
