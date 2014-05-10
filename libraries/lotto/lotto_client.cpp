@@ -132,10 +132,11 @@ namespace bts { namespace lotto {
                 if (new_block_time > _last_block_timestamp)
                 {
                     try {
-                        _last_block_timestamp = new_block_time;
-
                         // broadcast new secret
                         generate_broadcast_next_secret();
+
+                        // generate secret could fail due to wallet lock, so move below to keep trying after unlock wallet
+                        _last_block_timestamp = new_block_time;
                     }
                     catch (const fc::exception& e)
                     {
