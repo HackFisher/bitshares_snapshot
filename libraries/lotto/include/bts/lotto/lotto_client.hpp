@@ -11,7 +11,7 @@ class lotto_client : public bts::client::client
         lotto_client(bool enable_p2p = false);
         ~lotto_client();
 
-        void run_secret_broadcastor(const fc::ecc::private_key& k, const std::string& wallet_pass);
+        void run_secret_broadcastor(const fc::ecc::private_key& k, const std::string& wallet_pass, const fc::path& datadir);
     private:
         std::unique_ptr<detail::lotto_client_impl> my;
 

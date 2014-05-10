@@ -112,13 +112,17 @@ int main(int argc, char** argv)
 		{
 			auto key = fc::variant(option_variables["trustee-private-key"].as<std::string>()).as<fc::ecc::private_key>();
             
+            // TODO: remove useless wallet-pass parameter
             FC_ASSERT(option_variables.count("wallet-pass"));
             c->run_trustee(key);
-            c->run_secret_broadcastor(key, option_variables["wallet-pass"].as<std::string>());
+            c->run_secret_broadcastor(key, option_variables["wallet-pass"].as<std::string>(), datadir);
 			// For testing
-			// private key: 066b64941dd05a0af49366a1168bffb08e9aac19c5fe24913242d97097c434b9
-			// bts address : ADmEYU8d5Qmr99hHT8UKbyshwahXbBduY
-			// pts address : PujyWKDbtSHXGbpj2wTtpuAnTs17cKztXm
+            // private key: 733fb1f1a4e00d079fd3506067186168a2bccf45b4fa78d760a12be7f4ba8e0b
+            // bts address : XTS6Rzax4UCu67SE19Xet99njVuNBPA9Lc1j
+            // pts address : PiNC7Pfj9cmjk9tV1rJ5Kpie6hDEFaRxDb
+            // private key : e9624cab9020b00ab1a57a97c9487c7692515c29cdb0ef8444098251a932ad4c
+            // bts address : XTSJkNxZ3iboKZPYHGknQjshvXtu5ZKh8FRX
+            // pts address : PjjSxKEzJefHKobj96igfBBNdRho25VpbR
 		}
 		else if (fc::exists("trustee.key"))
 		{
@@ -126,7 +130,7 @@ int main(int argc, char** argv)
             
             FC_ASSERT(option_variables.count("wallet-pass"));
 			c->run_trustee(key);
-            c->run_secret_broadcastor(key, option_variables["wallet-pass"].as<std::string>());
+            c->run_secret_broadcastor(key, option_variables["wallet-pass"].as<std::string>(), datadir);
 		}
 
 		bts::lotto::lotto_rpc_server_ptr rpc_server = std::make_shared<bts::lotto::lotto_rpc_server>();

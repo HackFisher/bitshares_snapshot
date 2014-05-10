@@ -1,9 +1,0 @@
-trustee:
-private key: 066b64941dd05a0af49366a1168bffb08e9aac19c5fe24913242d97097c434b9
-bts address: ADmEYU8d5Qmr99hHT8UKbyshwahXbBduY
-pts address: PujyWKDbtSHXGbpj2wTtpuAnTs17cKztXm
-
-genesis:
-private key: c3d0b27f7ca5d2e3158536e97d4001b7b42ab4248000511b252639bd481510e4
-bts address: Jx4he722kVNwNUVwz1f9mjNbQSN5RQHZo
-pts address: Pc26hzt76ErpVvwqSYMEParQ6D5icvQXvo

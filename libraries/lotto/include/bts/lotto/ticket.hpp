@@ -68,8 +68,8 @@ namespace bts { namespace lotto {
         static const lotto_asset_type   unit;
 
         dice_ticket(const uint16_t& o)
-            : odds(o)
-        {}
+            : odds(o) {}
+        dice_ticket() {}
 
         uint16_t                        odds;
     };
@@ -108,6 +108,7 @@ FC_REFLECT_ENUM(bts::lotto::ticket_type_enum,
     (ticket_for_betting)
     (ticket_for_lottery)
     )
+FC_REFLECT(bts::lotto::dice_ticket, (odds))
 FC_REFLECT(bts::lotto::betting_ticket, (lucky_number)(odds))
 FC_REFLECT(bts::lotto::lottery_ticket, (lucky_number))
 FC_REFLECT(bts::lotto::output_ticket, (ticket_func)(ticket_data))

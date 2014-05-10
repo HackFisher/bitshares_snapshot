@@ -33,7 +33,7 @@ namespace bts { namespace lotto {
                 uint64_t generate_random_number(const uint32_t& block_num, const fc::string& revealed_secret)
                 {
                     auto random = fc::sha256::hash(revealed_secret);
-                    for (uint32_t i = 1; i < 100 && (block_num >= i); ++i)
+                    for (uint32_t i = 1; i < BTS_LOTTO_BLOCKS_BEFORE_JACKPOTS_DRAW && (block_num >= i); ++i)
                     {
                         auto history_secret = _block2secret.fetch(block_num - i);
                         // where + is concat
@@ -349,5 +349,26 @@ namespace bts { namespace lotto {
     { try {
         return my->_block2summary.fetch(k).random_number;
     } FC_RETHROW_EXCEPTIONS( warn, "fetching random number, block index ${k}", ("k",k) ) }
+
+    bool lotto_db::is_new_delegate(const uint32_t& d)
+    {
+        try {
+            return !my->_delegate2blocks.find(d).valid();
+        } FC_RETHROW_EXCEPTIONS(warn, "finding block indexes, delegate id ${d}", ("d", d))
+    }
+
+    std::vector<uint32_t>   lotto_db::fetch_blocks_idxs(const uint32_t& d)
+    {
+        try {
+            return my->_delegate2blocks.fetch(d);
+        } FC_RETHROW_EXCEPTIONS(warn, "fetching block indexes, delegate id ${d}", ("d", d))
+    }
+
+    claim_secret_output     lotto_db::fetch_secret(const uint32_t& b)
+    {
+        try {
+            return my->_block2secret.fetch(b);
+        } FC_RETHROW_EXCEPTIONS(warn, "fetching block secret, block index ${b}", ("b", b))
+    }
 
 }} // bts::lotto

@@ -2,7 +2,11 @@
     "moneysupply": "0",
     "balances": [
         [
-          "Pc26hzt76ErpVvwqSYMEParQ6D5icvQXvo",
+          "PiNC7Pfj9cmjk9tV1rJ5Kpie6hDEFaRxDb",
+          100000000.
+        ],
+        [
+          "PjjSxKEzJefHKobj96igfBBNdRho25VpbR",
           100000000.
         ]
     ]

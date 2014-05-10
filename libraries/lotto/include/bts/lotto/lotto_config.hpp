@@ -3,7 +3,7 @@
 /*
  * The blocks number between ticket purchase block and winning number out block
  */
-#define BTS_LOTTO_BLOCKS_BEFORE_JACKPOTS_DRAW 100
+#define BTS_LOTTO_BLOCKS_BEFORE_JACKPOTS_DRAW (BTS_BLOCKCHAIN_NUM_DELEGATES)
 
 /*
 * The blocks number between ticket purchase block and winning number out block

@@ -1,0 +1,2 @@
+lotto_server.exe
+pause

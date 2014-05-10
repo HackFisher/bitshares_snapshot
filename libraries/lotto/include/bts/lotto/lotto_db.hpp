@@ -32,9 +32,15 @@ class lotto_db : public bts::blockchain::chain_database
 
         rule_ptr get_rule_ptr(const ticket_type& type);
 
-        void validate_secret_transactions(const signed_transactions& deterministic_trxs, const trx_block& blk);
+        void        validate_secret_transactions(const signed_transactions& deterministic_trxs, const trx_block& blk);
 
-        uint64_t fetch_blk_random_number( const uint32_t& blk_index );
+        uint64_t    fetch_blk_random_number( const uint32_t& blk_index );
+
+        bool is_new_delegate(const uint32_t& delegate_id);
+        
+        std::vector<uint32_t>   fetch_blocks_idxs(const uint32_t& delegate_id);
+
+        claim_secret_output     fetch_secret(const uint32_t& blk_index);
 
         /**
          * Generate transactions for winners, claim_ticket as in, and claim_jackpot as out
