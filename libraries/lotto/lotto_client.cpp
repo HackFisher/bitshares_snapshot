@@ -29,7 +29,7 @@ namespace bts { namespace lotto {
                     return std::dynamic_pointer_cast<lotto_wallet>(_self->get_wallet());
                 }
 
-                std::pair<fc::sha256, fc::sha256> lotto_client_impl::delegate_secret_last_revealed_secret_pair(uint16_t delegate_id);
+                std::pair<fc::sha256, fc::sha256> delegate_secret_last_revealed_secret_pair(uint16_t delegate_id);
 
                 void secret_loop();
 
