@@ -1,4 +1,3 @@
-#pragma once
 #include <bts/lotto/betting_rule.hpp>
 #include <bts/lotto/lotto_config.hpp>
 

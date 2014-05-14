@@ -9,7 +9,7 @@ namespace bts { namespace lotto {
     struct drawing_record
     {
        drawing_record()
-       :total_jackpot(0),total_paid(0), jackpot_pool(0),amount_won(0), ticket_sales(0){}
+       :total_jackpot(0), total_paid(0), jackpot_pool(0), ticket_sales(0), amount_won(0){}
 
        uint64_t total_jackpot;  // total jackpot of this block
        uint64_t total_paid;     // total jackpot which have been paid in future block.
