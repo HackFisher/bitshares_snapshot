@@ -131,7 +131,7 @@ class lotto_rule : public rule
            void print_rule() const;
        };
 
-       static const lotto_rule::config& lotto_rule::config_instance();
+       static const lotto_rule::config& config_instance();
 
        static const std::vector<uint64_t>& group_spaces();
 
