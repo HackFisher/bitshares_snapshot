@@ -4,7 +4,7 @@
 #include <bts/blockchain/chain_database.hpp>
 #include <bts/wallet/wallet.hpp>
 
-#include <bts/lotto/lotto_transaction_validator.hpp>
+#include <bts/lotto/lotto_transaction_evaluation_state.hpp>
 #include <bts/lotto/rule.hpp>
 #include <bts/lotto/ticket.hpp>
 
@@ -41,11 +41,6 @@ class lotto_db : public bts::blockchain::chain_database
         std::vector<uint32_t>   fetch_blocks_idxs(const uint32_t& delegate_id);
 
         secret_operation     fetch_secret(const uint32_t& blk_index);
-
-        /**
-         * Generate transactions for winners, claim_ticket as in, and claim_jackpot as out
-         */
-        virtual signed_transactions generate_deterministic_transactions();
 
         /**
         *  Evaluate the transaction and return the results.

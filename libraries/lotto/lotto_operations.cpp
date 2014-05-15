@@ -1,4 +1,4 @@
-#include <bts/lotto/lotto_outputs.hpp>
+#include <bts/lotto/lotto_operations.hpp>
 
 
 namespace bts { namespace lotto {

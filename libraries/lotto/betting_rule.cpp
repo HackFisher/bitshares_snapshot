@@ -35,16 +35,17 @@ namespace bts { namespace lotto {
     asset betting_rule::jackpot_payout(const meta_ticket_output& meta_ticket_out)
     {
         try {
-            FC_ASSERT(meta_ticket_out.ticket_out.ticket.ticket_func == get_ticket_type());
+            auto trx_loc = _lotto_db->get_transaction_location(meta_ticket_out.out_idx.trx_id);
+            FC_ASSERT(meta_ticket_out.ticket_op.ticket.ticket_func == get_ticket_type());
             auto headnum = _lotto_db->get_head_block_num();
 
-            FC_ASSERT(headnum >= BTS_LOTTO_BLOCKS_BEFORE_JACKPOTS_DRAW + meta_ticket_out.out_idx.blk_num);
+            FC_ASSERT(headnum >= BTS_LOTTO_BLOCKS_BEFORE_JACKPOTS_DRAW + trx_loc->block_num);
 
             // https://bitsharestalk.org/index.php?topic=4502.0
-            uint64_t random_number = _lotto_db->fetch_blk_random_number(meta_ticket_out.out_idx.blk_num + BTS_LOTTO_BLOCKS_BEFORE_JACKPOTS_DRAW);
+            uint64_t random_number = _lotto_db->fetch_blk_random_number(trx_loc->block_num + BTS_LOTTO_BLOCKS_BEFORE_JACKPOTS_DRAW);
 
-            uint64_t ticket_sale = my->_block2ticket_sale.fetch(meta_ticket_out.out_idx.blk_num);
-            auto ticket = meta_ticket_out.ticket_out.ticket.as<betting_ticket>();
+            uint64_t ticket_sale = my->_block2ticket_sale.fetch(trx_loc->block_num);
+            auto ticket = meta_ticket_out.ticket_op.ticket.as<betting_ticket>();
             
             FC_ASSERT(ticket.unit == get_asset_unit());
             FC_ASSERT(ticket.unit == meta_ticket_out.amount.amount);

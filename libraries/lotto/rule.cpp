@@ -1,4 +1,4 @@
-#include <bts/lotto/lotto_outputs.hpp>
+#include <bts/lotto/lotto_operations.hpp>
 #include <fc/reflect/variant.hpp>
 #include <bts/lotto/rule.hpp>
 

@@ -1,4 +1,4 @@
-#include <bts/lotto/lotto_outputs.hpp>
+#include <bts/lotto/lotto_operations.hpp>
 #include <bts/lotto/lotto_db.hpp>
 #include <bts/lotto/lotto_rule.hpp>
 #include <bts/lotto/lotto_config.hpp>
@@ -369,8 +369,9 @@ namespace bts { namespace lotto {
 
     asset lotto_rule::jackpot_payout(const meta_ticket_output& meta_ticket_out)
     {
-        auto ticket = meta_ticket_out.ticket_out.ticket.as<lottery_ticket>();
-        FC_ASSERT(meta_ticket_out.ticket_out.ticket.ticket_func == get_ticket_type());
+        auto ticket = meta_ticket_out.ticket_op.ticket.as<lottery_ticket>();
+        auto trx_loc = _lotto_db->get_transaction_location(meta_ticket_out.out_idx.trx_id);
+        FC_ASSERT(meta_ticket_out.ticket_op.ticket.ticket_func == get_ticket_type());
         FC_ASSERT(ticket.unit == get_asset_unit());
         FC_ASSERT(ticket.unit == meta_ticket_out.amount.asset_id);
 
@@ -383,17 +384,17 @@ namespace bts { namespace lotto {
             // ticket must be before the last drawing... do not understand, draw by day? to remove it.
             // FC_ASSERT( trx_loc.block_num < (headnum/BTS_BLOCKCHAIN_BLOCKS_PER_DAY)*BTS_BLOCKCHAIN_BLOCKS_PER_DAY );
                 
-            FC_ASSERT(headnum >= BTS_LOTTO_BLOCKS_BEFORE_JACKPOTS_DRAW  + meta_ticket_out.out_idx.blk_num);
+            FC_ASSERT(headnum >= BTS_LOTTO_BLOCKS_BEFORE_JACKPOTS_DRAW + trx_loc->block_num);
             // TODO: For current, the ticket draw trx must be created by the owner.
             // FC_ASSERT( lotto_state.has_signature( claim_ticket.owner ), "", ("owner",claim_ticket.owner)("sigs",state.sigs) );
         }
 
-        uint64_t total_jackpots = my->_drawing2record.fetch(meta_ticket_out.out_idx.blk_num + BTS_LOTTO_BLOCKS_BEFORE_JACKPOTS_DRAW).total_jackpot;
+        uint64_t total_jackpots = my->_drawing2record.fetch(trx_loc->block_num + BTS_LOTTO_BLOCKS_BEFORE_JACKPOTS_DRAW).total_jackpot;
 
-        FC_ASSERT(_lotto_db->get_head_block_num() >= meta_ticket_out.out_idx.blk_num + BTS_LOTTO_BLOCKS_BEFORE_JACKPOTS_DRAW);
+        FC_ASSERT(_lotto_db->get_head_block_num() >= trx_loc->block_num + BTS_LOTTO_BLOCKS_BEFORE_JACKPOTS_DRAW);
         // fc::sha256 random_number;
         // using the next block generated block number
-        uint64_t random_number = _lotto_db->fetch_blk_random_number(meta_ticket_out.out_idx.blk_num + BTS_LOTTO_BLOCKS_BEFORE_JACKPOTS_DRAW);
+        uint64_t random_number = _lotto_db->fetch_blk_random_number(trx_loc->block_num + BTS_LOTTO_BLOCKS_BEFORE_JACKPOTS_DRAW);
 
         // TODO: what's global_odds, ignore currenly.
         uint64_t global_odds = 0;

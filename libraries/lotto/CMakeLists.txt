@@ -12,9 +12,10 @@ file(GLOB HEADERS "include/bts/lotto/*.hpp")
 add_library( bts_lotto
              rule.cpp
              ticket.cpp
-             lotto_outputs.cpp
+             lotto_operations.cpp
+             lotto_chain_state.cpp
              lotto_db.cpp
-             lotto_transaction_validator.cpp
+             lotto_transaction_evaluation_state.cpp
              lotto_rule.cpp
              lotto_wallet.cpp
              lotto_cli.cpp

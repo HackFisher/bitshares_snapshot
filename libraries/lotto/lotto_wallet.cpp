@@ -2,7 +2,7 @@
 #include <bts/wallet/wallet.hpp>
 
 #include <bts/lotto/lotto_wallet.hpp>
-#include <bts/lotto/lotto_outputs.hpp>
+#include <bts/lotto/lotto_operations.hpp>
 #include <bts/lotto/lotto_config.hpp>
 
 #include<fc/reflect/variant.hpp>

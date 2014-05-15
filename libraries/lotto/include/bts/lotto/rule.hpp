@@ -7,7 +7,7 @@
 #include <bts/blockchain/transaction.hpp>
 #include <bts/blockchain/chain_database.hpp>
 #include <bts/wallet/wallet.hpp>
-#include <bts/lotto/lotto_outputs.hpp>
+#include <bts/lotto/lotto_operations.hpp>
 
 namespace bts { namespace lotto {
     using namespace bts::wallet;
@@ -18,11 +18,10 @@ namespace bts { namespace lotto {
     {
         ticket_index(){}
 
-        ticket_index(const uint32_t& b, const uint32_t& t, const uint32_t& k)
-        :blk_num(b), trx_num(t), ticket_num(k){}
+        ticket_index(const transaction_id_type& t, const uint32_t& k)
+            :trx_id(t), ticket_num(k){}
 
-        uint32_t blk_num;
-        uint32_t trx_num;
+        transaction_id_type trx_id;
         uint32_t ticket_num;
     };
 
@@ -36,12 +35,12 @@ namespace bts { namespace lotto {
     {
        meta_ticket_output(){}
 
-       meta_ticket_output(transaction_location n, uint16_t output_id, ticket_operation o, asset a)
-           : out_idx(n.block_num, n.trx_num, output_id), ticket_out(std::move(o)), amount(std::move(a))
+       meta_ticket_output(transaction_id_type t, uint16_t output_id, ticket_operation o, asset a)
+           : out_idx(std::move(t), output_id), ticket_op(std::move(o)), amount(std::move(a))
        {}
 
        ticket_index         out_idx;
-       ticket_operation  ticket_out;
+       ticket_operation     ticket_op;
        asset                amount;
     };
 
@@ -89,6 +88,6 @@ namespace bts { namespace lotto {
     typedef std::shared_ptr<rule> rule_ptr;
 } } // bts::lotto
 
-FC_REFLECT(bts::lotto::ticket_index, (blk_num)(trx_num)(ticket_num))
-FC_REFLECT(bts::lotto::meta_ticket_output, (out_idx)(ticket_out)(amount))
+FC_REFLECT(bts::lotto::ticket_index, (trx_id)(ticket_num))
+FC_REFLECT(bts::lotto::meta_ticket_output, (out_idx)(ticket_op)(amount))
 
