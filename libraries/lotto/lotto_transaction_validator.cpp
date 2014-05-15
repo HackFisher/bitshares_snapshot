@@ -11,13 +11,13 @@
 
 namespace bts { namespace lotto {
 
-    lotto_transaction_validator::lotto_transaction_validator(lotto_db* db)
-    :transaction_validator(db)
+    lotto_trx_evaluation_state::lotto_trx_evaluation_state(const chain_interface_ptr& blockchain)
+        :transaction_evaluation_state(blockchain), total_ticket_sales(0)
     {
-        _lotto_db = db;
+        // TODO_lotto_db = db_ptr;
     }
 
-    lotto_transaction_validator::~lotto_transaction_validator()
+    lotto_trx_evaluation_state::~lotto_trx_evaluation_state()
     {
     }
 
@@ -25,6 +25,7 @@ namespace bts { namespace lotto {
      * If one of transaction inputs are claim ticket, then all its inputs should be claim tickets, and all output should be claim jackpot.
      * All the mature_day of the outputs must allocate in different days.
      */
+    /*
     void lotto_transaction_validator::evaluate_ticket_jackpot_transactions(lotto_trx_evaluation_state& state)
     {
         try{
@@ -58,68 +59,53 @@ namespace bts { namespace lotto {
             }
         } FC_RETHROW_EXCEPTIONS( warn, "")
     }
+    */
 
-    transaction_summary lotto_transaction_validator::evaluate( const signed_transaction& tx, const block_evaluation_state_ptr& block_state )
-    {
-        lotto_trx_evaluation_state state(tx);
-
-        auto inputs = _lotto_db->fetch_inputs(state.trx.inputs);
-        for (auto in : inputs)
+    void lotto_trx_evaluation_state::evaluate_operation(const operation& op){
+        
+        switch ((operation_type_enum)op.type.value) // TODO: Fix me, why type value
         {
-            if (in.output.claim_func == claim_ticket)
-            {
-                // with assumption that all claim_tickets input are in deterministic trxs 
-                evaluate_ticket_jackpot_transactions(state);
-                // TODO: Do deterministic transactions need fees, votes, etc, or not? since after 100 block, is origin vote still available
-                // To be synced with upstream: https://github.com/BitShares/bitshares_toolkit/issues/48
-                break;
-            }
+        case secret_op_type:
+            evaluate_secret(op.as<secret_operation>());
+            break;
+        case ticket_op_type:
+            evaluate_ticket(op.as<ticket_operation>());
+            break;
+        case jackpot_op_type:
+            evaluate_jackpot(op.as<jackpot_operation>());
+            break;
         }
 
-        transaction_summary sum = on_evaluate( state, block_state );
-
-        return sum;
+        // TODO: maybe should not use Bitshares Me chain_database;
+        transaction_evaluation_state::evaluate_operation(op);
     }
 
-    void lotto_transaction_validator::validate_input( const meta_trx_input& in, transaction_evaluation_state& state, const block_evaluation_state_ptr& block_state )
+    void lotto_trx_evaluation_state::evaluate_secret(const secret_operation& op)
     {
-        switch( in.output.claim_func )
-        {
-        case claim_secret:
-            // pass, validation is done in lotto_db::validate_secret_transactions
-            break;
-        case claim_ticket:
-            validate_ticket_input(in, state, block_state);
-            break;
-        case claim_jackpot:
-            validate_jackpot_input(in, state, block_state);
-            break;
-        default:
-            transaction_validator::validate_input( in, state, block_state );
-        }
+        // TODO: Fix me:FC_ASSERT(op.amount.get_rounded_amount() == 0, "Amount for secret output is required to be zero");
+        // pass, validation is done in lotto_db::validate_secret_transactions
     }
 
-    void lotto_transaction_validator::validate_output( const trx_output& out, transaction_evaluation_state& state, const block_evaluation_state_ptr& block_state )
+    void lotto_trx_evaluation_state::evaluate_ticket(const ticket_operation& op)
     {
-        switch( out.claim_func )
-        {
-        case claim_secret:
-            FC_ASSERT(out.amount.get_rounded_amount() == 0, "Amount for secret output is required to be zero");
-            // pass, validation is done in lotto_db::validate_secret_transactions
-            break;
-        case claim_ticket:
-            validate_ticket_output(out, state, block_state);
-            break;
-        case claim_jackpot:
-            validate_jackpot_output(out, state, block_state);
-            break;
-        default:
-            transaction_validator::validate_output( out, state, block_state);
-        }
+        /*
+        try {
+            auto claim_ticket = out.as<claim_ticket_output>();
+            asset_id_type u = _lotto_db->get_rule_ptr(claim_ticket.ticket.ticket_func)->get_asset_unit();
+            FC_ASSERT(u == out.amount.unit,"Ticket amount's unit should be same with ticket's unit ${u}", ("u", u));
+            
+            auto lotto_state = dynamic_cast<lotto_trx_evaluation_state&>(state);
+            lotto_state.total_ticket_sales += out.amount.get_rounded_amount();
+            lotto_state.add_output_asset( out.amount );
+
+            // the ticket out's owner could be other, in this case, A buy/pay a ticket for B.
+    } FC_RETHROW_EXCEPTIONS( warn, "" ) }
+        */
     }
 
-    void lotto_transaction_validator::validate_ticket_input(const meta_trx_input& in, transaction_evaluation_state& state, const block_evaluation_state_ptr& block_state)
+    void lotto_trx_evaluation_state::evaluate_jackpot(const jackpot_operation& op)
     {
+        /*
         try {
             auto lotto_state = dynamic_cast<lotto_trx_evaluation_state&>(state);
 
@@ -143,32 +129,26 @@ namespace bts { namespace lotto {
                     block_state->add_output_delegate_votes(state.trx.vote, in.output.amount);
                 }
             } else {
-                /**
-                 * throws or invalid when they did not win
-                 * Since the ticket input should be generated in deterministic trxs and has already been calcuated there, this should not hapen
-                 */ 
+                //throws or invalid when they did not win
+                //Since the ticket input should be generated in deterministic trxs and has already been calcuated there, this should not hapen 
 
-            }
+    }
+} FC_RETHROW_EXCEPTIONS(warn, "")
+        */
+
+        /*  The jackpot output amount should be less than the maximum limitation
+        try {
+        FC_ASSERT(out.amount.get_rounded_amount() <= BTS_LOTTO_RULE_MAXIMUM_REWARDS_EACH_JACKPOT_OUTPUT);
+        wlog("validate_jackpot_output jackpots: ${j}", ("j", out.amount));
+        state.add_output_asset(out.amount);
+
         } FC_RETHROW_EXCEPTIONS( warn, "" )
+        */
     }
 
-    void lotto_transaction_validator::validate_ticket_output(const trx_output& out, transaction_evaluation_state& state, const block_evaluation_state_ptr& block_state)
-    {
-        try {
-            auto claim_ticket = out.as<claim_ticket_output>();
-            asset::unit_type u = _lotto_db->get_rule_ptr(claim_ticket.ticket.ticket_func)->get_asset_unit();
-            FC_ASSERT(u == out.amount.unit,"Ticket amount's unit should be same with ticket's unit ${u}", ("u", u));
-            
-            auto lotto_state = dynamic_cast<lotto_trx_evaluation_state&>(state);
-            lotto_state.total_ticket_sales += out.amount.get_rounded_amount();
-            lotto_state.add_output_asset( out.amount );
-
-            // the ticket out's owner could be other, in this case, A buy/pay a ticket for B.
-    } FC_RETHROW_EXCEPTIONS( warn, "" ) }
-
-
-    void lotto_transaction_validator::validate_jackpot_input(const meta_trx_input& in, transaction_evaluation_state& state, const block_evaluation_state_ptr& block_state)
-    {
+    //void lotto_trx_evaluation_state::evaluate_cash(const cash_operation& op)
+    //{
+        /*
         try {
             auto claim = in.output.as<claim_jackpot_output>(); 
             FC_ASSERT( state.has_signature( claim.owner ), "", ("owner",claim.owner)("sigs",state.sigs) );
@@ -186,18 +166,8 @@ namespace bts { namespace lotto {
                 block_state->add_output_delegate_votes( state.trx.vote, in.output.amount );
             }
 
-    } FC_RETHROW_EXCEPTIONS( warn, "" ) }
-
-    /*
-     * The jackpot output amount should be less than the maximum limitation
-     */
-    void lotto_transaction_validator::validate_jackpot_output(const trx_output& out, transaction_evaluation_state& state, const block_evaluation_state_ptr& block_state)
-    {
-        try {
-            FC_ASSERT(out.amount.get_rounded_amount() <= BTS_LOTTO_RULE_MAXIMUM_REWARDS_EACH_JACKPOT_OUTPUT);
-            wlog("validate_jackpot_output jackpots: ${j}", ("j", out.amount));
-            state.add_output_asset(out.amount);
-
-    } FC_RETHROW_EXCEPTIONS( warn, "" ) }
+    } FC_RETHROW_EXCEPTIONS( warn, "" )
+        */
+    //}
 
 }} // bts::lotto

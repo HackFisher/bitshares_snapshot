@@ -11,7 +11,7 @@ namespace bts { namespace lotto {
         class betting_rule_impl        {        public:            betting_rule_impl(){}            bts::db::level_map<uint32_t, uint64_t>  _block2ticket_sale;        };
     }
 
-    betting_rule::betting_rule(lotto_db* db, ticket_type t, asset::unit_type u)
+    betting_rule::betting_rule(lotto_db* db, ticket_type t, asset_id_type u)
         :rule(db, t, u), my(new detail::betting_rule_impl())
     {
     }
@@ -86,7 +86,8 @@ namespace bts { namespace lotto {
         } FC_RETHROW_EXCEPTIONS(warn, "Error calculating jackpots for betting ticket ${m}", ("m", meta_ticket_out));
     }
 
-    void betting_rule::store(const trx_block& blk, const signed_transactions& deterministic_trxs, const block_evaluation_state_ptr& state)
+    /*
+    void betting_rule::store(const full_block& blk, const signed_transactions& deterministic_trxs, const block_evaluation_state_ptr& state)
     {
         uint64_t ticket_sale = 0;
 
@@ -101,6 +102,6 @@ namespace bts { namespace lotto {
         }
             
         my->_block2ticket_sale.store(blk.block_num, ticket_sale);
-    }
+    }*/
 
 } } // bts::lotto

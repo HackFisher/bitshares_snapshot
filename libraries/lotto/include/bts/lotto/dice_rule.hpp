@@ -8,7 +8,7 @@ namespace bts { namespace lotto {
     {
         public:
 
-            dice_rule(lotto_db* db, ticket_type t, asset::unit_type u);
+            dice_rule(lotto_db* db, ticket_type t, asset_id_type u);
             virtual ~dice_rule();
 
             uint64_t calculate_payout(uint64_t block_random, uint64_t ticket_random, uint16_t odds, uint64_t amt);

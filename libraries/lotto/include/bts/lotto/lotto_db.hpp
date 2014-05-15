@@ -27,12 +27,12 @@ class lotto_db : public bts::blockchain::chain_database
         lotto_db();
         ~lotto_db();
     
-        void             open( const fc::path& dir, bool create );
+        void             open( const fc::path& dir );
         void             close();
 
         rule_ptr get_rule_ptr(const ticket_type& type);
 
-        void        validate_secret_transactions(const signed_transactions& deterministic_trxs, const trx_block& blk);
+        void        validate_secret_transactions(const signed_transactions& deterministic_trxs, const full_block& blk);
 
         uint64_t    fetch_blk_random_number( const uint32_t& blk_index );
 
@@ -40,7 +40,7 @@ class lotto_db : public bts::blockchain::chain_database
         
         std::vector<uint32_t>   fetch_blocks_idxs(const uint32_t& delegate_id);
 
-        claim_secret_output     fetch_secret(const uint32_t& blk_index);
+        secret_operation     fetch_secret(const uint32_t& blk_index);
 
         /**
          * Generate transactions for winners, claim_ticket as in, and claim_jackpot as out
@@ -48,23 +48,22 @@ class lotto_db : public bts::blockchain::chain_database
         virtual signed_transactions generate_deterministic_transactions();
 
         /**
+        *  Evaluate the transaction and return the results.
+        */
+        virtual transaction_evaluation_state_ptr evaluate_transaction(const signed_transaction& trx);
+
+        /**
          * Performs global validation of a block to make sure that no two transactions conflict. In
          * the case of the lotto only one transaction can claim the jackpot.
          */
-        virtual block_evaluation_state_ptr validate( const trx_block& blk, const signed_transactions& deterministic_trxs );
+        // virtual block_evaluation_state_ptr validate( const full_block& blk, const signed_transactions& deterministic_trxs );
 
         /** 
          *  Called after a block has been validated and appends
          *  it to the block chain storing all relevant transactions and updating the
          *  winning database.
          */
-        virtual void store( const trx_block& blk, const signed_transactions& deterministic_trxs, const block_evaluation_state_ptr& state );
-
-        /**
-         * When a block is popped from the chain, this method implements the necessary code
-         * to revert the blockchain database to the proper state.
-         */
-        virtual trx_block pop_block();
+        // virtual void store( const full_block& blk, const signed_transactions& deterministic_trxs, const block_evaluation_state_ptr& state );
     private:
          std::unique_ptr<detail::lotto_db_impl> my;
 

@@ -8,7 +8,7 @@ namespace bts { namespace lotto {
     {
         public:
 
-            betting_rule(lotto_db* db, ticket_type t, asset::unit_type u);
+            betting_rule(lotto_db* db, ticket_type t, asset_id_type u);
             virtual ~betting_rule();
 
             virtual void                  open(const fc::path& dir, bool create = true);
@@ -16,7 +16,7 @@ namespace bts { namespace lotto {
 
             virtual asset jackpot_payout(const meta_ticket_output& meta_ticket_out);
 
-            virtual void store(const trx_block& blk, const signed_transactions& deterministic_trxs, const block_evaluation_state_ptr& state);
+            //virtual void store(const full_block& blk, const signed_transactions& deterministic_trxs, const block_evaluation_state_ptr& state);
 
         protected:
             std::unique_ptr<detail::betting_rule_impl> my;

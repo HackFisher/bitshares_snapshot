@@ -228,7 +228,7 @@ namespace bts { namespace lotto {
     }
 
     // Default rule validator implement, TODO: may be move default to another class
-    lotto_rule::lotto_rule(lotto_db* db, ticket_type t, asset::unit_type u)
+    lotto_rule::lotto_rule(lotto_db* db, ticket_type t, asset_id_type u)
         :rule(db, t, u), my(new detail::lotto_rule_impl())
     {
     }
@@ -372,9 +372,9 @@ namespace bts { namespace lotto {
         auto ticket = meta_ticket_out.ticket_out.ticket.as<lottery_ticket>();
         FC_ASSERT(meta_ticket_out.ticket_out.ticket.ticket_func == get_ticket_type());
         FC_ASSERT(ticket.unit == get_asset_unit());
-        FC_ASSERT(ticket.unit == meta_ticket_out.amount.unit);
+        FC_ASSERT(ticket.unit == meta_ticket_out.amount.asset_id);
 
-        auto headnum = _lotto_db->head_block_num();
+        auto headnum = _lotto_db->get_head_block_num();
 
         // To be move to rule specific valide api, different rule may have different rule validation
         {
@@ -383,17 +383,17 @@ namespace bts { namespace lotto {
             // ticket must be before the last drawing... do not understand, draw by day? to remove it.
             // FC_ASSERT( trx_loc.block_num < (headnum/BTS_BLOCKCHAIN_BLOCKS_PER_DAY)*BTS_BLOCKCHAIN_BLOCKS_PER_DAY );
                 
-            FC_ASSERT(headnum >= BTS_LOTTO_BLOCKS_BEFORE_JACKPOTS_DRAW  + meta_ticket_out.out_idx.block_idx);
+            FC_ASSERT(headnum >= BTS_LOTTO_BLOCKS_BEFORE_JACKPOTS_DRAW  + meta_ticket_out.out_idx.blk_num);
             // TODO: For current, the ticket draw trx must be created by the owner.
             // FC_ASSERT( lotto_state.has_signature( claim_ticket.owner ), "", ("owner",claim_ticket.owner)("sigs",state.sigs) );
         }
 
-        uint64_t total_jackpots = my->_drawing2record.fetch(meta_ticket_out.out_idx.block_idx + BTS_LOTTO_BLOCKS_BEFORE_JACKPOTS_DRAW).total_jackpot;
+        uint64_t total_jackpots = my->_drawing2record.fetch(meta_ticket_out.out_idx.blk_num + BTS_LOTTO_BLOCKS_BEFORE_JACKPOTS_DRAW).total_jackpot;
 
-        FC_ASSERT(_lotto_db->head_block_num() >= meta_ticket_out.out_idx.block_idx + BTS_LOTTO_BLOCKS_BEFORE_JACKPOTS_DRAW);
+        FC_ASSERT(_lotto_db->get_head_block_num() >= meta_ticket_out.out_idx.blk_num + BTS_LOTTO_BLOCKS_BEFORE_JACKPOTS_DRAW);
         // fc::sha256 random_number;
         // using the next block generated block number
-        uint64_t random_number = _lotto_db->fetch_blk_random_number(meta_ticket_out.out_idx.block_idx + BTS_LOTTO_BLOCKS_BEFORE_JACKPOTS_DRAW);
+        uint64_t random_number = _lotto_db->fetch_blk_random_number(meta_ticket_out.out_idx.blk_num + BTS_LOTTO_BLOCKS_BEFORE_JACKPOTS_DRAW);
 
         // TODO: what's global_odds, ignore currenly.
         uint64_t global_odds = 0;
@@ -459,7 +459,8 @@ namespace bts { namespace lotto {
         return jackpot;
     }
 
-    void lotto_rule::validate( const trx_block& blk, const signed_transactions& deterministic_trxs )
+    /*
+    void lotto_rule::validate(const full_block& blk, const signed_transactions& deterministic_trxs)
     {
         for (const signed_transaction& trx : deterministic_trxs)
         {
@@ -473,7 +474,7 @@ namespace bts { namespace lotto {
                 FC_ASSERT(draw_record.total_paid + trx_num_paid.second <= draw_record.total_jackpot, "The paid jackpots is out of the total jackpot.");
             }
         }
-    }
+    }*/
 
     /*
     
@@ -482,10 +483,11 @@ namespace bts { namespace lotto {
     /**
      * @return <ticket transaction number, paid_jackpot for that ticket>
      */
-    std::pair<trx_num, uint64_t> lotto_rule::jackpot_paid_in_transaction(const signed_transaction& trx)
+    /*
+    std::pair<transaction_location, uint64_t> lotto_rule::jackpot_paid_in_transaction(const signed_transaction& trx)
     {
         uint64_t trx_paid = 0;
-        trx_num trx_n;
+        transaction_location trx_n;
 
         for (auto i : trx.inputs)
         {
@@ -506,10 +508,12 @@ namespace bts { namespace lotto {
             }
         }
 
-        return std::pair<trx_num, uint64_t>(trx_n, trx_paid);
+        return std::pair<transaction_location, uint64_t>(trx_n, trx_paid);
     }
+    */
 
-    void lotto_rule::store( const trx_block& blk, const signed_transactions& deterministic_trxs, const block_evaluation_state_ptr& state )
+    /*
+    void lotto_rule::store(const full_block& blk, const signed_transactions& deterministic_trxs, const block_evaluation_state_ptr& state)
     {
         uint64_t amout_won = 0;
 
@@ -561,5 +565,5 @@ namespace bts { namespace lotto {
         FC_ASSERT(dr.jackpot_pool >= 0, "jackpot is out ...");
         // Assert that the jackpot_pool is large than the sum ticket sales of blk.block_num - 99 , blk.block_num - 98 ... blk.block_num.
         my->_drawing2record.store(blk.block_num, dr);
-    }
+    }*/
 }} // bts::lotto

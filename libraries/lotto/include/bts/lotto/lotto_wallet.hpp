@@ -12,7 +12,7 @@ namespace bts { namespace lotto {
     // // TODO: To be tested. to convert to ticket_number(uint64_t) and ticket_number::as_uint64()
     // ticket_number ticket_num(
     // ticket_num_param >> 32, (ticket_num_param << 32) >> 48, (ticket_num_param << 48) >> 48);
-    typedef output_index ticket_number;
+    typedef ticket_index ticket_number;
 
     namespace detail { class lotto_wallet_impl; }
     
@@ -28,11 +28,11 @@ namespace bts { namespace lotto {
                 const uint32_t& delegate_id, address required_signee);
             
             // TODO: db is not required?
-            std::map<output_index, trx_output> list_tickets(lotto_db& db);
+            std::map<ticket_index, trx_output> list_tickets(lotto_db& db);
 
-            std::map<output_index, trx_output> list_jackpots(lotto_db& db);
+            std::map<ticket_index, trx_output> list_jackpots(lotto_db& db);
 
-            bts::blockchain::signed_transaction cash_jackpot(const output_index& jackpot_idx);
+            bts::blockchain::signed_transaction cash_jackpot(const ticket_index& jackpot_idx);
 
         protected:
             virtual bool scan_output( transaction_state& state, const trx_output& out, const output_reference& out_ref, const bts::wallet::output_index& oidx );

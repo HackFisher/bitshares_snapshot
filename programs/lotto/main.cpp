@@ -255,7 +255,7 @@ bts::lotto::lotto_db_ptr load_and_configure_chain_database(const fc::path& datad
 		if (db->head_block_num() == uint32_t(-1))
 		{
 			fc::path genesis_json_file(option_variables["genesis-json"].as<std::string>());
-			bts::blockchain::trx_block genesis_block;
+            bts::blockchain::full_block genesis_block;
 			try
 			{
 				genesis_block = bts::net::create_genesis_block(genesis_json_file);

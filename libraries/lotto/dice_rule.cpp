@@ -12,7 +12,7 @@ namespace bts { namespace lotto {
         class dice_rule_impl        {        public:            dice_rule_impl(){}        };
     }
 
-    dice_rule::dice_rule(lotto_db* db, ticket_type t, asset::unit_type u)
+    dice_rule::dice_rule(lotto_db* db, ticket_type t, asset_id_type u)
         :rule(db, t, u), my(new detail::dice_rule_impl())
     {
     }
@@ -46,7 +46,7 @@ namespace bts { namespace lotto {
 
             uint64_t random_number = _lotto_db->fetch_blk_random_number(meta_ticket_out.out_idx.block_idx + BTS_LOTTO_BLOCKS_BEFORE_JACKPOTS_DRAW);
 
-            auto trx = _lotto_db->fetch_trx(trx_num(meta_ticket_out.out_idx.block_idx, meta_ticket_out.out_idx.trx_idx));
+            auto trx = _lotto_db->fetch_trx(transaction_location(meta_ticket_out.out_idx.block_idx, meta_ticket_out.out_idx.trx_idx));
             auto trx_hash = trx.id();
             uint64_t trx_random = fc::sha256::hash((char*)&trx_hash, sizeof(trx_hash))._hash[0];
 

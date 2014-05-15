@@ -13,6 +13,19 @@ namespace bts { namespace lotto {
     using namespace bts::wallet;
 
     class lotto_db;
+
+    struct ticket_index
+    {
+        ticket_index(){}
+
+        ticket_index(const uint32_t& b, const uint32_t& t, const uint32_t& k)
+        :blk_num(b), trx_num(t), ticket_num(k){}
+
+        uint32_t blk_num;
+        uint32_t trx_num;
+        uint32_t ticket_num;
+    };
+
     /**
      *  @class meta_trx_input
      *
@@ -23,12 +36,12 @@ namespace bts { namespace lotto {
     {
        meta_ticket_output(){}
 
-       meta_ticket_output(trx_num n, uint16_t output_id, claim_ticket_output o, asset a)
-           : out_idx(n.block_num, n.trx_idx, output_id), ticket_out(std::move(o)), amount(std::move(a))
+       meta_ticket_output(transaction_location n, uint16_t output_id, ticket_operation o, asset a)
+           : out_idx(n.block_num, n.trx_num, output_id), ticket_out(std::move(o)), amount(std::move(a))
        {}
 
-       output_index         out_idx;
-       claim_ticket_output  ticket_out;
+       ticket_index         out_idx;
+       ticket_operation  ticket_out;
        asset                amount;
     };
 
@@ -43,7 +56,7 @@ namespace bts { namespace lotto {
     class rule
     {
         public:
-            rule(lotto_db* db, ticket_type t, asset::unit_type u);
+            rule(lotto_db* db, ticket_type t, asset_id_type u);
             virtual ~rule();
 
             virtual void                  open( const fc::path& dir, bool create = true );
@@ -51,16 +64,16 @@ namespace bts { namespace lotto {
 
             virtual asset jackpot_payout(const meta_ticket_output& meta_ticket_out) = 0;
 
-            virtual void validate( const trx_block& blk, const signed_transactions& deterministic_trxs );
+            //virtual void validate(const full_block& blk, const signed_transactions& deterministic_trxs);
 
-            virtual void store( const trx_block& blk, const signed_transactions& deterministic_trxs, const block_evaluation_state_ptr& state );
+            //virtual void store(const full_block& blk, const signed_transactions& deterministic_trxs, const block_evaluation_state_ptr& state);
 
             ticket_type get_ticket_type()
             {
                 return _ticket_type;
             }
 
-            asset::unit_type get_asset_unit()
+            asset_id_type get_asset_unit()
             {
                 return _unit_type;
             }
@@ -68,7 +81,7 @@ namespace bts { namespace lotto {
         protected:
             lotto_db*           _lotto_db;
             ticket_type         _ticket_type;
-            asset::unit_type    _unit_type;
+            asset_id_type       _unit_type;
 
         private:
             std::unique_ptr<detail::rule_impl> my;

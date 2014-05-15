@@ -112,13 +112,13 @@ class lotto_rule : public rule
        struct config
        {
            config() :valid(false), version(0), id(0), name(""), asset_type(0){}
-           bool                                               valid;
-           uint16_t                                        version;
-           uint32_t                                        id;
-           fc::string                                      name;
-           bts::blockchain::asset::unit_type               asset_type;
-           type_ball_group                                 ball_group;
-           type_prizes                                     prizes;
+           bool                                             valid;
+           uint16_t                                         version;
+           uint32_t                                         id;
+           fc::string                                       name;
+           bts::blockchain::asset_id_type                   asset_type;
+           type_ball_group                                  ball_group;
+           type_prizes                                      prizes;
 
            uint16_t group_count() const
            {
@@ -137,10 +137,10 @@ class lotto_rule : public rule
 
        static const uint64_t& total_space();
 
-       lotto_rule(lotto_db* db, ticket_type t, asset::unit_type u);
+       lotto_rule(lotto_db* db, ticket_type t, asset_id_type u);
        virtual ~lotto_rule();
 
-       std::pair<trx_num, uint64_t> jackpot_paid_in_transaction(const signed_transaction& trx);
+       std::pair<transaction_location, uint64_t> jackpot_paid_in_transaction(const signed_transaction& trx);
 
        virtual void                  open( const fc::path& dir, bool create = true );
        virtual void                  close();
@@ -154,9 +154,9 @@ class lotto_rule : public rule
       
        virtual asset jackpot_payout(const meta_ticket_output& meta_ticket_out);
 
-       virtual void validate( const trx_block& blk, const signed_transactions& deterministic_trxs );
+       //virtual void validate(const full_block& blk, const signed_transactions& deterministic_trxs);
 
-       virtual void store( const trx_block& blk, const signed_transactions& deterministic_trxs, const block_evaluation_state_ptr& state );
+       //virtual void store(const full_block& blk, const signed_transactions& deterministic_trxs, const block_evaluation_state_ptr& state);
 
    protected:
        std::unique_ptr<detail::lotto_rule_impl> my;

@@ -26,10 +26,10 @@ namespace bts { namespace net {
    {
       static const chain_message_type type;
       block_message(){}
-      block_message( const bts::blockchain::trx_block& blk )
+      block_message(const bts::blockchain::full_block& blk)
       :block_data(blk){}
 
-      bts::blockchain::trx_block             block_data;
+      bts::blockchain::full_block             block_data;
    };
 
    struct trx_message

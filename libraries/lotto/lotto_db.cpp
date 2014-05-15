@@ -1,7 +1,6 @@
 #include <fc/reflect/variant.hpp>
 
 #include <bts/db/level_map.hpp>
-#include <bts/blockchain/output_factory.hpp>
 #include <bts/lotto/lotto_db.hpp>
 #include <bts/lotto/dice_rule.hpp>
 #include <bts/lotto/betting_rule.hpp>
@@ -26,7 +25,7 @@ namespace bts { namespace lotto {
 
                 bts::db::level_map<uint32_t, block_summary>   _block2summary;
                 bts::db::level_map<uint32_t, std::vector<uint32_t>>   _delegate2blocks;
-                bts::db::level_map<uint32_t, claim_secret_output> _block2secret;
+                bts::db::level_map<uint32_t, secret_operation> _block2secret;
 
                 std::unordered_map< ticket_type, rule_ptr > _rules;
 
@@ -43,42 +42,44 @@ namespace bts { namespace lotto {
                     return (uint64_t)random._hash[0];
                 }
 
-                claim_secret_output get_secret_output(const trx_block& blk)
+                secret_operation get_secret_output(const full_block& blk)
                 {
-                    for (size_t i = 0; i < blk.trxs.size(); i++)
+                    for (size_t i = 0; i < blk.user_transactions.size(); i++)
                     {
-                        for (size_t j = 0; j < blk.trxs[i].outputs.size(); j++)
+                        for (size_t j = 0; j < blk.user_transactions[i].operations.size(); j++)
                         {
-                            if (blk.trxs[i].outputs[j].claim_func == claim_secret) {
-                                return blk.trxs[i].outputs[j].as<claim_secret_output>();
+                            if (blk.user_transactions[i].operations[j].type.value == secret_op_type) {
+                                return blk.user_transactions[i].operations[j].as<secret_operation>();
                             }
                         }
                     }
 
                     FC_ASSERT(false, "Should not happen, validated");
-                    return claim_secret_output();
+                    return secret_operation();
                 }
 
-                void store(const trx_block& blk,
+                // TODO: Move to pending chain state...
+                /*
+                void store(const full_block& blk,
                     const signed_transactions& deterministic_trxs,
                     const block_evaluation_state_ptr& state)
                 {
-                    claim_secret_output secret_out;
+                    secret_operation secret_op;
 
                     if (blk.block_num > 0)
                     {
-                        secret_out = get_secret_output(blk);
+                        secret_op = get_secret_output(blk);
                     }
 
                     // TODO: the default delegate id of first block is 0, this could influnce delgete2blocks.....
-                    _block2secret.store(blk.block_num, secret_out);
+                    _block2secret.store(blk.block_num, secret_op);
 
                     // TODO: ToFix: Should block's delegate id be retrieved this way? Then, how to achieve this before store?
                     // TODO: the default delegate id of first block is 0, this should influnce delgete2blocks.....
                     // real delegate is are larger than 0
                     if (blk.block_num > 0)
                     {
-                        auto itr = _delegate2blocks.find(secret_out.delegate_id);
+                        auto itr = _delegate2blocks.find(secret_op.delegate_id);
                         std::vector<uint32_t> block_ids;
                         if (itr.valid())
                         {
@@ -86,11 +87,11 @@ namespace bts { namespace lotto {
                         }
 
                         block_ids.push_back(blk.block_num);
-                        _delegate2blocks.store(secret_out.delegate_id, block_ids);
+                        _delegate2blocks.store(secret_op.delegate_id, block_ids);
                     }
 
                     // TODO: change wining_number to sha256, and recheck whether sha356 is suitable for hashing.
-                    uint64_t random_number = generate_random_number(blk.block_num, secret_out.revealed_secret.str());
+                    uint64_t random_number = generate_random_number(blk.block_num, secret_op.revealed_secret.str());
                     // update block summary
                     block_summary bs;
                     bs.random_number = random_number;
@@ -102,21 +103,23 @@ namespace bts { namespace lotto {
                         r.second->store(blk, deterministic_trxs, state);
                     }
                 }
-            
+            */
         };
     }
 
     lotto_db::lotto_db()
     :my( new detail::lotto_db_impl() )
     {
+        /* TODO:
         output_factory::instance().register_output<claim_secret_output>();
         output_factory::instance().register_output<claim_ticket_output>();
         output_factory::instance().register_output<claim_jackpot_output>();
+        */
 
         ticket_factory::instance().register_ticket<dice_ticket>();
         ticket_factory::instance().register_ticket<betting_ticket>();
         ticket_factory::instance().register_ticket<lottery_ticket>();
-        set_transaction_validator( std::make_shared<lotto_transaction_validator>(this) );
+        //set_transaction_validator( std::make_shared<lotto_transaction_validator>(this) );
 
         my->_rules[dice_ticket::type] = std::make_shared<dice_rule>(this, dice_ticket::type, dice_ticket::unit);
         // betting rule using asset unit 1
@@ -130,18 +133,18 @@ namespace bts { namespace lotto {
     {
     }
 
-    void lotto_db::open( const fc::path& dir, bool create )
+    void lotto_db::open( const fc::path& dir )
     {
         try {
-            chain_database::open( dir, create );
-            my->_block2summary.open( dir / "block2summary", create );
-            my->_delegate2blocks.open(dir / "delegate2blocks", create);
-            my->_block2secret.open( dir / "block2secret", create );
+            chain_database::open( dir );
+            my->_block2summary.open( dir / "block2summary", true );
+            my->_delegate2blocks.open(dir / "delegate2blocks", true);
+            my->_block2secret.open(dir / "block2secret", true);
             for(auto r : my->_rules)
             {
-                r.second->open(dir, create);
+                r.second->open(dir, true);
             }
-        } FC_RETHROW_EXCEPTIONS( warn, "Error loading lotto database ${dir}", ("dir", dir)("create", create) );
+        } FC_RETHROW_EXCEPTIONS( warn, "Error loading lotto database ${dir}", ("dir", dir) );
     }
 
     void lotto_db::close() 
@@ -162,8 +165,9 @@ namespace bts { namespace lotto {
         return my->_rules[type];
     }
 
-    void lotto_db::validate_secret_transactions(const signed_transactions& deterministic_trxs, const trx_block& blk)
+    void lotto_db::validate_secret_transactions(const signed_transactions& deterministic_trxs, const full_block& blk)
     {
+        /*
         for (const signed_transaction& trx : deterministic_trxs)
         {
             for (auto out : trx.outputs)
@@ -204,17 +208,19 @@ namespace bts { namespace lotto {
                     found_secret_out = true;
                 }
             }
-        }
+        }*/
 
-        FC_ASSERT(found_secret_out == true, "There is no secret out found.");
+        //FC_ASSERT(found_secret_out == true, "There is no secret out found.");
     }
 
+    // TODO: Move to pending_chain_state
+    /*
     signed_transactions lotto_db::generate_deterministic_transactions()
     {
         signed_transactions signed_trxs = chain_database::generate_deterministic_transactions();
 
         // being in genesis block pushing
-        if (head_block_num() == trx_num::invalid_block_num)
+        if (head_block_num() == transaction_location::invalid_block_num)
         {
             return signed_trxs;
         }
@@ -278,12 +284,42 @@ namespace bts { namespace lotto {
         wlog("generate_deterministic_transactions: ${c}", ("c", signed_trxs));
         return signed_trxs;
     }
+    */
+
+    transaction_evaluation_state_ptr lotto_db::evaluate_transaction(const signed_transaction& trx)
+    {
+        try {
+            pending_chain_state_ptr          pend_state = std::make_shared<pending_chain_state>(shared_from_this());
+            transaction_evaluation_state_ptr trx_eval_state = std::make_shared<lotto_trx_evaluation_state>(pend_state);
+
+            trx_eval_state->evaluate(trx);
+
+            return trx_eval_state;
+        } FC_RETHROW_EXCEPTIONS(warn, "", ("trx", trx))
+
+        // TODO
+        /*
+        auto inputs = _lotto_db->fetch_inputs(state.trx.inputs);
+        for (auto in : inputs)
+        {
+            if (in.output.claim_func == claim_ticket)
+            {
+                // with assumption that all claim_tickets input are in deterministic trxs 
+                evaluate_ticket_jackpot_transactions(state);
+                // TODO: Do deterministic transactions need fees, votes, etc, or not? since after 100 block, is origin vote still available
+                // To be synced with upstream: https://github.com/BitShares/bitshares_toolkit/issues/48
+                break;
+            }
+        }*/
+    }
 
     /**
      * Performs global validation of a block to make sure that no two transactions conflict. In
      * the case of the lotto only one transaction can claim the jackpot.
      */
-    block_evaluation_state_ptr lotto_db::validate( const trx_block& blk, const signed_transactions& deterministic_trxs )
+    // Move to pending_chain_state
+    /*
+    block_evaluation_state_ptr lotto_db::validate(const full_block& blk, const signed_transactions& deterministic_trxs)
     {
         wlog("validate transactions: ${c}", ("c", blk.trxs));
         // TODO: In lotto deterministic_trxs do not validate again
@@ -320,30 +356,20 @@ namespace bts { namespace lotto {
 
         return block_state;
     }
+    */
 
     /** 
      *  Called after a block has been validated and appends
      *  it to the block chain storing all relevant transactions and updating the
      *  winning database.
      */
-    void lotto_db::store( const trx_block& blk, const signed_transactions& deterministic_trxs, const block_evaluation_state_ptr& state )
+    /*
+    void lotto_db::store(const full_block& blk, const signed_transactions& deterministic_trxs, const block_evaluation_state_ptr& state)
     {
         chain_database::store(blk, deterministic_trxs, state);
 
         my->store(blk, deterministic_trxs, state);
-    }
-
-    /**
-     * When a block is popped from the chain, this method implements the necessary code
-     * to revert the blockchain database to the proper state.
-     */
-    trx_block lotto_db::pop_block()
-    {
-       auto blk = chain_database::pop_block();
-       // TODO: remove block summary from DB
-       FC_ASSERT( !"Not Implemented" );
-       return blk;
-    }
+    }*/
 
     uint64_t lotto_db::fetch_blk_random_number( const uint32_t& k )
     { try {
@@ -364,7 +390,7 @@ namespace bts { namespace lotto {
         } FC_RETHROW_EXCEPTIONS(warn, "fetching block indexes, delegate id ${d}", ("d", d))
     }
 
-    claim_secret_output     lotto_db::fetch_secret(const uint32_t& b)
+    secret_operation     lotto_db::fetch_secret(const uint32_t& b)
     {
         try {
             return my->_block2secret.fetch(b);
