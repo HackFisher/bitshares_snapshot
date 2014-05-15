@@ -102,8 +102,9 @@ TODO:
     {
         try
         {
-            auto tickets = get_lotto_wallet()->list_tickets(*get_lotto_db());
-            return fc::variant(tickets);
+            //auto tickets = get_lotto_wallet()->list_tickets(*get_lotto_db());
+            //return fc::variant(tickets);
+            return fc::variant();
         }
         catch (const fc::exception& e)
         {
@@ -130,8 +131,9 @@ TODO:
     {
         try
         {
-            auto jackpots = get_lotto_wallet()->list_jackpots(*get_lotto_db());
-            return fc::variant(jackpots);
+            //auto jackpots = get_lotto_wallet()->list_jackpots(*get_lotto_db());
+            //return fc::variant(jackpots);
+            return fc::variant();
         }
         catch (const fc::exception& e)
         {
@@ -158,11 +160,11 @@ TODO:
     fc::variant lotto_rpc_server_impl::cash_jackpot(const fc::variants& params)
     {
         FC_ASSERT(params.size() >= 1);
-        auto jackpot_idx = params[0].as<output_index>();
+        //auto jackpot_idx = params[0].as<output_index>();
 
-        auto tx = get_lotto_wallet()->cash_jackpot(jackpot_idx);
+        //auto tx = get_lotto_wallet()->cash_jackpot(jackpot_idx);
 
-        _self->get_client()->broadcast_transaction(tx);
+        //_self->get_client()->broadcast_transaction(tx);
         return fc::variant(true);
     }
 

@@ -28,15 +28,15 @@ namespace bts { namespace lotto {
                 const uint32_t& delegate_id, address required_signee);
             
             // TODO: db is not required?
-            std::map<ticket_index, trx_output> list_tickets(lotto_db& db);
+            //std::map<ticket_index, trx_output> list_tickets(lotto_db& db);
 
-            std::map<ticket_index, trx_output> list_jackpots(lotto_db& db);
+            //std::map<ticket_index, trx_output> list_jackpots(lotto_db& db);
 
-            bts::blockchain::signed_transaction cash_jackpot(const ticket_index& jackpot_idx);
+            //bts::blockchain::signed_transaction cash_jackpot(const ticket_index& jackpot_idx);
 
         protected:
-            virtual bool scan_output( transaction_state& state, const trx_output& out, const output_reference& out_ref, const bts::wallet::output_index& oidx );
-            virtual void scan_input( transaction_state& state, const output_reference& ref, const output_index& idx);
+            //virtual bool scan_output( transaction_state& state, const trx_output& out, const output_reference& out_ref, const bts::wallet::output_index& oidx );
+            //virtual void scan_input( transaction_state& state, const output_reference& ref, const output_index& idx);
 
         private:
              std::unique_ptr<detail::lotto_wallet_impl> my;

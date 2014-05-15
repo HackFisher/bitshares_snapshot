@@ -83,7 +83,7 @@ namespace bts { namespace lotto {
         {
             FC_ASSERT(!_self->get_wallet()->is_locked());
 
-            uint32_t delegate_id = _self->get_chain()->head_block_num() % BTS_BLOCKCHAIN_NUM_DELEGATES + 1;
+            uint32_t delegate_id = _self->get_chain()->get_head_block_num() % BTS_BLOCKCHAIN_NUM_DELEGATES + 1;
             auto secret_pair = delegate_secret_last_revealed_secret_pair(delegate_id);
             auto secret_trx = get_lotto_wallet()->next_secret(secret_pair.first, secret_pair.second, delegate_id, address(_trustee_key.get_public_key()));
             _self->broadcast_transaction(secret_trx);

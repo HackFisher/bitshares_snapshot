@@ -36,22 +36,22 @@ namespace bts { namespace lotto {
     {
         try {
             FC_ASSERT(meta_ticket_out.ticket_out.ticket.ticket_func == get_ticket_type());
-            auto headnum = _lotto_db->head_block_num();
+            auto headnum = _lotto_db->get_head_block_num();
 
-            FC_ASSERT(headnum >= BTS_LOTTO_BLOCKS_BEFORE_JACKPOTS_DRAW  + meta_ticket_out.out_idx.block_idx);
+            FC_ASSERT(headnum >= BTS_LOTTO_BLOCKS_BEFORE_JACKPOTS_DRAW + meta_ticket_out.out_idx.blk_num);
 
             // https://bitsharestalk.org/index.php?topic=4502.0
-            uint64_t random_number = _lotto_db->fetch_blk_random_number(meta_ticket_out.out_idx.block_idx + BTS_LOTTO_BLOCKS_BEFORE_JACKPOTS_DRAW);
+            uint64_t random_number = _lotto_db->fetch_blk_random_number(meta_ticket_out.out_idx.blk_num + BTS_LOTTO_BLOCKS_BEFORE_JACKPOTS_DRAW);
 
-            uint64_t ticket_sale = my->_block2ticket_sale.fetch(meta_ticket_out.out_idx.block_idx);
+            uint64_t ticket_sale = my->_block2ticket_sale.fetch(meta_ticket_out.out_idx.blk_num);
             auto ticket = meta_ticket_out.ticket_out.ticket.as<betting_ticket>();
             
             FC_ASSERT(ticket.unit == get_asset_unit());
-            FC_ASSERT(ticket.unit == meta_ticket_out.amount.unit);
+            FC_ASSERT(ticket.unit == meta_ticket_out.amount.amount);
 
             uint64_t ticket_lucky_number = ticket.lucky_number;
             uint16_t ticket_odds = ticket.odds;
-            uint64_t ticket_amount = meta_ticket_out.amount.get_rounded_amount();
+            uint64_t ticket_amount = meta_ticket_out.amount.amount;
             uint64_t winners_count = /*Total ticket count*/ 10 / 3;    // global odds?
 
             uint64_t jackpot = 0;
@@ -66,7 +66,7 @@ namespace bts { namespace lotto {
 
             if (ticket_odds == 0)
             {
-                return asset(0, meta_ticket_out.amount.unit);
+                return asset(0, meta_ticket_out.amount.asset_id);
             }
 
             // uint64_t range = (ticket_odds * ticket_sale) / (ticket_amount * winners_count);
@@ -81,7 +81,7 @@ namespace bts { namespace lotto {
             }
 
 
-            return asset(jackpot, meta_ticket_out.amount.unit);
+            return asset(jackpot, meta_ticket_out.amount.asset_id);
 
         } FC_RETHROW_EXCEPTIONS(warn, "Error calculating jackpots for betting ticket ${m}", ("m", meta_ticket_out));
     }

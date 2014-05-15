@@ -39,22 +39,22 @@ namespace bts { namespace lotto {
     asset dice_rule::jackpot_payout(const meta_ticket_output& meta_ticket_out)
     {
         try {
-            auto headnum = _lotto_db->head_block_num();
+            auto headnum = _lotto_db->get_head_block_num();
             FC_ASSERT(meta_ticket_out.ticket_out.ticket.ticket_func == get_ticket_type());
             
-            FC_ASSERT(headnum >= BTS_LOTTO_BLOCKS_BEFORE_JACKPOTS_DRAW  + meta_ticket_out.out_idx.block_idx);
+            FC_ASSERT(headnum >= BTS_LOTTO_BLOCKS_BEFORE_JACKPOTS_DRAW + meta_ticket_out.out_idx.blk_num);
 
-            uint64_t random_number = _lotto_db->fetch_blk_random_number(meta_ticket_out.out_idx.block_idx + BTS_LOTTO_BLOCKS_BEFORE_JACKPOTS_DRAW);
+            uint64_t random_number = _lotto_db->fetch_blk_random_number(meta_ticket_out.out_idx.blk_num + BTS_LOTTO_BLOCKS_BEFORE_JACKPOTS_DRAW);
 
-            auto trx = _lotto_db->fetch_trx(transaction_location(meta_ticket_out.out_idx.block_idx, meta_ticket_out.out_idx.trx_idx));
+            auto trx = _lotto_db->fetch_trx(transaction_location(meta_ticket_out.out_idx.blk_num, meta_ticket_out.out_idx.trx_num));
             auto trx_hash = trx.id();
             uint64_t trx_random = fc::sha256::hash((char*)&trx_hash, sizeof(trx_hash))._hash[0];
 
             auto ticket = meta_ticket_out.ticket_out.ticket.as<dice_ticket>();
 
-            uint64_t payout = calculate_payout(random_number, trx_random, ticket.odds, meta_ticket_out.amount.get_rounded_amount());
+            uint64_t payout = calculate_payout(random_number, trx_random, ticket.odds, meta_ticket_out.amount.amount);
 
-            return asset(payout, meta_ticket_out.amount.unit);
+            return asset(payout, meta_ticket_out.amount.asset_id);
 
         } FC_RETHROW_EXCEPTIONS(warn, "Error calculating jackpots for dice ticket ${m}", ("m", meta_ticket_out));
     }

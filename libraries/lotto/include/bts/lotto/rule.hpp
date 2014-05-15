@@ -89,5 +89,6 @@ namespace bts { namespace lotto {
     typedef std::shared_ptr<rule> rule_ptr;
 } } // bts::lotto
 
+FC_REFLECT(bts::lotto::ticket_index, (blk_num)(trx_num)(ticket_num))
 FC_REFLECT(bts::lotto::meta_ticket_output, (out_idx)(ticket_out)(amount))
 

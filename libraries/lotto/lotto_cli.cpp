@@ -34,8 +34,8 @@ namespace bts { namespace lotto {
             auto result = cli::execute_interactive_command("getbalance", fc::variants());
             auto curr_bal = result.as<bts::blockchain::asset>();
             
-            std::cout<<"current balance: "<< curr_bal.get_rounded_amount() <<" "<<fc::variant((asset_type)curr_bal.unit).as_string()<<"\n";
-            std::cout<<"total price: "<< required_input.get_rounded_amount() <<" "<<fc::variant((asset_type)required_input.unit).as_string()<<"\n";
+            std::cout << "current balance: " << curr_bal.amount << " " << fc::variant((lotto_asset_type)curr_bal.asset_id.value).as_string() << "\n";
+            std::cout << "total price: " << required_input.amount << " " << fc::variant((lotto_asset_type)required_input.asset_id.value).as_string() << "\n";
 
             if( required_input > curr_bal )
             {
