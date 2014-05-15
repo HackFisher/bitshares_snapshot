@@ -147,7 +147,7 @@ namespace bts { namespace lotto {
         } FC_RETHROW_EXCEPTIONS( warn, "Error loading lotto database ${dir}", ("dir", dir) );
     }
 
-    void lotto_db::close() 
+    void lotto_db::close()
     {
         my->_block2summary.close();
         my->_delegate2blocks.close();
@@ -358,7 +358,7 @@ namespace bts { namespace lotto {
     }
     */
 
-    /** 
+    /**
      *  Called after a block has been validated and appends
      *  it to the block chain storing all relevant transactions and updating the
      *  winning database.

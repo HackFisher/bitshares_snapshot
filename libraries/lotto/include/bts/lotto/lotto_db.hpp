@@ -26,7 +26,7 @@ class lotto_db : public bts::blockchain::chain_database
     public:
         lotto_db();
         ~lotto_db();
-    
+
         void             open( const fc::path& dir );
         void             close();
 
@@ -58,7 +58,7 @@ class lotto_db : public bts::blockchain::chain_database
          */
         // virtual block_evaluation_state_ptr validate( const full_block& blk, const signed_transactions& deterministic_trxs );
 
-        /** 
+        /**
          *  Called after a block has been validated and appends
          *  it to the block chain storing all relevant transactions and updating the
          *  winning database.
