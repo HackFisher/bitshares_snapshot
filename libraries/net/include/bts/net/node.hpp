@@ -18,6 +18,8 @@ namespace bts { namespace net {
     fc::uint160_t originating_peer;
   };
 
+  typedef fc::uint160_t node_id_t;
+
    /**
     *  @class node_delegate
     *  @brief used by node reports status to client or fetch data from client
@@ -56,6 +58,23 @@ namespace bts { namespace net {
           *  Given the hash of the requested data, fetch the body.
           */
          virtual message get_item( const item_id& id ) = 0;
+
+         /**
+          * Returns a synopsis of the blockchain used for syncing.  
+          * This consists of a list of selected item hashes from our current preferred
+          * blockchain, exponentially falling off into the past.  Horrible explanation.
+          * 
+          * If the blockchain is empty, it will return the empty list.
+          * If the blockchain has one block, it will return a list containing just that block.
+          * If it contains more than one block:
+          *   the first element in the list will be the hash of the genesis block
+          *   the second element will be the hash of an item at the half way point in the blockchain
+          *   the third will be ~3/4 of the way through the block chain
+          *   the fourth will be at ~7/8...
+          *     &c.
+          *   the last item in the list will be the hash of the most recent block on our preferred chain
+          */
+         //virtual std::vector<item_hash_t> get_blockchain_synopsis() = 0;
 
          /**
           *  Call this after the call to handle_message succeeds.
@@ -154,7 +173,8 @@ namespace bts { namespace net {
         void set_advanced_node_parameters(const fc::variant_object& params);
         message_propagation_data get_transaction_propagation_data(const bts::blockchain::transaction_id_type& transaction_id);
         message_propagation_data get_block_propagation_data(const bts::blockchain::block_id_type& block_id);
-        fc::uint160_t get_node_id() const;
+        node_id_t get_node_id() const;
+        void set_allowed_peers(const std::vector<node_id_t>& allowed_peers);
       private:
         std::unique_ptr<detail::node_impl> my;
    };

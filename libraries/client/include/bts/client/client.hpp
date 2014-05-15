@@ -17,7 +17,7 @@ namespace bts { namespace client {
     class client
     {
        public:
-         client(bool enable_p2p = false);
+         client();
          ~client();
 
          void set_chain( const bts::blockchain::chain_database_ptr& chain );
@@ -30,7 +30,7 @@ namespace bts { namespace client {
           *  Produces a block every 30 seconds if there is at least
           *  once transaction.
           */
-         void run_trustee( const fc::ecc::private_key& k );
+         void run_delegate();
 
          void add_node( const std::string& ep );
 
