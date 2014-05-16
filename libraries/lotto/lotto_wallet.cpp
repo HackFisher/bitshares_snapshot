@@ -25,8 +25,8 @@ namespace detail
     };
 } // namespace detail
 
-lotto_wallet::lotto_wallet()
-:my(new detail::lotto_wallet_impl())
+lotto_wallet::lotto_wallet( const lotto_db_ptr& lotto_db )
+:wallet(lotto_db), my(new detail::lotto_wallet_impl())
 {
 }
 

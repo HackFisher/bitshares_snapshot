@@ -19,7 +19,7 @@ namespace bts { namespace lotto {
     class lotto_wallet : public bts::wallet::wallet
     {
         public:
-            lotto_wallet();
+            lotto_wallet( const lotto_db_ptr& lotto_db );
             ~lotto_wallet();
             bts::blockchain::signed_transaction buy_ticket(const uint64_t& luckynumber, const uint16_t& odds,
                                                         asset amount);

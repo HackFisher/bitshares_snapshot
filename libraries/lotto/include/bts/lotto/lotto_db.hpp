@@ -27,16 +27,16 @@ class lotto_db : public bts::blockchain::chain_database
         lotto_db();
         ~lotto_db();
 
-        void             open( const fc::path& dir );
-        void             close();
+        void            open( const fc::path& dir, fc::optional<fc::path> genesis_file = fc::optional<fc::path>() );
+        void            close();
 
-        rule_ptr get_rule_ptr(const ticket_type& type);
+        rule_ptr        get_rule_ptr(const ticket_type& type);
 
-        void        validate_secret_transactions(const signed_transactions& deterministic_trxs, const full_block& blk);
+        void            validate_secret_transactions(const signed_transactions& deterministic_trxs, const full_block& blk);
 
-        uint64_t    fetch_blk_random_number( const uint32_t& blk_index );
+        uint64_t        fetch_blk_random_number( const uint32_t& blk_index );
 
-        bool is_new_delegate(const uint32_t& delegate_id);
+        bool            is_new_delegate(const uint32_t& delegate_id);
         
         std::vector<uint32_t>   fetch_blocks_idxs(const uint32_t& delegate_id);
 

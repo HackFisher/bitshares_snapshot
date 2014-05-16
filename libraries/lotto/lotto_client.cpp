@@ -113,8 +113,8 @@ namespace bts { namespace lotto {
                 }
                 */
 
-                _self->get_wallet()->import_key(_trustee_key, "import trustee key", "trustee");
-                _self->get_wallet()->scan_chain(*_self->get_chain());
+                _self->get_wallet()->import_private_key(_trustee_key, "import trustee key", "trustee");
+                _self->get_wallet()->scan_chain(0);
 
                 // broadcast a secret
                 generate_broadcast_next_secret();
@@ -160,7 +160,7 @@ namespace bts { namespace lotto {
         my->_data_dir = datadir;
     }
 
-    lotto_client::lotto_client(bool enable_p2p /* = false */)
+    lotto_client::lotto_client()
         :my(new detail::lotto_client_impl())
     {
         my->_self = this;

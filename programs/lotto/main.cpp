@@ -14,10 +14,8 @@
 #include <fc/log/logger_config.hpp>
 #include <fc/io/json.hpp>
 #include <fc/reflect/variant.hpp>
-#include <iostream>
 
-// refactor away:
-#include <bts/net/chain_server.hpp>
+#include <iostream>
 /// 
 
 // Genesisi address for testing
@@ -43,11 +41,13 @@ bts::lotto::lotto_db_ptr load_and_configure_chain_database(const fc::path& datad
 
 bts::client::client* _global_client = nullptr;
 
+/*
 void handle_signal(int signum)
 {
     if (_global_client) _global_client->get_wallet()->save();
     exit(1);
 }
+*/
 
 int main(int argc, char** argv)
 {
@@ -55,7 +55,6 @@ int main(int argc, char** argv)
 	boost::program_options::options_description option_config("Allowed options");
 	option_config.add_options()("data-dir", boost::program_options::value<std::string>(), "configuration data directory")
 		("help", "display this help message")
-		("p2p", "enable p2p mode")
 		("port", boost::program_options::value<uint16_t>(), "set port to listen on")
 		("connect-to", boost::program_options::value<std::string>(), "set remote host to connect to")
 		("server", "enable JSON-RPC server")
@@ -91,8 +90,6 @@ int main(int argc, char** argv)
 		return 0;
 	}
 
-	bool p2p_mode = option_variables.count("p2p") != 0;
-
 	try {
 		print_banner();
 		fc::path datadir = get_data_dir(option_variables);
@@ -100,13 +97,41 @@ int main(int argc, char** argv)
 
 		auto cfg = load_config(datadir);
 		auto lotto_db = load_and_configure_chain_database(datadir, option_variables);
-		auto wall = std::make_shared<bts::lotto::lotto_wallet>();
+        auto wall = std::make_shared<bts::lotto::lotto_wallet>(lotto_db);
 		wall->set_data_directory(datadir);
 
-		auto c = std::make_shared<bts::lotto::lotto_client>(p2p_mode);
+		auto c = std::make_shared<bts::lotto::lotto_client>();
         _global_client = c.get();
 		c->set_chain(lotto_db);
 		c->set_wallet(wall);
+        // TODO: Run lotto delegate instead
+        c->run_delegate();
+
+        bts::lotto::lotto_rpc_server_ptr rpc_server = std::make_shared<bts::lotto::lotto_rpc_server>();
+        rpc_server->set_client(c);
+
+        if (option_variables.count("server"))
+        {
+            // the user wants us to launch the RPC server.
+            // First, override any config parameters they 
+            bts::rpc::rpc_server::config rpc_config(cfg.rpc);
+            if (option_variables.count("rpcuser"))
+                rpc_config.rpc_user = option_variables["rpcuser"].as<std::string>();
+            if (option_variables.count("rpcpassword"))
+                rpc_config.rpc_password = option_variables["rpcpassword"].as<std::string>();
+            // for now, force binding to localhost only
+            if (option_variables.count("rpcport"))
+                rpc_config.rpc_endpoint = fc::ip::endpoint(fc::ip::address("127.0.0.1"), option_variables["rpcport"].as<uint16_t>());
+            if (option_variables.count("httpport"))
+                rpc_config.httpd_endpoint = fc::ip::endpoint(fc::ip::address("127.0.0.1"), option_variables["httpport"].as<uint16_t>());
+            std::cerr << "starting json rpc server on " << std::string(rpc_config.rpc_endpoint) << "\n";
+            std::cerr << "starting http json rpc server on " << std::string(rpc_config.httpd_endpoint) << "\n";
+            rpc_server->configure(rpc_config);
+        }
+        else
+        {
+            std::cout << "Not starting rpc server, use --server to enable the rpc interface\n";
+        }
 
 		if (option_variables.count("trustee-private-key"))
 		{
@@ -114,7 +139,6 @@ int main(int argc, char** argv)
             
             // TODO: remove useless wallet-pass parameter
             FC_ASSERT(option_variables.count("wallet-pass"));
-            c->run_trustee(key);
             c->run_secret_broadcastor(key, option_variables["wallet-pass"].as<std::string>(), datadir);
 			// For testing
             // private key: 733fb1f1a4e00d079fd3506067186168a2bccf45b4fa78d760a12be7f4ba8e0b
@@ -129,48 +153,15 @@ int main(int argc, char** argv)
 			auto key = fc::json::from_file("trustee.key").as<fc::ecc::private_key>();
             
             FC_ASSERT(option_variables.count("wallet-pass"));
-			c->run_trustee(key);
             c->run_secret_broadcastor(key, option_variables["wallet-pass"].as<std::string>(), datadir);
 		}
 
-		bts::lotto::lotto_rpc_server_ptr rpc_server = std::make_shared<bts::lotto::lotto_rpc_server>();
-		rpc_server->set_client(c);
-
-		if (option_variables.count("server"))
-		{
-			// the user wants us to launch the RPC server.
-			// First, override any config parameters they 
-			bts::rpc::rpc_server::config rpc_config(cfg.rpc);
-			if (option_variables.count("rpcuser"))
-				rpc_config.rpc_user = option_variables["rpcuser"].as<std::string>();
-			if (option_variables.count("rpcpassword"))
-				rpc_config.rpc_password = option_variables["rpcpassword"].as<std::string>();
-			// for now, force binding to localhost only
-			if (option_variables.count("rpcport"))
-				rpc_config.rpc_endpoint = fc::ip::endpoint(fc::ip::address("127.0.0.1"), option_variables["rpcport"].as<uint16_t>());
-			if (option_variables.count("httpport"))
-				rpc_config.httpd_endpoint = fc::ip::endpoint(fc::ip::address("127.0.0.1"), option_variables["httpport"].as<uint16_t>());
-			std::cerr << "starting json rpc server on " << std::string(rpc_config.rpc_endpoint) << "\n";
-			std::cerr << "starting http json rpc server on " << std::string(rpc_config.httpd_endpoint) << "\n";
-			rpc_server->configure(rpc_config);
-		}
-
-		if (p2p_mode)
-		{
-			c->configure(datadir);
-			if (option_variables.count("port"))
-				c->listen_on_port(option_variables["port"].as<uint16_t>());
-			c->connect_to_p2p_network();
-			if (option_variables.count("connect-to"))
-				c->connect_to_peer(option_variables["connect-to"].as<std::string>());
-		}
-		else
-		{
-			if (option_variables.count("connect-to"))
-				c->add_node(option_variables["connect-to"].as<std::string>());
-			else
-				c->add_node("127.0.0.1:8888");
-		}
+        c->configure(datadir);
+        if (option_variables.count("port"))
+            c->listen_on_port(option_variables["port"].as<uint16_t>());
+        c->connect_to_p2p_network();
+        if (option_variables.count("connect-to"))
+            c->connect_to_peer(option_variables["connect-to"].as<std::string>());
 
 		auto cli = std::make_shared<bts::lotto::lotto_cli>(c, rpc_server);
 		cli->wait();
@@ -244,39 +235,13 @@ fc::path get_data_dir(const boost::program_options::variables_map& option_variab
 bts::lotto::lotto_db_ptr load_and_configure_chain_database(const fc::path& datadir,
 	const boost::program_options::variables_map& option_variables)
 {
+    std::cout << "Loading blockchain from " << (datadir / "chain").generic_string() << "\n";
 	auto db = std::make_shared<bts::lotto::lotto_db>();
-	db->open(datadir / "chain", true);
-	if (option_variables.count("trustee-address"))
-		db->set_trustee(bts::blockchain::address(option_variables["trustee-address"].as<std::string>()));
-	else
-		db->set_trustee(bts::blockchain::address("ADmEYU8d5Qmr99hHT8UKbyshwahXbBduY"));
-	if (option_variables.count("genesis-json"))
-	{
-		if (db->head_block_num() == uint32_t(-1))
-		{
-			fc::path genesis_json_file(option_variables["genesis-json"].as<std::string>());
-            bts::blockchain::full_block genesis_block;
-			try
-			{
-				genesis_block = bts::net::create_genesis_block(genesis_json_file);
-			}
-			catch (fc::exception& e)
-			{
-				wlog("Error creating genesis block from file ${filename}: ${e}", ("filename", genesis_json_file)("e", e.to_string()));
-				return db;
-			}
-			try
-			{
-				db->push_block(genesis_block);
-			}
-			catch (const fc::exception& e)
-			{
-				wlog("error pushing genesis block to blockchain database: ${e}", ("e", e.to_detail_string()));
-			}
-		}
-		else
-			wlog("Ignoring genesis-json command-line argument because our blockchain already has a genesis block");
-	}
+    fc::optional<fc::path> genesis_file;
+    if (option_variables.count("genesis-json"))
+        genesis_file = option_variables["genesis-json"].as<std::string>();
+
+    db->open(datadir / "chain", genesis_file);
 	return db;
 }
 

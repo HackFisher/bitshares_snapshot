@@ -133,10 +133,10 @@ namespace bts { namespace lotto {
     {
     }
 
-    void lotto_db::open( const fc::path& dir )
+    void lotto_db::open( const fc::path& dir, fc::optional<fc::path> genesis_file )
     {
         try {
-            chain_database::open( dir );
+            chain_database::open(dir, genesis_file);
             my->_block2summary.open( dir / "block2summary", true );
             my->_delegate2blocks.open(dir / "delegate2blocks", true);
             my->_block2secret.open(dir / "block2secret", true);
