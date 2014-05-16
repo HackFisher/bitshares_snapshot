@@ -63,29 +63,30 @@ bts::blockchain::signed_transaction lotto_wallet::next_secret(const fc::sha256& 
     return secret_trx;
 }
 
-/*
+
 
 bts::blockchain::signed_transaction lotto_wallet::buy_ticket(const uint64_t& luckynumber, const uint16_t& odds,
 asset amount)
 {
-try {
-signed_transaction trx;
-// TODO: validate lucknumber, odds, and amount
+    try {
+        signed_transaction trx;
+        // TODO: validate lucknumber, odds, and amount
 
-auto jackpot_addr = new_receive_address("Owner address for jackpot");
-auto inputs = std::vector<trx_input>();
+        auto jackpot_addr = new_receive_address("Owner address for jackpot");
+        auto inputs = std::vector<trx_input>();
 
-auto ticket_output = claim_ticket_output();
-auto t = betting_ticket(luckynumber, odds);
-ticket_output.ticket = output_ticket(t);
-ticket_output.owner = jackpot_addr;
+        auto ticket_output = claim_ticket_output();
+        auto t = betting_ticket(luckynumber, odds);
+        ticket_output.ticket = output_ticket(t);
+        ticket_output.owner = jackpot_addr;
 
-trx.outputs.push_back(trx_output(ticket_output, amount));
+        trx.outputs.push_back(trx_output(ticket_output, amount));
 
-return collect_inputs_and_sign(trx, amount);
-} FC_RETHROW_EXCEPTIONS(warn, "buy_ticket ${luckynumber} with ${odds}, amount {amt}", ("name", luckynumber)("odds", odds)("amt", amount))
+        return collect_inputs_and_sign(trx, amount);
+    } FC_RETHROW_EXCEPTIONS(warn, "buy_ticket ${luckynumber} with ${odds}, amount {amt}", ("name", luckynumber)("odds", odds)("amt", amount))
 }
 
+/*
 std::map<output_index, trx_output> lotto_wallet::list_tickets(lotto_db& db)
 {
     try {
@@ -101,6 +102,7 @@ std::map<output_index, trx_output> lotto_wallet::list_tickets(lotto_db& db)
         return tickets_map;
     } FC_RETHROW_EXCEPTIONS(warn, "list tickets")
 }
+
 
 std::map<output_index, trx_output> lotto_wallet::list_jackpots(lotto_db& db)
 {

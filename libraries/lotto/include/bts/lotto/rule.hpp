@@ -22,7 +22,7 @@ namespace bts { namespace lotto {
             :trx_id(t), ticket_num(k){}
 
         transaction_id_type trx_id;
-        uint32_t ticket_num;
+        uint32_t            ticket_num;
     };
 
     /**

@@ -7,7 +7,7 @@
 #include <bts/lotto/lotto_wallet.hpp>
 #include <bts/lotto/lotto_cli.hpp>
 #include <bts/lotto/lotto_rpc_server.hpp>
-#include <bts/lotto/lotto_client.hpp>
+#include <bts/lotto/lotto_delegate.hpp>
 #include <fc/filesystem.hpp>
 #include <fc/thread/thread.hpp>
 #include <fc/log/file_appender.hpp>
@@ -100,11 +100,10 @@ int main(int argc, char** argv)
         auto wall = std::make_shared<bts::lotto::lotto_wallet>(lotto_db);
 		wall->set_data_directory(datadir);
 
-		auto c = std::make_shared<bts::lotto::lotto_client>();
+		auto c = std::make_shared<bts::client::client>();
         _global_client = c.get();
 		c->set_chain(lotto_db);
 		c->set_wallet(wall);
-        // TODO: Run lotto delegate instead
         c->run_delegate();
 
         bts::lotto::lotto_rpc_server_ptr rpc_server = std::make_shared<bts::lotto::lotto_rpc_server>();
@@ -133,13 +132,18 @@ int main(int argc, char** argv)
             std::cout << "Not starting rpc server, use --server to enable the rpc interface\n";
         }
 
+        // TODO: Run lotto delegate instead
+        auto lotto_del = std::make_shared<bts::lotto::lotto_delegate>();
+        lotto_del->set_lotto_db(lotto_db);
+        lotto_del->set_lotto_wallet(wall);
+        lotto_del->set_client(c);
 		if (option_variables.count("trustee-private-key"))
 		{
 			auto key = fc::variant(option_variables["trustee-private-key"].as<std::string>()).as<fc::ecc::private_key>();
             
             // TODO: remove useless wallet-pass parameter
             FC_ASSERT(option_variables.count("wallet-pass"));
-            c->run_secret_broadcastor(key, option_variables["wallet-pass"].as<std::string>(), datadir);
+            lotto_del->run_secret_broadcastor(key, option_variables["wallet-pass"].as<std::string>(), datadir);
 			// For testing
             // private key: 733fb1f1a4e00d079fd3506067186168a2bccf45b4fa78d760a12be7f4ba8e0b
             // bts address : XTS6Rzax4UCu67SE19Xet99njVuNBPA9Lc1j
@@ -153,7 +157,7 @@ int main(int argc, char** argv)
 			auto key = fc::json::from_file("trustee.key").as<fc::ecc::private_key>();
             
             FC_ASSERT(option_variables.count("wallet-pass"));
-            c->run_secret_broadcastor(key, option_variables["wallet-pass"].as<std::string>(), datadir);
+            lotto_del->run_secret_broadcastor(key, option_variables["wallet-pass"].as<std::string>(), datadir);
 		}
 
         c->configure(datadir);

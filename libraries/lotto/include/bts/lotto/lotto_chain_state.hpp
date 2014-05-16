@@ -12,6 +12,6 @@ namespace bts {namespace lotto {
 
         virtual void                  apply_deterministic_updates() override;
 
-        virtual void                  apply_changes() const;
+        virtual void                  apply_changes() const override;
     };
 } } // bts::lotto

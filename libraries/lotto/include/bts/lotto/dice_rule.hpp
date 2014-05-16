@@ -9,11 +9,11 @@ namespace bts { namespace lotto {
         public:
 
             dice_rule(lotto_db* db, ticket_type t, asset_id_type u);
-            virtual ~dice_rule();
+            virtual ~dice_rule() override;
 
             uint64_t calculate_payout(uint64_t block_random, uint64_t ticket_random, uint16_t odds, uint64_t amt);
 
-            virtual asset jackpot_payout(const meta_ticket_output& meta_ticket_out);
+            virtual asset jackpot_payout(const meta_ticket_output& meta_ticket_out) override;
 
         protected:
             std::unique_ptr<detail::dice_rule_impl> my;
