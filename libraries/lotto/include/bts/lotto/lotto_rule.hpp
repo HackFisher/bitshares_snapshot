@@ -138,12 +138,12 @@ class lotto_rule : public rule
        static const uint64_t& total_space();
 
        lotto_rule(lotto_db* db, ticket_type t, asset_id_type u);
-       virtual ~lotto_rule();
+       virtual ~lotto_rule() override;
 
        std::pair<transaction_location, uint64_t> jackpot_paid_in_transaction(const signed_transaction& trx);
 
-       virtual void                  open( const fc::path& dir, bool create = true );
-       virtual void                  close();
+       virtual void                  open( const fc::path& dir, bool create = true ) override;
+       virtual void                  close() override;
 
       /**
        * Provided with block random_number, calculated the total jackpots will be in the block
@@ -152,7 +152,7 @@ class lotto_rule : public rule
        */
        uint64_t evaluate_total_jackpot(const uint64_t& block_random_number, const uint64_t& ticket_sale, const uint64_t& target_block_num, const uint64_t& jackpot_pool);
       
-       virtual asset jackpot_payout(const meta_ticket_output& meta_ticket_out);
+       virtual asset jackpot_payout(const meta_ticket_output& meta_ticket_out) override;
 
        //virtual void validate(const full_block& blk, const signed_transactions& deterministic_trxs);
 

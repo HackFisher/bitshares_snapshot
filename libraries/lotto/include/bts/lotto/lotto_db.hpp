@@ -45,7 +45,7 @@ class lotto_db : public bts::blockchain::chain_database
         /**
         *  Evaluate the transaction and return the results.
         */
-        virtual transaction_evaluation_state_ptr evaluate_transaction(const signed_transaction& trx);
+        virtual transaction_evaluation_state_ptr evaluate_transaction(const signed_transaction& trx) override;
 
         /**
          * Performs global validation of a block to make sure that no two transactions conflict. In

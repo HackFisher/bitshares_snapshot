@@ -13,7 +13,7 @@ namespace bts { namespace lotto {
   {
   public:
     lotto_rpc_server();
-    ~lotto_rpc_server();
+    virtual ~lotto_rpc_server() override;
   private:
     std::unique_ptr<detail::lotto_rpc_server_impl> my;
   };
