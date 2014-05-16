@@ -1,5 +1,7 @@
 #pragma once
 #include <bts/client/client.hpp>
+#include <bts/lotto/lotto_db.hpp>
+#include <bts/lotto/lotto_wallet.hpp>
 
 namespace bts { namespace lotto {
 
@@ -12,9 +14,9 @@ namespace bts { namespace lotto {
 
             ~lotto_delegate();
 
-            void set_lotto_db(const bts::lotto::lotto_db_ptr& ptr);
+            void set_lotto_db(const lotto_db_ptr& ptr);
 
-            void set_lotto_wallet(const bts::lotto::lotto_wallet_ptr& wall);
+            void set_lotto_wallet(const lotto_wallet_ptr& wall);
 
             void set_client(const bts::client::client_ptr client);
 
