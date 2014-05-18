@@ -5,11 +5,8 @@
 #include <fc/thread/thread.hpp>
 #include <fc/log/logger.hpp>
 
-namespace fc {
-    template<> struct get_typename<fc::sha256>        { static const char* name()  { return "fc::sha256"; } };
-} // namespace fc
-
 namespace bts { namespace lotto {
+
     namespace detail
     {
         class lotto_delegate_impl

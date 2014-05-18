@@ -69,3 +69,4 @@ typedef std::shared_ptr<lotto_db> lotto_db_ptr;
 }} // bts::lotto
 
 FC_REFLECT( bts::lotto::block_summary, (random_number))
+FC_REFLECT_TYPENAME(std::vector<uint32_t>);

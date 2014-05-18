@@ -8,10 +8,6 @@
 #include <bts/lotto/lotto_config.hpp>
 #include <bts/lotto/ticket_factory.hpp>
 
-namespace fc {
-    template<> struct get_typename<std::vector<uint32_t>>        { static const char* name()  { return "std::vector<uint32_t>"; } };
-} // namespace fc
-
 namespace bts { namespace lotto {
 
     namespace detail

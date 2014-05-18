@@ -44,9 +44,9 @@ namespace bts { namespace lotto {
         /* description */  "TODO:buy tickets for specific lucky number with some odds.",
         /* returns: */    "bool",
         /* params:          name                 type      required */
-                        { { "lucky_number", "uint64_t", true },
-                          { "odds", "uint64_t", true },
-                          { "amount", "asset", true } },
+        { { "lucky_number", "uint64_t", rpc_server::required_positional, fc::ovariant() },
+        { "odds", "uint64_t", rpc_server::optional_positional, fc::ovariant(1) },
+        { "amount", "asset", rpc_server::optional_positional, fc::ovariant(asset(1000)) } },
         /* prerequisites */ rpc_server::json_authenticated | rpc_server::wallet_open | rpc_server::wallet_unlocked,
         R"(
 TODO:
@@ -70,7 +70,7 @@ TODO:
         /* description */  "TODO:buy 1 share of lotto ticket.",
         /* returns: */    "bool",
         /* params:          name                 type      required */
-                            { { "lucky_number", "uint64_t", true } },
+        { { "lucky_number", "uint64_t", rpc_server::required_positional, fc::ovariant() } },
          /* prerequisites */ rpc_server::json_authenticated | rpc_server::wallet_open | rpc_server::wallet_unlocked,
         R"(
 TODO: FORMAT: R1 R2 R3 R4 R5 | B1 B2 e.g. 3 6 21 25 31 | 4 7
@@ -152,7 +152,7 @@ TODO:
         /* description */  "Cash the jackpot to balance",
         /* returns: */    "bool",
         /* params:          name                 type      required */
-        { { "jackpot_idx", "output_idx", true } },
+        { { "jackpot_idx", "output_idx", rpc_server::required_positional, fc::ovariant() } },
         /* prerequisites */ rpc_server::json_authenticated | rpc_server::wallet_open | rpc_server::wallet_unlocked,
         R"(
 TODO:

@@ -69,7 +69,9 @@ bts::blockchain::signed_transaction lotto_wallet::buy_ticket(const uint64_t& luc
 asset amount)
 {
     try {
+        
         signed_transaction trx;
+        /*
         // TODO: validate lucknumber, odds, and amount
 
         auto jackpot_addr = new_receive_address("Owner address for jackpot");
@@ -83,6 +85,8 @@ asset amount)
         trx.outputs.push_back(trx_output(ticket_output, amount));
 
         return collect_inputs_and_sign(trx, amount);
+        */
+        return trx;
     } FC_RETHROW_EXCEPTIONS(warn, "buy_ticket ${luckynumber} with ${odds}, amount {amt}", ("name", luckynumber)("odds", odds)("amt", amount))
 }
 
