@@ -3,10 +3,12 @@
 #include <bts/blockchain/chain_database.hpp>
 #include <bts/wallet/wallet.hpp>
 #include <bts/blockchain/config.hpp>
+#include <bts/blockchain/time.hpp>
 #include <fc/exception/exception.hpp>
 #include <fc/log/logger.hpp>
 #include <fc/io/json.hpp>
 #include <fc/thread/thread.hpp>
+#include <iostream>
 
 using namespace bts::blockchain;
 using namespace bts::wallet;
@@ -133,16 +135,15 @@ BOOST_AUTO_TEST_CASE( genesis_block_test )
 
          full_block next_block = blockchain->generate_block( next_block_time );
          my_wallet.sign_block( next_block );
-         ilog( "\n\n\n                   MY_WALLET   PUSH_BLOCK" );
+         ilog( "                MY_WALLET   PUSH_BLOCK" );
          blockchain->push_block( next_block );
-         ilog( "\n\n\n                   YOUR_WALLET   PUSH_BLOCK" );
+         ilog( "                YOUR_WALLET   PUSH_BLOCK" );
          blockchain2->push_block( next_block );
 
          ilog( "my balance: ${my}   your balance: ${your}",
                ("my",my_wallet.get_balance("*",0))
                ("your",your_wallet.get_balance("*",0)) );
 
-         ilog( "\n\n" );
          FC_ASSERT( total_sent == your_wallet.get_balance("*",0).amount, "",
                     ("toatl_sent",total_sent)("balance",your_wallet.get_balance("*",0).amount));
 
@@ -219,10 +220,10 @@ BOOST_AUTO_TEST_CASE( basic_fork_test )
 
 
     // produce blocks for 30 seconds...
-    for( uint32_t i = 0; i < 10; ++i )
+    for( uint32_t i = 0; i < 20; ++i )
     {
-       auto now = fc::time_point::now();
-       std::cerr << "now: "<< std::string( now ) << "\n";
+       auto now = bts::blockchain::now(); //fc::time_point::now();
+       std::cerr << "now: "<< std::string( fc::time_point(now) ) << "\n";
        auto my_next_block_time = my_wallet.next_block_production_time();
        if( my_next_block_time == now )
        {
@@ -243,7 +244,8 @@ BOOST_AUTO_TEST_CASE( basic_fork_test )
        }
        auto sleep_time_sec =  BTS_BLOCKCHAIN_BLOCK_INTERVAL_SEC  - (now.sec_since_epoch() % BTS_BLOCKCHAIN_BLOCK_INTERVAL_SEC);
        std::cerr << "sleeping " << sleep_time_sec << "s \n";
-       fc::usleep( fc::seconds( sleep_time_sec ) );
+       bts::blockchain::advance_time(sleep_time_sec);
+      // fc::usleep( fc::seconds( sleep_time_sec ) );
     }
 
     // we now have two chains of different lengths
@@ -252,21 +254,30 @@ BOOST_AUTO_TEST_CASE( basic_fork_test )
     std::cerr << "synchronizing chains\n";
     uint32_t your_length = your_chain->get_head_block_num();
     std::cerr << "your length: "<<your_length << "\n";
-    for( uint32_t i = 1; i <= your_length; ++i )
+    for( uint32_t i = your_length-1; i > 0 ; --i )
     {
        try {
           auto b = your_chain->get_block( i );
           my_chain->push_block(b);
-          std::cerr << "push block: " << b.block_num << "    my length: " << my_chain->get_head_block_num() << "\n";
+          std::cerr << "push block: " << b.block_num 
+                    << "    my length: " << my_chain->get_head_block_num() 
+                    << "  your_length: " << your_length << " \n";
        } 
        catch ( const fc::exception& e ) 
        {
           std::cerr << "    exception: " << e.to_string() << "\n";
        }
     }
+       auto b = your_chain->get_block( your_length );
+       my_chain->push_block(b);
+       std::cerr << "push block: " << b.block_num 
+                 << "    my length: " << my_chain->get_head_block_num() 
+                 << "  your_length: " << your_length << " \n";
+
+    my_chain->export_fork_graph( "fork_graph.dot" );
     FC_ASSERT( my_chain->get_head_block_num() == your_chain->get_head_block_num() );
   } 
-   catch ( const fc::exception& e )
+  catch ( const fc::exception& e )
   {
      elog( "${e}", ("e",e.to_detail_string() ) );
      throw;
