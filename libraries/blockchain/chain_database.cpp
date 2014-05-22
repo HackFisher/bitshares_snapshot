@@ -455,14 +455,6 @@ namespace bts { namespace blockchain {
       void chain_database_impl::update_delegate_production_info( const full_block& produced_block,
                                                                  const pending_chain_state_ptr& pending_state )
       {
-          auto headblock_timestamp = _head_block_header.timestamp;
-          if( _head_block_header.block_num == 0 )
-          {
-              headblock_timestamp = produced_block.timestamp;
-              headblock_timestamp -= BTS_BLOCKCHAIN_BLOCK_INTERVAL_SEC;
-          }
-
-
           // validate secret
           {
              auto delegate_id = self->get_signing_delegate_id( produced_block.timestamp );
@@ -478,12 +470,17 @@ namespace bts { namespace blockchain {
                             ("delegate",*delegate_rec) );
              }
 
-
              delegate_rec->delegate_info->next_secret_hash         = produced_block.next_secret_hash;
              delegate_rec->delegate_info->last_block_num_produced  = produced_block.block_num;
              pending_state->store_name_record( *delegate_rec );
           }
-          
+
+          auto headblock_timestamp = _head_block_header.timestamp;
+          if( _head_block_header.block_num == 0 )
+          {
+              headblock_timestamp = produced_block.timestamp;
+              headblock_timestamp -= BTS_BLOCKCHAIN_BLOCK_INTERVAL_SEC;
+          }
 
           do
           {
@@ -542,7 +539,6 @@ namespace bts { namespace blockchain {
             pay_delegate( block_data.timestamp, block_data.delegate_pay_rate, pending_state );
 
             update_random_seed( block_data.previous_secret, pending_state );
-
 
             save_undo_state( block_id, pending_state );
 
@@ -972,7 +968,8 @@ namespace bts { namespace blockchain {
          my->_names.remove( name_id );
          if( name_rec.valid() )
             my->_name_index.remove( name_rec->name );
-         // TODO: remove vote index as well...
+         if ( name_rec.valid() && name_rec->is_delegate() )
+            my->_delegate_vote_index.remove( vote_del(name_rec->net_votes(), name_rec->id) );
       } catch ( const fc::exception& e )
       {
          wlog( "caught exception ${e}", ("e", e.to_detail_string() ) );
