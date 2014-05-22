@@ -24,10 +24,8 @@ namespace bts { namespace lotto {
 
                 void secret_loop();
 
-                void generate_broadcast_next_secret();
+                void generate_broadcast_next_secret(name_id_type delegate_id);
 
-                fc::ecc::private_key                                        _trustee_key;
-                std::string                                                 _wallet_pass;
                 fc::time_point                                              _last_block_timestamp;
 
                 fc::future<void>                                            _secret_loop_complete;
@@ -70,14 +68,16 @@ namespace bts { namespace lotto {
             }
         }
 
-        void lotto_delegate_impl::generate_broadcast_next_secret()
+        void lotto_delegate_impl::generate_broadcast_next_secret(name_id_type delegate_id)
         {
             FC_ASSERT(!_lotto_wallet->is_locked());
 
-            uint32_t delegate_id = _lotto_db->get_head_block_num() % BTS_BLOCKCHAIN_NUM_DELEGATES + 1;
             auto secret_pair = delegate_secret_last_revealed_secret_pair(delegate_id);
+
+            auto delegate_rec = _lotto_db->get_name_record( delegate_id );
             // TODO: maybe move from wallet to here if no fees
-            auto secret_trx = _lotto_wallet->next_secret(secret_pair.first, secret_pair.second, delegate_id, address(_trustee_key.get_public_key()));
+            // TODO: this already have a build-in implement in the newest toolkit. TO BE replaced.
+            auto secret_trx = _lotto_wallet->next_secret(secret_pair.first, secret_pair.second, delegate_id, address(delegate_rec->active_key));
             _client->broadcast_transaction(secret_trx);
         }
 
@@ -105,11 +105,11 @@ namespace bts { namespace lotto {
                 }
                 */
 
-                _lotto_wallet->import_private_key(_trustee_key, "import trustee key", "trustee");
-                _lotto_wallet->scan_chain(0);
+                auto next_block_time = _lotto_wallet->next_block_production_time();
+                auto signing_delegate_id = _lotto_db->get_signing_delegate_id( next_block_time );
 
                 // broadcast a secret
-                generate_broadcast_next_secret();
+                generate_broadcast_next_secret(signing_delegate_id);
             }
             catch (const fc::exception& e)
             {
@@ -121,18 +121,43 @@ namespace bts { namespace lotto {
                 auto new_block_time = _lotto_db->get_head_block().timestamp;
 
                 // new block is out
+                // TODO: it would be better for lotto to generate secret in block, and get delegate id directly from block.
+                // Couldn't we get this delegate_id by get_name(block.signee()) ? That could be better.
+                // TODO: Test this.
                 if (new_block_time > _last_block_timestamp)
                 {
-                    try {
-                        // broadcast new secret
-                        generate_broadcast_next_secret();
-
-                        // generate secret could fail due to wallet lock, so move below to keep trying after unlock wallet
-                        _last_block_timestamp = new_block_time;
-                    }
-                    catch (const fc::exception& e)
+                    auto now = fc::time_point::now();
+                    auto next_block_time = _lotto_wallet->next_block_production_time();
+                    ilog( "next block time: ${b}  interval: ${i} seconds",
+                          ("b",next_block_time)("i",BTS_BLOCKCHAIN_BLOCK_INTERVAL_SEC) );
+                    if( next_block_time < now ||
+                        (next_block_time - now) > fc::seconds(BTS_BLOCKCHAIN_BLOCK_INTERVAL_SEC) )
                     {
-                        elog("error broadcasting next secret?: ${e}", ("e", e.to_detail_string()));
+                       fc::usleep( fc::seconds(BTS_BLOCKCHAIN_BLOCK_INTERVAL_SEC) );
+                       continue;
+                    }
+                    else
+                    {
+                        if ( _lotto_wallet->is_unlocked() )
+                        {
+                            try {
+                                auto next_block_time = _lotto_wallet->next_block_production_time();
+                                auto signing_delegate_id = _lotto_db->get_signing_delegate_id( next_block_time );
+                                // broadcast new secret
+                                generate_broadcast_next_secret(signing_delegate_id);
+
+                                // generate secret could fail due to wallet lock, so move below to keep trying after unlock wallet
+                                _last_block_timestamp = new_block_time;
+                            }
+                            catch (const fc::exception& e)
+                            {
+                                elog("error broadcasting next secret?: ${e}", ("e", e.to_detail_string()));
+                            }
+                        }
+                        else
+                        {
+                           elog( "unable to produce block because wallet is locked" );
+                        }
                     }
                 }
 
@@ -182,10 +207,8 @@ namespace bts { namespace lotto {
         my->_client = client;
     }
 
-    void lotto_delegate::run_secret_broadcastor(const fc::ecc::private_key& k, const std::string& wallet_pass, const fc::path& datadir)
+    void lotto_delegate::run_secret_broadcastor(const fc::path& datadir)
     {
-        my->_trustee_key = k;
-        my->_wallet_pass = wallet_pass;
         my->_secret_loop_complete = fc::async([=](){ my->secret_loop(); });
 
         my->_data_dir = datadir;

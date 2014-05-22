@@ -27,7 +27,7 @@ class lotto_db : public bts::blockchain::chain_database
         lotto_db();
         ~lotto_db();
 
-        void            open( const fc::path& dir, fc::optional<fc::path> genesis_file = fc::optional<fc::path>() );
+        void            open( const fc::path& dir, fc::path genesis_file );
         void            close();
 
         rule_ptr        get_rule_ptr(const ticket_type& type);

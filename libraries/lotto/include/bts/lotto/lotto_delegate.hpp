@@ -20,7 +20,7 @@ namespace bts { namespace lotto {
 
             void set_client(const bts::client::client_ptr client);
 
-            void run_secret_broadcastor(const fc::ecc::private_key& k, const std::string& wallet_pass, const fc::path& datadir);
+            void run_secret_broadcastor(const fc::path& datadir);
         private:
             std::unique_ptr<detail::lotto_delegate_impl> my;
 

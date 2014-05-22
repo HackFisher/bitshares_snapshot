@@ -7,6 +7,7 @@ include_directories( "${CMAKE_SOURCE_DIR}/libraries/net/include" )
 include_directories( "${CMAKE_SOURCE_DIR}/libraries/rpc/include" )
 include_directories( "${CMAKE_SOURCE_DIR}/libraries/cli/include" )
 include_directories( "${CMAKE_SOURCE_DIR}/libraries/lotto/include" )
+include_directories( "${CMAKE_SOURCE_DIR}/libraries/utilities/include" )
 
 add_executable( lotto_client main.cpp )
-target_link_libraries( lotto_client bts_lotto bitcoin_import bts_wallet bts_rpc bts_cli bts_blockchain bts_db bts_net bts_client fc ${READLINE_LIBRARIES} ${CMAKE_DL_LIBS} ${crypto_library} ${ZLIB_LIBRARY} )
+target_link_libraries( lotto_client bts_lotto bitcoin_import bts_wallet bts_rpc bts_cli bts_blockchain bts_db bts_net bts_client bts_utilities fc ${READLINE_LIBRARIES} ${CMAKE_DL_LIBS} ${crypto_library} ${ZLIB_LIBRARY} upnpc-static )

@@ -2,7 +2,9 @@
 
 #include <bts/client/client.hpp>
 #include <bts/cli/cli.hpp>
+#include <bts/net/upnp.hpp>
 #include <bts/rpc/rpc_server.hpp>
+#include <bts/utilities/git_revision.hpp>
 #include <bts/lotto/lotto_db.hpp>
 #include <bts/lotto/lotto_wallet.hpp>
 #include <bts/lotto/lotto_cli.hpp>
@@ -14,14 +16,10 @@
 #include <fc/log/logger_config.hpp>
 #include <fc/io/json.hpp>
 #include <fc/reflect/variant.hpp>
+#include <fc/git_revision.hpp>
 
 #include <iostream>
-/// 
-
-// Genesisi address for testing
-// private key : c3d0b27f7ca5d2e3158536e97d4001b7b42ab4248000511b252639bd481510e4
-// bts address : Jx4he722kVNwNUVwz1f9mjNbQSN5RQHZo
-// pts address : Pc26hzt76ErpVvwqSYMEParQ6D5icvQXvo
+#include <iomanip>
 
 struct config
 {
@@ -41,31 +39,24 @@ bts::lotto::lotto_db_ptr load_and_configure_chain_database(const fc::path& datad
 
 bts::client::client* _global_client = nullptr;
 
-/*
-void handle_signal(int signum)
-{
-    if (_global_client) _global_client->get_wallet()->save();
-    exit(1);
-}
-*/
-
 int main(int argc, char** argv)
 {
 	// parse command-line options
 	boost::program_options::options_description option_config("Allowed options");
 	option_config.add_options()("data-dir", boost::program_options::value<std::string>(), "configuration data directory")
 		("help", "display this help message")
-		("port", boost::program_options::value<uint16_t>(), "set port to listen on")
-		("connect-to", boost::program_options::value<std::string>(), "set remote host to connect to")
+		("p2p-port", boost::program_options::value<uint16_t>()->default_value(8888), "set port to listen on")
+		("upnp", boost::program_options::value<bool>()->default_value(true), "Enable UPNP")
+        ("connect-to", boost::program_options::value<std::string>(), "set remote host to connect to")
 		("server", "enable JSON-RPC server")
+        ("daemon", "run in daemon mode with no CLI console")
 		("rpcuser", boost::program_options::value<std::string>(), "username for JSON-RPC")
 		("rpcpassword", boost::program_options::value<std::string>(), "password for JSON-RPC")
-		("rpcport", boost::program_options::value<uint16_t>(), "port to listen for JSON-RPC connections")
-		("httpport", boost::program_options::value<uint16_t>(), "port to listen for HTTP JSON-RPC connections")
-		("trustee-private-key", boost::program_options::value<std::string>(), "act as a trustee using the given private key")
-		("trustee-address", boost::program_options::value<std::string>(), "trust the given BTS address to generate blocks")
-        ("wallet-pass", boost::program_options::value<std::string>(), "when run as trustee, wallet password must be provided to unlock wallet for import trustee private key")
-		("genesis-json", boost::program_options::value<std::string>(), "generate a genesis block with the given json file (only for testing, only accepted when the blockchain is empty)");
+		("rpcport", boost::program_options::value<uint16_t>()->default_value(8889), "port to listen for JSON-RPC connections")
+		("httpport", boost::program_options::value<uint16_t>()->default_value(8880), "port to listen for HTTP JSON-RPC connections")
+		("genesis-config", boost::program_options::value<std::string>()->default_value("genesis.dat"), 
+                               "generate a genesis state with the given json file (only accepted when the blockchain is empty)")
+        ("version", "print the version information for bitshares lotto client");
 
 	boost::program_options::positional_options_description positional_config;
 	positional_config.add("data-dir", 1);
@@ -90,6 +81,16 @@ int main(int argc, char** argv)
 		return 0;
 	}
 
+    if (option_variables.count("version"))
+   {
+     std::cout << "bitshares lotto built on " << __DATE__ << " at " << __TIME__ << "\n";
+     std::cout << "  bitshares_toolkit revision: " << bts::utilities::git_revision_sha << "\n";
+     std::cout << "                              committed " << fc::get_approximate_relative_time_string(fc::time_point_sec(bts::utilities::git_revision_unix_timestamp)) << "\n";
+     std::cout << "                 fc revision: " << fc::git_revision_sha << "\n";
+     std::cout << "                              committed " << fc::get_approximate_relative_time_string(fc::time_point_sec(bts::utilities::git_revision_unix_timestamp)) << "\n";
+     return 0;
+   }
+
 	try {
 		print_banner();
 		fc::path datadir = get_data_dir(option_variables);
@@ -100,7 +101,7 @@ int main(int argc, char** argv)
         auto wall = std::make_shared<bts::lotto::lotto_wallet>(lotto_db);
 		wall->set_data_directory(datadir);
 
-		auto c = std::make_shared<bts::client::client>();
+		auto c = std::make_shared<bts::client::client>(lotto_db);
         _global_client = c.get();
 		c->set_chain(lotto_db);
 		c->set_wallet(wall);
@@ -125,7 +126,11 @@ int main(int argc, char** argv)
                 rpc_config.httpd_endpoint = fc::ip::endpoint(fc::ip::address("127.0.0.1"), option_variables["httpport"].as<uint16_t>());
             std::cerr << "starting json rpc server on " << std::string(rpc_config.rpc_endpoint) << "\n";
             std::cerr << "starting http json rpc server on " << std::string(rpc_config.httpd_endpoint) << "\n";
-            rpc_server->configure(rpc_config);
+            bool rpc_succuss = rpc_server->configure(rpc_config);
+            if (!rpc_succuss)
+            {
+                std::cerr << "Error starting rpc server\n\n";
+            }
         }
         else
         {
@@ -137,39 +142,49 @@ int main(int argc, char** argv)
         lotto_del->set_lotto_db(lotto_db);
         lotto_del->set_lotto_wallet(wall);
         lotto_del->set_client(c);
-		if (option_variables.count("trustee-private-key"))
-		{
-			auto key = fc::variant(option_variables["trustee-private-key"].as<std::string>()).as<fc::ecc::private_key>();
-            
-            // TODO: remove useless wallet-pass parameter
-            FC_ASSERT(option_variables.count("wallet-pass"));
-            lotto_del->run_secret_broadcastor(key, option_variables["wallet-pass"].as<std::string>(), datadir);
-			// For testing
-            // private key: 733fb1f1a4e00d079fd3506067186168a2bccf45b4fa78d760a12be7f4ba8e0b
-            // bts address : XTS6Rzax4UCu67SE19Xet99njVuNBPA9Lc1j
-            // pts address : PiNC7Pfj9cmjk9tV1rJ5Kpie6hDEFaRxDb
-            // private key : e9624cab9020b00ab1a57a97c9487c7692515c29cdb0ef8444098251a932ad4c
-            // bts address : XTSJkNxZ3iboKZPYHGknQjshvXtu5ZKh8FRX
-            // pts address : PjjSxKEzJefHKobj96igfBBNdRho25VpbR
-		}
-		else if (fc::exists("trustee.key"))
-		{
-			auto key = fc::json::from_file("trustee.key").as<fc::ecc::private_key>();
-            
-            FC_ASSERT(option_variables.count("wallet-pass"));
-            lotto_del->run_secret_broadcastor(key, option_variables["wallet-pass"].as<std::string>(), datadir);
-		}
+
+        lotto_del->run_secret_broadcastor(datadir);
 
         c->configure(datadir);
-        if (option_variables.count("port"))
-            c->listen_on_port(option_variables["port"].as<uint16_t>());
+        if (option_variables.count("p2p-port"))
+        {
+             auto p2pport = option_variables["p2p-port"].as<uint16_t>();
+             std::cout << "Listening to P2P connections on port "<<p2pport<<"\n";
+             c->listen_on_port(p2pport);
+
+             if( option_variables["upnp"].as<bool>() )
+             {
+                std::cout << "Attempting to map UPNP port...\n";
+                auto upnp_service = new bts::net::upnp_service();
+                upnp_service->map_port( p2pport );
+                fc::usleep( fc::seconds(3) );
+             }
+        }
+            
         c->connect_to_p2p_network();
+
         if (option_variables.count("connect-to"))
-            c->connect_to_peer(option_variables["connect-to"].as<std::string>());
+        {
+            std::vector<std::string> hosts = option_variables["connect-to"].as<std::vector<std::string>>();
+            for( auto peer : hosts )
+            {
+               c->connect_to_peer( peer );
+            }
+        }
 
-		auto cli = std::make_shared<bts::lotto::lotto_cli>(c, rpc_server);
-		cli->wait();
-
+        if( !option_variables.count("daemon") )
+        {
+            auto cli = std::make_shared<bts::lotto::lotto_cli>(c, rpc_server);
+		    cli->wait();
+        }
+		else if( option_variables.count( "server" ) ) // daemon & server
+        {
+            rpc_server->wait_on_quit();
+        }
+        else // daemon  !server
+        {
+            std::cerr << "You must start the rpc server in daemon mode\n";
+        }
 	}
 	catch (const fc::exception& e)
 	{
@@ -196,20 +211,39 @@ void print_banner()
 
 void configure_logging(const fc::path& data_dir)
 {
-	fc::file_appender::config ac;
-	ac.filename = data_dir / "log.txt";
-	ac.truncate = false;
-	ac.flush = true;
 	fc::logging_config cfg;
+    
+    fc::file_appender::config ac;
+    ac.filename = data_dir / "default.log";
+    ac.truncate = false;
+    ac.flush    = true;
 
-	cfg.appenders.push_back(fc::appender_config("default", "file", fc::variant(ac)));
+    std::cout << "Logging to file \"" << ac.filename.generic_string() << "\"\n";
+    
+    fc::file_appender::config ac_rpc;
+    ac_rpc.filename = data_dir / "rpc.log";
+    ac_rpc.truncate = false;
+    ac_rpc.flush    = true;
 
-	fc::logger_config dlc;
-	dlc.level = fc::log_level::debug;
-	dlc.name = "default";
-	dlc.appenders.push_back("default");
-	cfg.loggers.push_back(dlc);
-	fc::configure_logging(cfg);
+    std::cout << "Logging RPC to file \"" << ac_rpc.filename.generic_string() << "\"\n";
+    
+    cfg.appenders.push_back(fc::appender_config( "default", "file", fc::variant(ac)));
+    cfg.appenders.push_back(fc::appender_config( "rpc", "file", fc::variant(ac_rpc)));
+    
+    fc::logger_config dlc;
+    dlc.level = fc::log_level::debug;
+    dlc.name = "default";
+    dlc.appenders.push_back("default");
+    
+    fc::logger_config dlc_rpc;
+    dlc_rpc.level = fc::log_level::debug;
+    dlc_rpc.name = "rpc";
+    dlc_rpc.appenders.push_back("rpc");
+    
+    cfg.loggers.push_back(dlc);
+    cfg.loggers.push_back(dlc_rpc);
+    
+    fc::configure_logging( cfg );
 }
 
 
@@ -238,16 +272,16 @@ fc::path get_data_dir(const boost::program_options::variables_map& option_variab
 
 bts::lotto::lotto_db_ptr load_and_configure_chain_database(const fc::path& datadir,
 	const boost::program_options::variables_map& option_variables)
-{
-    std::cout << "Loading blockchain from " << (datadir / "chain").generic_string() << "\n";
-	auto db = std::make_shared<bts::lotto::lotto_db>();
-    fc::optional<fc::path> genesis_file;
-    if (option_variables.count("genesis-json"))
-        genesis_file = option_variables["genesis-json"].as<std::string>();
+{ try {
+  std::cout << "Loading blockchain from \"" << ( datadir / "chain" ).generic_string()  << "\"\n";
+  auto db = std::make_shared<bts::lotto::lotto_db>();
 
-    db->open(datadir / "chain", genesis_file);
-	return db;
-}
+  fc::path genesis_file = option_variables["genesis-config"].as<std::string>();
+  std::cout << "Using genesis block from file \"" << fc::absolute( genesis_file ).string() << "\"\n";
+  db->open(datadir / "chain", genesis_file);
+
+  return db;
+} FC_RETHROW_EXCEPTIONS( warn, "unable to open blockchain from ${data_dir}", ("data_dir",datadir/"chain") ) }
 
 config load_config(const fc::path& datadir)
 {
@@ -256,6 +290,7 @@ config load_config(const fc::path& datadir)
 		config cfg;
 		if (fc::exists(config_file))
 		{
+            std::cout << "Loading config \"" << config_file.generic_string()  << "\"\n";
 			cfg = fc::json::from_file(config_file).as<config>();
 		}
 		else

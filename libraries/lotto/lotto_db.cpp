@@ -129,7 +129,7 @@ namespace bts { namespace lotto {
     {
     }
 
-    void lotto_db::open( const fc::path& dir, fc::optional<fc::path> genesis_file )
+    void lotto_db::open( const fc::path& dir, fc::path genesis_file )
     {
         try {
             chain_database::open(dir, genesis_file);
