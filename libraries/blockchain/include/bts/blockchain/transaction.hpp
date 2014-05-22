@@ -12,6 +12,7 @@ namespace bts { namespace blockchain {
 
    class chain_interface;
    typedef std::shared_ptr<chain_interface> chain_interface_ptr;
+   struct fire_delegate_operation;
 
    /**
     *  A transaction is a set of operations that are
@@ -35,6 +36,8 @@ namespace bts { namespace blockchain {
       fc::optional<name_id_type>       delegate_id; // delegate being voted for in required payouts
       std::vector<operation>           operations; 
 
+      void issue( const asset& amount_to_issue );
+
       void withdraw( const balance_id_type& account, 
                      share_type amount );
 
@@ -43,15 +46,31 @@ namespace bts { namespace blockchain {
                     name_id_type delegate_id );
 
       void reserve_name( const std::string& name, 
-                         const std::string& json_data, 
+                         const fc::variant& json_data, 
                          const public_key_type& master, 
                          const public_key_type& active, 
                          bool as_delegate = false );
 
       void update_name( name_id_type name_id, 
-                        const fc::optional<std::string>& json_data, 
+                        const fc::optional<fc::variant>& json_data, 
                         const fc::optional<public_key_type>& active, 
                         bool as_delegate = false );
+
+      void submit_proposal( name_id_type delegate_id,
+                            const std::string& subject,
+                            const std::string& body,
+                            const std::string& proposal_type,
+                            const fc::variant& json_data);
+
+      void vote_proposal(proposal_id_type proposal_id, name_id_type voter_id, uint8_t vote);
+
+
+      void create_asset( const std::string& symbol, 
+                         const std::string& name, 
+                         const std::string& description,
+                         const fc::variant& data,
+                         name_id_type issuer_id,
+                         share_type   max_share_supply );
    }; // transaction
 
    struct transaction_summary_details
@@ -151,6 +170,9 @@ namespace bts { namespace blockchain {
          virtual void evaluate_create_asset( const create_asset_operation& op );
          virtual void evaluate_update_asset( const update_asset_operation& op );
          virtual void evaluate_issue_asset( const issue_asset_operation& op );
+         virtual void evaluate_fire_operation( const fire_delegate_operation& op );
+         virtual void evaluate_submit_proposal( const submit_proposal_operation& op );
+         virtual void evaluate_vote_proposal( const vote_proposal_operation& op );
          
          virtual void fail( bts_error_code error_code, const fc::variant& data );
          

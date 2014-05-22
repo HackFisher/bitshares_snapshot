@@ -3,7 +3,7 @@
 #include <deque>
 #include <unordered_set>
 #include <list>
-//#include <deque>
+#include <iostream>
 #include <boost/tuple/tuple.hpp>
 #include <boost/circular_buffer.hpp>
 
@@ -62,7 +62,7 @@ namespace bts { namespace net {
 
       /// data about the peer node
       /// @{
-      node_id_t    node_id;
+      node_id_t        node_id;
       uint32_t         core_protocol_version;
       std::string      user_agent;
       fc::ip::endpoint inbound_endpoint;
@@ -239,6 +239,7 @@ namespace bts { namespace net {
     {
     public:
       node_delegate*       _delegate;
+      fc::sha256           _chain_id;
 
 #define NODE_CONFIGURATION_FILENAME      "node_config.json"
 #define POTENTIAL_PEER_DATABASE_FILENAME "peers.leveldb"
@@ -431,7 +432,7 @@ namespace bts { namespace net {
         direction = outbound;
 
         _remote_endpoint = remote_endpoint;
-        if (local_endpoint)
+        if (local_endpoint.valid())
           _message_connection.connect_to(remote_endpoint, *local_endpoint);
         else
           _message_connection.connect_to(remote_endpoint);
@@ -501,7 +502,7 @@ namespace bts { namespace net {
 
     bool peer_connection::busy() 
     { 
-      return !items_requested_from_peer.empty() || !sync_items_requested_from_peer.empty() || item_ids_requested_from_peer;
+      return !items_requested_from_peer.empty() || !sync_items_requested_from_peer.empty() || item_ids_requested_from_peer.valid();
     }
 
     bool peer_connection::idle()
@@ -922,6 +923,16 @@ namespace bts { namespace net {
     {
       bool already_connected_to_this_peer = is_already_connected_to_id(hello_message_received.node_id);
 
+      if( hello_message_received.chain_id != _chain_id )
+      {
+         wlog( "Recieved hello message from peer on a different chain: ${message}", ("message",hello_message_received) );
+         connection_rejected_message connection_rejected(_user_agent_string, core_protocol_version, originating_peer->get_socket().remote_endpoint());
+         originating_peer->state = peer_connection::connection_rejected_sent;
+         originating_peer->send_message(message(connection_rejected));
+         disconnect_from_peer( originating_peer );
+         return;
+      }
+
       // store off the data provided in the hello message
       originating_peer->node_id = hello_message_received.node_id;
       originating_peer->core_protocol_version = hello_message_received.core_protocol_version;
@@ -933,10 +944,10 @@ namespace bts { namespace net {
       originating_peer->user_agent = hello_message_received.user_agent;
 
       // now decide what to do with it
-      if (originating_peer->state == peer_connection::secure_connection_established && 
-          originating_peer->direction == peer_connection_direction::inbound)
+      if( originating_peer->state == peer_connection::secure_connection_established && 
+          originating_peer->direction == peer_connection_direction::inbound )
       {
-        if (!is_accepting_new_connections())
+        if( !is_accepting_new_connections() )
         {
           connection_rejected_message connection_rejected(_user_agent_string, core_protocol_version, originating_peer->get_socket().remote_endpoint());
           originating_peer->state = peer_connection::connection_rejected_sent;
@@ -944,7 +955,7 @@ namespace bts { namespace net {
           ilog("Received a hello_message from peer ${peer}, but I'm not accepting any more connections, rejection", 
                ("peer", originating_peer->get_remote_endpoint()));
         }
-        else if (already_connected_to_this_peer)
+        else if( already_connected_to_this_peer )
         {
           connection_rejected_message connection_rejected(_user_agent_string, core_protocol_version, originating_peer->get_socket().remote_endpoint());
           originating_peer->state = peer_connection::connection_rejected_sent;
@@ -952,8 +963,8 @@ namespace bts { namespace net {
           ilog("Received a hello_message from peer ${peer} that I'm already connected to, rejection", ("peer", originating_peer->get_remote_endpoint()));
         }
 #ifdef ENABLE_P2P_DEBUGGING_API
-        else if (!_allowed_peers.empty() && 
-                 _allowed_peers.find(originating_peer->node_id) == _allowed_peers.end())
+        else if( !_allowed_peers.empty() && 
+                 _allowed_peers.find(originating_peer->node_id) == _allowed_peers.end() )
         {
           connection_rejected_message connection_rejected(_user_agent_string, core_protocol_version, originating_peer->get_socket().remote_endpoint());
           originating_peer->state = peer_connection::connection_rejected_sent;
@@ -967,7 +978,7 @@ namespace bts { namespace net {
           potential_peer_record updated_peer_record = _potential_peer_db.lookup_or_create_entry_for_endpoint(originating_peer->inbound_endpoint);
           _potential_peer_db.update_entry(updated_peer_record);
 
-          hello_reply_message hello_reply(_user_agent_string, core_protocol_version, originating_peer->get_socket().remote_endpoint(), _node_id);
+          hello_reply_message hello_reply(_user_agent_string, core_protocol_version, originating_peer->get_socket().remote_endpoint(), _node_id, _chain_id);
           originating_peer->state = peer_connection::hello_reply_sent;
           originating_peer->send_message(message(hello_reply));
           ilog("Received a hello_message from peer ${peer}, sending reply to accept connection", ("peer", originating_peer->get_remote_endpoint()));
@@ -1160,7 +1171,7 @@ namespace bts { namespace net {
                                                              const blockchain_item_ids_inventory_message& blockchain_item_ids_inventory_message_received)
     {
       // ignore unless we asked for the data
-      if (originating_peer->item_ids_requested_from_peer)
+      if( originating_peer->item_ids_requested_from_peer.valid() )
       {
         originating_peer->item_ids_requested_from_peer.reset();
 
@@ -1535,7 +1546,9 @@ namespace bts { namespace net {
       auto iter = originating_peer->sync_items_requested_from_peer.find(item_id(bts::client::block_message_type, block_message_to_process.block_id));
       if (iter == originating_peer->sync_items_requested_from_peer.end())
       {
-        wlog("received a sync block I didn't ask for from peer ${endpoint}, disconnecting from peer", ("endpoint", originating_peer->get_remote_endpoint()));
+        wlog("received a sync block ${block_id} I didn't ask for from peer ${endpoint}, disconnecting from peer", 
+             ("endpoint", originating_peer->get_remote_endpoint())
+             ("block_id",block_message_to_process.block_id));
         disconnect_from_peer(originating_peer);
         return;
       }
@@ -1767,7 +1780,7 @@ namespace bts { namespace net {
 
         throw except;
       }
-      hello_message hello(_user_agent_string, core_protocol_version, _node_configuration.listen_endpoint, _node_id);
+      hello_message hello(_user_agent_string, core_protocol_version, _node_configuration.listen_endpoint, _node_id, _chain_id);
       new_peer->state = peer_connection::hello_sent;
       new_peer->send_message(message(hello));
       ilog("Sent \"hello\" to remote peer ${peer}", ("peer", new_peer->get_remote_endpoint()));
@@ -1777,6 +1790,7 @@ namespace bts { namespace net {
     void node_impl::set_delegate(node_delegate* del)
     {
       _delegate = del;
+      if( _delegate != nullptr ) _chain_id = del->get_chain_id();
     }
 
     void node_impl::load_configuration(const fc::path& configuration_directory)
@@ -1870,13 +1884,13 @@ namespace bts { namespace net {
       for (const peer_connection_ptr& active_peer : _active_connections)
       {
         fc::optional<fc::ip::endpoint> endpoint_for_this_peer(active_peer->get_remote_endpoint());
-        if (endpoint_for_this_peer && *endpoint_for_this_peer == remote_endpoint)
+        if (endpoint_for_this_peer.valid() && *endpoint_for_this_peer == remote_endpoint)
           return true;
       }
       for (const peer_connection_ptr& handshaking_peer : _handshaking_connections)
       {
         fc::optional<fc::ip::endpoint> endpoint_for_this_peer(handshaking_peer->get_remote_endpoint());
-        if (endpoint_for_this_peer && *endpoint_for_this_peer == remote_endpoint)
+        if (endpoint_for_this_peer.valid() && *endpoint_for_this_peer == remote_endpoint)
           return true;
       }
       return false;
@@ -1948,10 +1962,10 @@ namespace bts { namespace net {
         peer_status this_peer_status;
         this_peer_status.version = 0; // TODO
         fc::optional<fc::ip::endpoint> endpoint = peer->get_remote_endpoint();
-        if (endpoint)
+        if( endpoint.valid() )
           this_peer_status.host = *endpoint;
         fc::mutable_variant_object peer_details;
-        peer_details["addr"] = endpoint ? (std::string)*endpoint : std::string();
+        peer_details["addr"] = endpoint.valid() ? (std::string)*endpoint : std::string();
         peer_details["addrlocal"] = (std::string)peer->get_local_endpoint();
         peer_details["services"] = "00000001"; // TODO: assign meaning, right now this just prints what bitcoin prints
         peer_details["lastsend"] = peer->get_last_message_sent_time().sec_since_epoch();

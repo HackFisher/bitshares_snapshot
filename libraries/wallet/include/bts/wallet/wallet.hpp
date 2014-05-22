@@ -48,31 +48,31 @@ namespace bts { namespace wallet {
          void           set_data_directory( const fc::path& data_dir );
          fc::path       get_data_directory()const;
 
-         void           open( const std::string& wallet_name, const std::string& password = "password" );
-         void           create( const std::string& wallet_name, const std::string& key_password = "password" );
-         void           open_file( const fc::path& file, const std::string& password  = "password");
-         void           backup_wallet( const fc::path& file );
+         void           create( const std::string& wallet_name, const std::string& password );
+         void           open( const std::string& wallet_name, const std::string& password );
+         void           open_file( const fc::path& wallet_filename, const std::string& password );
+         bool           close();
 
-         fc::path       get_filename()const;
-         std::string    get_name()const;
+         void           backup_wallet( const fc::path& file );
+         void           export_to_json( const fc::path& path );
+         void           create_from_json( const fc::path& path, const std::string& name, const std::string& passphrase );
 
          bool           is_open()const;
-         bool           close();
+         std::string    get_name()const;
+         fc::path       get_filename()const;
          ///@}
 
          /**
           *  Lock management & security
           */
          ///@{
-         void           unlock( const std::string& password,
-                                const fc::microseconds& timeout = fc::seconds(60*60*24) );
-         fc::time_point unlocked_until()const;
-
+         void           unlock( const fc::microseconds& timeout, const std::string& password );
          void           lock();
+         void           change_password( const std::string& new_password );
+
          bool           is_unlocked()const;
          bool           is_locked()const;
-
-         void           change_password( const std::string& new_password );
+         fc::time_point unlocked_until()const;
          ///@}
 
          /**
@@ -187,6 +187,20 @@ namespace bts { namespace wallet {
                                          fc::optional<public_key_type> active = fc::optional<public_key_type>(),
                                          bool as_delegate = false,
                                          wallet_flag flag = sign_and_broadcast );
+
+         signed_transaction submit_proposal( const std::string& name,
+                                             const std::string& subject,
+                                             const std::string& body,
+                                             const std::string& proposal_type,
+                                             const fc::variant& data,
+                                             wallet_flag flag = sign_and_broadcast );
+
+         signed_transaction vote_proposal( const std::string& name, 
+                                           proposal_id_type proposal_id, 
+                                           uint8_t vote,
+                                           wallet_flag flag = sign_and_broadcast);
+
+
 
          void                                         set_delegate_trust_status(const std::string& delegate_name, fc::optional<int32_t> trust_level);
          delegate_trust_status                        get_delegate_trust_status(const std::string& delegate_name) const;

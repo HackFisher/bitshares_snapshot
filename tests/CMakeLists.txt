@@ -3,7 +3,7 @@ include_directories( ${CMAKE_SOURCE_DIR}/libraries/db/include )
 include_directories( ${CMAKE_SOURCE_DIR}/libraries/wallet/include )
 include_directories( ${CMAKE_SOURCE_DIR}/libraries/net/include )
 
-add_executable( chain_database_tests chain_tests.cpp )
+add_executable( chain_database_tests chain_database_tests.cpp )
 target_link_libraries( chain_database_tests bts_wallet bts_blockchain bts_net bitcoin_import fc ${BOOST_LIBRARIES} ${OPENSSL_LIBRARIES} ${PLATFORM_SPECIFIC_LIBS} ${crypto_library})
 
 include_directories( ${CMAKE_SOURCE_DIR}/libraries/client/include )
@@ -46,12 +46,12 @@ endif (false )
 
    include_directories( ${CMAKE_SOURCE_DIR}/libraries/rpc/include )
 
-   add_executable( bts_xt_client_tests bts_xt_client_tests.cpp )
+   add_executable( bitshares_client_tests bitshares_client_tests.cpp )
    if( WIN32 )
-       target_compile_definitions(bts_xt_client_tests PUBLIC BOOST_ALL_NO_LIB BOOST_ALL_DYN_LINK)
+       target_compile_definitions(bitshares_client_tests PUBLIC BOOST_ALL_NO_LIB BOOST_ALL_DYN_LINK)
        set( RPCRT4 Rpcrt4 )
    endif (WIN32)
-   target_link_libraries( bts_xt_client_tests bts_client bts_rpc bts_net bts_wallet bts_blockchain fc ${Boost_LIBRARIES} ${OPENSSL_LIBRARIES} ${RPCRT4} ${crypto_library})
+   target_link_libraries( bitshares_client_tests bts_client bts_rpc bts_net bts_wallet bts_blockchain fc ${Boost_LIBRARIES} ${OPENSSL_LIBRARIES} ${RPCRT4} ${crypto_library})
 
 if( false )
    add_subdirectory( dns )

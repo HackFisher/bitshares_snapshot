@@ -3,16 +3,18 @@
 #include <bts/blockchain/genesis_config.hpp>
 #include <bts/blockchain/time.hpp>
 
-#include <bts/db/level_pod_map.hpp>
 #include <bts/db/level_map.hpp>
+#include <bts/db/level_pod_map.hpp>
 
 #include <fc/io/json.hpp>
 #include <fc/io/raw_variant.hpp>
-
+#include <fc/io/fstream.hpp>
 #include <fc/log/logger.hpp>
-#include <fstream>
-using namespace bts::blockchain;
 
+#include <fstream>
+#include <iostream>
+
+using namespace bts::blockchain;
 
 struct vote_del
 {
@@ -26,7 +28,8 @@ struct vote_del
    }
    friend bool operator < ( const vote_del& a, const vote_del& b )
    {
-      return a.votes > b.votes ? true : (a.votes == b.votes ? a.delegate_id > b.delegate_id : false);
+      if( a.votes == b.votes ) return a.delegate_id < b.delegate_id; /* Lowest id wins in ties */
+      return a.votes > b.votes; /* Reverse so that highest rank is placed first in sorted maps */
    }
 };
 FC_REFLECT( vote_del, (votes)(delegate_id) )
@@ -88,9 +91,9 @@ namespace bts { namespace blockchain {
       class chain_database_impl
       {
          public:
-            chain_database_impl():self(nullptr),_observer(nullptr),_last_asset_id(0),_last_name_id(0){}
+            chain_database_impl():self(nullptr),_observer(nullptr){}
 
-            void                       initialize_genesis(fc::optional<fc::path> genesis_file = fc::optional<fc::path>());
+            void                       initialize_genesis(fc::path genesis_file);
 
             block_fork_data            store_and_index( const block_id_type& id, const full_block& blk );
             void                       clear_pending(  const full_block& blk );
@@ -115,6 +118,8 @@ namespace bts { namespace blockchain {
             std::vector<block_id_type> fetch_blocks_at_number( uint32_t block_num );
             void                       recursive_mark_as_linked( const std::unordered_set<block_id_type>& ids );
             void                       recursive_mark_as_invalid( const std::unordered_set<block_id_type>& ids );
+            void                       update_random_seed( secret_hash_type new_secret, 
+                                                          const pending_chain_state_ptr& pending_state );
 
 
             void update_delegate_production_info( const full_block& block_data, 
@@ -126,6 +131,8 @@ namespace bts { namespace blockchain {
             bts::db::level_map<uint32_t, std::vector<block_id_type> > _fork_number_db;
             bts::db::level_map<block_id_type,block_fork_data>         _fork_db;
             bts::db::level_map<uint32_t, fc::variant >                _properties_db;
+            bts::db::level_map<proposal_id_type, proposal_record >    _proposals_db;
+            bts::db::level_map<proposal_vote_id_type, proposal_vote > _proposal_votes_db;
 
             /** the data required to 'undo' the changes a block made to the database */
             bts::db::level_map<block_id_type,pending_chain_state>     _undo_state;
@@ -156,11 +163,6 @@ namespace bts { namespace blockchain {
 
             /** used to prevent duplicate processing */
             bts::db::level_pod_map< transaction_id_type, transaction_location >  _processed_transaction_ids;
-
-            asset_id_type _last_asset_id;
-            name_id_type  _last_name_id;
-
-            fc::ecc::public_key _trustee_key;
       };
 
       std::vector<block_id_type> chain_database_impl::fetch_blocks_at_number( uint32_t block_num )
@@ -424,9 +426,13 @@ namespace bts { namespace blockchain {
             digest_block digest_data(block_data);
             FC_ASSERT( digest_data.validate_digest() );
             FC_ASSERT( digest_data.validate_unique() );
+
+            // signign delegate id: 
+            auto signing_delegate_id = self->get_signing_delegate_id( block_data.timestamp );
             FC_ASSERT( block_data.validate_signee( self->get_signing_delegate_key(block_data.timestamp) ),
                        "", ("signing_delegate_key", self->get_signing_delegate_key(block_data.timestamp))
-                           ("signing_delegate_id", self->get_signing_delegate_id( block_data.timestamp)) );
+                           ("signing_delegate_id", signing_delegate_id ) );
+
       } FC_RETHROW_EXCEPTIONS( warn, "" ) }
 
       void chain_database_impl::update_head_block( const full_block& block_data )
@@ -446,31 +452,64 @@ namespace bts { namespace blockchain {
        *  Note that the header of block_data has already been verified by the caller and that updates
        *  are applied to pending_state.
        */
-      void chain_database_impl::update_delegate_production_info( const full_block& block_data,
+      void chain_database_impl::update_delegate_production_info( const full_block& produced_block,
                                                                  const pending_chain_state_ptr& pending_state )
       {
-          auto timestamp = _head_block_header.timestamp;
+          auto headblock_timestamp = _head_block_header.timestamp;
           if( _head_block_header.block_num == 0 )
           {
-              timestamp = block_data.timestamp;
-              timestamp -= BTS_BLOCKCHAIN_BLOCK_INTERVAL_SEC;
+              headblock_timestamp = produced_block.timestamp;
+              headblock_timestamp -= BTS_BLOCKCHAIN_BLOCK_INTERVAL_SEC;
           }
+
+
+          // validate secret
+          {
+             auto delegate_id = self->get_signing_delegate_id( produced_block.timestamp );
+             auto delegate_rec = pending_state->get_name_record( delegate_id );
+
+             if( delegate_rec->delegate_info->blocks_produced > 0 )
+             {
+                 auto hash_of_previous_secret = fc::ripemd160::hash(produced_block.previous_secret); 
+                 FC_ASSERT( hash_of_previous_secret == delegate_rec->delegate_info->next_secret_hash,
+                            "",
+                            ("previous_secret",produced_block.previous_secret)
+                            ("hash_of_previous_secret",hash_of_previous_secret)
+                            ("delegate",*delegate_rec) );
+             }
+
+
+             delegate_rec->delegate_info->next_secret_hash         = produced_block.next_secret_hash;
+             delegate_rec->delegate_info->last_block_num_produced  = produced_block.block_num;
+             pending_state->store_name_record( *delegate_rec );
+          }
+          
 
           do
           {
-              timestamp += BTS_BLOCKCHAIN_BLOCK_INTERVAL_SEC;
+              headblock_timestamp += BTS_BLOCKCHAIN_BLOCK_INTERVAL_SEC;
 
-              auto delegate_id = self->get_signing_delegate_id( timestamp );
+              auto delegate_id = self->get_signing_delegate_id( headblock_timestamp );
               auto delegate_rec = pending_state->get_name_record( delegate_id );
 
-              if( timestamp != block_data.timestamp )
+              if( headblock_timestamp != produced_block.timestamp )
                   delegate_rec->delegate_info->blocks_missed += 1;
               else
                   delegate_rec->delegate_info->blocks_produced += 1;
 
               pending_state->store_name_record( *delegate_rec );
           }
-          while( timestamp != block_data.timestamp );
+          while( headblock_timestamp != produced_block.timestamp );
+      }
+      void chain_database_impl::update_random_seed( secret_hash_type new_secret, 
+                                                    const pending_chain_state_ptr& pending_state )
+      {
+         auto current_seed = pending_state->get_current_random_seed();
+         fc::sha512::encoder enc;
+         fc::raw::pack( enc, new_secret );
+         fc::raw::pack( enc, current_seed );
+         pending_state->set_property( last_random_seed_id, 
+                                      fc::variant(fc::ripemd160::hash( enc.result() )) );
       }
 
       /**
@@ -502,10 +541,12 @@ namespace bts { namespace blockchain {
 
             pay_delegate( block_data.timestamp, block_data.delegate_pay_rate, pending_state );
 
+            update_random_seed( block_data.previous_secret, pending_state );
+
 
             save_undo_state( block_id, pending_state );
 
-            // in case we crash durring apply changes... remember what we
+            // in case we crash during apply changes... remember what we
             // were in the process of applying...
             //
             // TODO: what if we crash in the middle of save_redo_state?
@@ -665,63 +706,73 @@ namespace bts { namespace blockchain {
       return sorted_delegates;
    } FC_RETHROW_EXCEPTIONS( warn, "" ) }
 
-   void chain_database::open( const fc::path& data_dir, fc::optional<fc::path> genesis_file )
+   void chain_database::open( const fc::path& data_dir, fc::path genesis_file )
    { try {
-      fc::create_directories( data_dir );
-
-      my->_fork_number_db.open( data_dir / "fork_number_db", true );
-      my->_fork_db.open( data_dir / "fork_db", true );
-      my->_properties_db.open( data_dir / "properties", true );
-      my->_undo_state.open( data_dir / "undo_state", true );
-      my->_redo_state.open( data_dir / "redo_state", true );
-
-      my->_block_num_to_id.open( data_dir / "block_num_to_id", true );
-      my->_pending_transactions.open( data_dir / "pending_transactions", true );
-      my->_processed_transaction_ids.open( data_dir / "processed_transactions", true );
-      my->_block_id_to_block.open( data_dir / "block_id_to_block", true );
-      my->_assets.open( data_dir / "assets", true );
-      my->_names.open( data_dir / "names", true );
-      my->_balances.open( data_dir / "balances", true );
-
-      my->_name_index.open( data_dir / "name_index", true );
-      my->_symbol_index.open( data_dir / "symbol_index", true );
-      my->_delegate_vote_index.open( data_dir / "delegate_vote_index", true );
-
-      // TODO: check to see if we crashed durring the last write
-      //   if so, then apply the last undo operation stored.
-
-      uint32_t       last_block_num = -1;
-      block_id_type  last_block_id;
-      my->_block_num_to_id.last( last_block_num, last_block_id );
-      if( last_block_num != uint32_t(-1) )
+      bool is_new_data_dir = !fc::exists( data_dir );
+      try
       {
-         my->_head_block_header = get_block( last_block_id );
-         my->_head_block_id = last_block_id;
-         my->_names.fetch( my->_last_name_id );
-         my->_assets.fetch( my->_last_asset_id );
-      }
+          fc::create_directories( data_dir );
 
-      //  process the pending transactions to cache by fees
-      auto pending_itr = my->_pending_transactions.begin();
-      while( pending_itr.valid() )
+          my->_fork_number_db.open( data_dir / "fork_number_db", true );
+          my->_fork_db.open( data_dir / "fork_db", true );
+          my->_properties_db.open( data_dir / "properties", true );
+          my->_proposals_db.open( data_dir / "proposals", true );
+          my->_proposal_votes_db.open( data_dir / "proposal_votes", true );
+          my->_undo_state.open( data_dir / "undo_state", true );
+          my->_redo_state.open( data_dir / "redo_state", true );
+
+          my->_block_num_to_id.open( data_dir / "block_num_to_id", true );
+          my->_pending_transactions.open( data_dir / "pending_transactions", true );
+          my->_processed_transaction_ids.open( data_dir / "processed_transactions", true );
+          my->_block_id_to_block.open( data_dir / "block_id_to_block", true );
+          my->_assets.open( data_dir / "assets", true );
+          my->_names.open( data_dir / "names", true );
+          my->_balances.open( data_dir / "balances", true );
+
+          my->_name_index.open( data_dir / "name_index", true );
+          my->_symbol_index.open( data_dir / "symbol_index", true );
+          my->_delegate_vote_index.open( data_dir / "delegate_vote_index", true );
+
+          // TODO: check to see if we crashed during the last write
+          //   if so, then apply the last undo operation stored.
+
+          uint32_t       last_block_num = -1;
+          block_id_type  last_block_id;
+          my->_block_num_to_id.last( last_block_num, last_block_id );
+          if( last_block_num != uint32_t(-1) )
+          {
+             my->_head_block_header = get_block( last_block_id );
+             my->_head_block_id = last_block_id;
+          }
+
+          //  process the pending transactions to cache by fees
+          auto pending_itr = my->_pending_transactions.begin();
+          while( pending_itr.valid() )
+          {
+             try {
+                auto trx = pending_itr.value();
+                auto trx_id = trx.id();
+                auto eval_state = evaluate_transaction( trx );
+                share_type fees = eval_state->get_fees();
+                my->_pending_fee_index[ fee_index( fees, trx_id ) ] = eval_state;
+                my->_pending_transactions.store( trx_id, trx );
+             }
+             catch ( const fc::exception& e )
+             {
+                wlog( "error processing pending transaction: ${e}", ("e",e.to_detail_string() ) );
+             }
+             ++pending_itr;
+          }
+
+          if( last_block_num == uint32_t(-1) )
+             my->initialize_genesis(genesis_file);
+      }
+      catch( ... )
       {
-         try {
-            auto trx = pending_itr.value();
-            auto trx_id = trx.id();
-            auto eval_state = evaluate_transaction( trx );
-            share_type fees = eval_state->get_fees();
-            my->_pending_fee_index[ fee_index( fees, trx_id ) ] = eval_state;
-            my->_pending_transactions.store( trx_id, trx );
-         }
-         catch ( const fc::exception& e )
-         {
-            wlog( "error processing pending transaction: ${e}", ("e",e.to_detail_string() ) );
-         }
-         ++pending_itr;
+          close();
+          if( is_new_data_dir ) fc::remove_all( data_dir );
+          throw;
       }
-
-      if( last_block_num == uint32_t(-1) )
-         my->initialize_genesis(genesis_file);
 
    } FC_RETHROW_EXCEPTIONS( warn, "", ("data_dir",data_dir) ) }
 
@@ -734,6 +785,8 @@ namespace bts { namespace blockchain {
       my->_pending_transactions.close();
       my->_processed_transaction_ids.close();
       my->_properties_db.close();
+      my->_proposals_db.close();
+      my->_proposal_votes_db.close();
       my->_block_num_to_id.close();
 
       my->_block_num_to_id.close();
@@ -753,7 +806,8 @@ namespace bts { namespace blockchain {
       FC_ASSERT( sec >= my->_head_block_header.timestamp );
 
       uint64_t  interval_number = sec.sec_since_epoch() / BTS_BLOCKCHAIN_BLOCK_INTERVAL_SEC;
-      unsigned  delegate_pos = (unsigned)(interval_number % BTS_BLOCKCHAIN_NUM_DELEGATES);
+      interval_number += get_current_random_seed()._hash[0];
+      uint32_t  delegate_pos = (uint32_t)(interval_number % BTS_BLOCKCHAIN_NUM_DELEGATES);
       auto sorted_delegates = get_active_delegates();
 
       FC_ASSERT( delegate_pos < sorted_delegates.size() );
@@ -866,7 +920,9 @@ namespace bts { namespace blockchain {
    {
       auto itr = my->_assets.find( id );
       if( itr.valid() )
-         return itr.value();
+      {
+         return itr.value(); 
+      }
       return oasset_record();
    }
 
@@ -891,7 +947,7 @@ namespace bts { namespace blockchain {
       try {
          auto asset_rec = get_asset_record( asset_id );
          my->_assets.remove( asset_id );
-         if( asset_rec )
+         if( asset_rec.valid() )
             my->_symbol_index.remove( asset_rec->symbol );
       } catch ( const fc::exception& e )
       {
@@ -914,7 +970,7 @@ namespace bts { namespace blockchain {
       try {
          auto name_rec = get_name_record( name_id );
          my->_names.remove( name_id );
-         if( name_rec )
+         if( name_rec.valid() )
             my->_name_index.remove( name_rec->name );
          // TODO: remove vote index as well...
       } catch ( const fc::exception& e )
@@ -928,7 +984,11 @@ namespace bts { namespace blockchain {
    { try {
        auto symbol_id_itr = my->_symbol_index.find( symbol );
        if( symbol_id_itr.valid() )
+       {
           return get_asset_record( symbol_id_itr.value() );
+       }
+       else
+          wlog( "    unable to find '${symbol}'", ("symbol",symbol) );
        return oasset_record();
    } FC_RETHROW_EXCEPTIONS( warn, "", ("symbol",symbol) ) }
 
@@ -943,15 +1003,22 @@ namespace bts { namespace blockchain {
 
    void chain_database::store_asset_record( const asset_record& r )
    { try {
-       my->_assets.store( r.id, r );
-       my->_symbol_index.store( r.symbol, r.id );
-       if( r.id > my->_last_asset_id ) my->_last_asset_id = r.id;
+       if( r.is_null() )
+       {
+          my->_assets.remove( r.id );
+          my->_symbol_index.remove( r.symbol );
+       }
+       else
+       {
+          my->_assets.store( r.id, r );
+          my->_symbol_index.store( r.symbol, r.id );
+       }
    } FC_RETHROW_EXCEPTIONS( warn, "", ("record", r) ) }
 
 
    void chain_database::store_balance_record( const balance_record& r )
    { try {
-       if( r.balance == 0 )
+       if( r.is_null() )
        {
           my->_balances.remove( r.id() );
        }
@@ -965,21 +1032,25 @@ namespace bts { namespace blockchain {
    void chain_database::store_name_record( const name_record& r )
    { try {
        auto old_rec = get_name_record( r.id );
-       my->_names.store( r.id, r );
-
-       if( old_rec && old_rec->is_delegate() )
+       if( r.is_null() )
        {
-          my->_delegate_vote_index.remove( vote_del( old_rec->net_votes(), r.id ) );
+          my->_names.remove( r.id );
+          my->_name_index.remove( r.name );
        }
-       else // this is a new record...
+       else
        {
+          my->_names.store( r.id, r );
           my->_name_index.store( r.name, r.id );
        }
 
-       if( r.is_delegate() )
+       if( old_rec.valid() && old_rec->is_delegate() )
+       {
+          my->_delegate_vote_index.remove( vote_del( old_rec->net_votes(), r.id ) );
+       }
+
+       if( r.is_delegate() && !r.is_null() )
           my->_delegate_vote_index.store( vote_del( r.net_votes(), r.id ),  0 );
 
-       if( r.id > my->_last_name_id ) my->_last_name_id = r.id;
    } FC_RETHROW_EXCEPTIONS( warn, "", ("record", r) ) }
 
    void  chain_database::store_transaction_location( const transaction_id_type& trx_id,
@@ -988,27 +1059,6 @@ namespace bts { namespace blockchain {
        my->_processed_transaction_ids.store( trx_id, loc );
    } FC_RETHROW_EXCEPTIONS( warn, "", ("id", trx_id)("location",loc) ) }
 
-
-   asset_id_type        chain_database::last_asset_id()const
-   {
-      return my->_last_asset_id;
-   }
-
-   asset_id_type        chain_database::new_asset_id()
-   {
-      return ++my->_last_asset_id;
-   }
-
-
-   name_id_type         chain_database::last_name_id()const
-   {
-      return my->_last_name_id;
-   }
-
-   name_id_type         chain_database::new_name_id()
-   {
-      return ++my->_last_name_id;
-   }
 
 
    osigned_transaction chain_database::get_transaction( const transaction_id_type& trx_id )const
@@ -1125,21 +1175,42 @@ namespace bts { namespace blockchain {
       next_block.transaction_digest = digest_block(next_block).calculate_transaction_digest();
       next_block.delegate_pay_rate  = next_block.next_delegate_pay( my->_head_block_header.delegate_pay_rate, total_fees );
 
+
     //  elog( "initial pay rate: ${R}   total fees: ${F} next: ${N}",
     //        ( "R", my->_head_block_header.delegate_pay_rate )( "F", total_fees )("N",next_block.delegate_pay_rate) );
 
       return next_block;
    }
 
-   void detail::chain_database_impl::initialize_genesis(fc::optional<fc::path> genesis_file)
+   void detail::chain_database_impl::initialize_genesis(fc::path genesis_file)
    {
-      #include "genesis.json"
+      if( self->chain_id() != digest_type() )
+      {
+         ilog( "Genesis state already initialized" );
+         return;
+      }
+
+      std::cout << "Initializing genesis state\n";
+      FC_ASSERT( fc::exists( genesis_file ), "Genesis file '${file}' was not found.", ("file",genesis_file) );
 
       genesis_block_config config;
-      if (genesis_file)
-        config = fc::json::from_file(*genesis_file).as<genesis_block_config>();
+      if( genesis_file.extension() == ".json" )
+      {
+         config = fc::json::from_file(genesis_file).as<genesis_block_config>();
+      }
+      else if( genesis_file.extension() == ".dat" )
+      {
+         fc::ifstream in( genesis_file );
+         fc::raw::unpack( in, config );
+      }
       else
-        config = fc::json::from_string( genesis_json ).as<genesis_block_config>();
+      {
+         FC_ASSERT( !"Invalid genesis format", " '${format}'", ("format",genesis_file.extension() ) );
+      }
+
+      fc::sha256::encoder enc;
+      fc::raw::pack( enc, config );
+      self->set_property( bts::blockchain::chain_id, fc::variant(enc.result()) );
 
       double total_unscaled = 0;
       for( auto item : config.balances ) total_unscaled += item.second;
@@ -1152,9 +1223,6 @@ namespace bts { namespace blockchain {
       FC_ASSERT( delegate_config.size() >= BTS_BLOCKCHAIN_NUM_DELEGATES,
                  "genesis.json does not contain enough initial delegates",
                  ("required",BTS_BLOCKCHAIN_NUM_DELEGATES)("provided",delegate_config.size()) );
-
-      // everyone will vote for every delegate initially
-      scale_factor /= BTS_BLOCKCHAIN_NUM_DELEGATES;
 
       name_record god; god.id = 0; god.name = "god";
       self->store_name_record( god );
@@ -1171,11 +1239,12 @@ namespace bts { namespace blockchain {
       self->store_asset_record( base_asset );
 
       fc::time_point_sec timestamp = config.timestamp;
-      int32_t i = 1;
+      std::vector<name_id_type> delegate_ids;
+      int32_t name_id = 1;
       for( auto name : config.names )
       {
          name_record rec;
-         rec.id                = i;
+         rec.id                = name_id;
          rec.name              = name.name;
          rec.owner_key         = name.owner;
          rec.active_key        = name.owner;
@@ -1185,25 +1254,32 @@ namespace bts { namespace blockchain {
          {
             rec.delegate_info = delegate_stats();
             rec.delegate_info->votes_for  = BTS_BLOCKCHAIN_INITIAL_SHARES/delegate_config.size();
+            delegate_ids.push_back( name_id );
          }
          self->store_name_record( rec );
-         ++i;
+         ++name_id;
       }
 
       for( auto item : config.balances )
       {
-         for( uint32_t delegate_id = 1; delegate_id <= BTS_BLOCKCHAIN_NUM_DELEGATES; ++delegate_id )
+         for( auto delegate_id : delegate_ids )
          {
             balance_record initial_balance( item.first,
-                                            asset( share_type( item.second * scale_factor), 0 ), delegate_id );
+                                            asset( share_type( (item.second * scale_factor) / delegate_ids.size() ), base_asset.id ),
+                                            delegate_id );
             self->store_balance_record( initial_balance );
          }
       }
+
       block_fork_data gen_fork;
       gen_fork.is_valid = true;
       gen_fork.is_included = true;
       gen_fork.is_linked = true;
       _fork_db.store( block_id_type(), gen_fork );
+
+      self->set_property( chain_property_enum::last_asset_id, 0 );
+      self->set_property( chain_property_enum::last_name_id, uint64_t(config.names.size()) );
+      self->set_property( chain_property_enum::last_random_seed_id, fc::variant(secret_hash_type()) );
    }
 
    void chain_database::set_observer( chain_observer* observer )
@@ -1219,9 +1295,7 @@ namespace bts { namespace blockchain {
    { try {
       if( block_id == block_id_type() )
          return 0;
-      auto itr = my->_block_id_to_block.find( block_id );
-      FC_ASSERT( itr.valid() );
-      return itr.value().block_num;
+      return my->_block_id_to_block.fetch( block_id ).block_num;
    } FC_RETHROW_EXCEPTIONS( warn, "Unable to find block ${block_id}", ("block_id", block_id) ) }
 
     uint32_t         chain_database::get_head_block_num()const
@@ -1245,6 +1319,19 @@ namespace bts { namespace blockchain {
        return names;
     } FC_RETHROW_EXCEPTIONS( warn, "", ("first",first)("count",count) )  }
 
+
+    std::vector<asset_record> chain_database::get_assets( const std::string& first_symbol, uint32_t count )const
+    { try {
+       auto itr = my->_symbol_index.lower_bound(first_symbol);
+       std::vector<asset_record> assets;
+       while( itr.valid() && assets.size() < count )
+       {
+          assets.push_back( *get_asset_record( itr.value() ) );
+          ++itr;
+       }
+       return assets;
+    } FC_RETHROW_EXCEPTIONS( warn, "", ("first_symbol",first_symbol)("count",count) )  }
+
     void chain_database::export_fork_graph( const fc::path& filename )const
     {
        std::ofstream out( filename.generic_string().c_str() );
@@ -1266,7 +1353,8 @@ namespace bts { namespace blockchain {
           }
        out << "}"; 
     }
-   fc::variant  chain_database::get_property( chain_property_enum property_id )const
+
+   fc::variant chain_database::get_property( chain_property_enum property_id )const
    { try {
       return my->_properties_db.fetch( property_id );
    } FC_RETHROW_EXCEPTIONS( warn, "", ("property_id",property_id) ) }
@@ -1274,7 +1362,85 @@ namespace bts { namespace blockchain {
    void  chain_database::set_property( chain_property_enum property_id, 
                                                      const fc::variant& property_value )
    {
-      my->_properties_db.store( property_id, property_value );
+      if( property_value.is_null() )
+         my->_properties_db.remove( property_id );
+      else
+         my->_properties_db.store( property_id, property_value );
+   }
+   void chain_database::store_proposal_record( const proposal_record& r )
+   {
+      if( r.is_null() )
+      {
+         my->_proposals_db.remove( r.id );
+      }
+      else
+      {
+         my->_proposals_db.store( r.id, r );
+      }
+   }
+
+   oproposal_record chain_database::get_proposal_record( proposal_id_type id )const
+   {
+      auto itr = my->_proposals_db.find(id);
+      if( itr.valid() ) return itr.value();
+      return oproposal_record();
+   }
+                                                                                            
+   void chain_database::store_proposal_vote( const proposal_vote& r )
+   {
+      if( r.is_null() )
+         my->_proposal_votes_db.remove( r.id );
+      else
+         my->_proposal_votes_db.store( r.id, r );
+   }
+
+   oproposal_vote chain_database::get_proposal_vote( proposal_vote_id_type id )const
+   {
+      auto itr = my->_proposal_votes_db.find(id);
+      if( itr.valid() ) return itr.value();
+      return oproposal_vote();
+   }
+
+   digest_type chain_database::chain_id()const
+   {
+      try {
+        return get_property( bts::blockchain::chain_id ).as<digest_type>();
+      } 
+      catch( const fc::exception& e )
+      {
+         return digest_type();
+      }
+   }
+   std::vector<proposal_record>  chain_database::get_proposals( uint32_t first, uint32_t count )const
+   {
+      std::vector<proposal_record> results;
+      auto current_itr = my->_proposals_db.lower_bound( first );
+      uint32_t found = 0;
+      while( current_itr.valid() && found < count )
+      {
+         results.push_back( current_itr.value() );
+         ++found;
+         ++current_itr;
+      }
+      return results;
+   }
+   std::vector<proposal_vote>   chain_database::get_proposal_votes( proposal_id_type proposal_id ) const
+   {
+      std::vector<proposal_vote> results;
+      auto current_itr = my->_proposal_votes_db.lower_bound( proposal_vote_id_type(proposal_id,0) );
+      while( current_itr.valid() )
+      {
+         if( current_itr.key().proposal_id != proposal_id )
+            return results;
+
+         results.push_back( current_itr.value() );
+         ++current_itr;
+      }
+      return results;
+   }
+   digest_type    chain_database::get_current_random_seed()const
+   {
+      return get_property( last_random_seed_id ).as<digest_type>();
    }
 
 } } // namespace bts::blockchain

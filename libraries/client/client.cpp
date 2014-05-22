@@ -18,11 +18,14 @@ namespace bts { namespace client {
        class client_impl : public bts::net::node_delegate
        {
           public:
-            client_impl()
+            client_impl( const chain_database_ptr& chain_db )
+            :_chain_db(chain_db)
             {
                 _p2p_node = std::make_shared<bts::net::node>();
                 _p2p_node->set_delegate(this);
             }
+
+            virtual ~client_impl()override {}
 
             void delegate_loop();
             signed_transactions get_pending_transactions() const;
@@ -41,6 +44,11 @@ namespace bts { namespace client {
                                                                     uint32_t& remaining_item_count,
                                                                     uint32_t limit = 2000) override;
             virtual bts::net::message get_item(const bts::net::item_id& id) override;
+            virtual fc::sha256 get_chain_id() const override
+            { 
+                FC_ASSERT( _chain_db != nullptr );
+                return _chain_db->chain_id(); 
+            }
             virtual std::vector<bts::net::item_hash_t> get_blockchain_synopsis() override;
             virtual void sync_status(uint32_t item_type, uint32_t item_count) override;
             virtual void connection_count_changed(uint32_t c) override;
@@ -50,9 +58,9 @@ namespace bts { namespace client {
             fc::path                                                    _data_dir;
 
             bts::net::node_ptr                                          _p2p_node;
-            bts::blockchain::chain_database_ptr                         _chain_db;
+            chain_database_ptr                                          _chain_db;
             std::unordered_map<transaction_id_type, signed_transaction> _pending_trxs;
-            bts::wallet::wallet_ptr                                     _wallet;
+            wallet_ptr                                                  _wallet;
             fc::future<void>                                            _delegate_loop_complete;
        };
 
@@ -83,8 +91,7 @@ namespace bts { namespace client {
                      _wallet->sign_block( next_block );
 
                      on_new_block(next_block);
-                     _p2p_node->broadcast(block_message(next_block.id(), next_block,
-                                                        next_block.signee ));
+                     _p2p_node->broadcast(block_message( next_block ));
                   }
                   catch ( const fc::exception& e )
                   {
@@ -135,7 +142,6 @@ namespace bts { namespace client {
          _chain_db->store_pending_transaction(trx); // throws exception if invalid trx.
        }
 
-
        ///////////////////////////////////////////////////////
        // Implement node_delegate                           //
        ///////////////////////////////////////////////////////
@@ -152,6 +158,7 @@ namespace bts { namespace client {
          }
          return false;
        }
+
        void client_impl::handle_message(const bts::net::message& message_to_handle)
        {
          switch (message_to_handle.msg_type)
@@ -159,7 +166,7 @@ namespace bts { namespace client {
             case block_message_type:
               {
                 block_message block_message_to_handle(message_to_handle.as<block_message>());
-                ilog("CLIENT: just received block ${id}", ("id", block_message_to_handle.block_id));
+                ilog("CLIENT: just received block ${id}", ("id", block_message_to_handle.block.id()));
                 on_new_block(block_message_to_handle.block);
                 break;
               }
@@ -239,10 +246,8 @@ namespace bts { namespace client {
          if (id.item_type == block_message_type)
          {
         //   uint32_t block_number = _chain_db->get_block_num(id.item_hash);
-           bts::client::block_message block_message_to_send;
-           block_message_to_send.block = _chain_db->get_block(id.item_hash);
-           block_message_to_send.block_id = block_message_to_send.block.id();
-           FC_ASSERT(id.item_hash == block_message_to_send.block_id);
+           bts::client::block_message block_message_to_send(_chain_db->get_block(id.item_hash));
+           FC_ASSERT(id.item_hash == block_message_to_send.block_id); //.id());
         //   block_message_to_send.signature = block_message_to_send.block.delegate_signature;
            return block_message_to_send;
          }
@@ -257,17 +262,19 @@ namespace bts { namespace client {
 
          FC_THROW_EXCEPTION(key_not_found_exception, "I don't have the item you're looking for");
        }
+
        void client_impl::sync_status(uint32_t item_type, uint32_t item_count)
        {
        }
+
        void client_impl::connection_count_changed(uint32_t c)
        {
        }
 
     }
 
-    client::client()
-    :my( new detail::client_impl() )
+    client::client( const chain_database_ptr& chain_db )
+    :my( new detail::client_impl( chain_db ) )
     {
     }
 
@@ -288,19 +295,19 @@ namespace bts { namespace client {
        }
     }
 
-    void client::set_chain( const bts::blockchain::chain_database_ptr& ptr )
+    void client::set_chain( const chain_database_ptr& ptr )
     {
        my->_chain_db = ptr;
     }
 
-    void client::set_wallet( const bts::wallet::wallet_ptr& wall )
+    void client::set_wallet( const wallet_ptr& wall )
     {
        FC_ASSERT( my->_chain_db );
        my->_wallet = wall;
     }
 
-    bts::wallet::wallet_ptr client::get_wallet()const { return my->_wallet; }
-    bts::blockchain::chain_database_ptr client::get_chain()const { return my->_chain_db; }
+    wallet_ptr client::get_wallet()const { return my->_wallet; }
+    chain_database_ptr client::get_chain()const { return my->_chain_db; }
     bts::net::node_ptr client::get_node()const { return my->_p2p_node; }
     signed_transactions client::get_pending_transactions()const { return my->get_pending_transactions(); }
 
@@ -352,13 +359,13 @@ namespace bts { namespace client {
     {
     }
 
-    bts::net::message_propagation_data client::get_transaction_propagation_data(const bts::blockchain::transaction_id_type& transaction_id)
+    bts::net::message_propagation_data client::get_transaction_propagation_data(const transaction_id_type& transaction_id)
     {
         return my->_p2p_node->get_transaction_propagation_data(transaction_id);
       FC_THROW_EXCEPTION(invalid_operation_exception, "get_transaction_propagation_data only valid in p2p mode");
     }
 
-    bts::net::message_propagation_data client::get_block_propagation_data(const bts::blockchain::block_id_type& block_id)
+    bts::net::message_propagation_data client::get_block_propagation_data(const block_id_type& block_id)
     {
         return my->_p2p_node->get_block_propagation_data(block_id);
       FC_THROW_EXCEPTION(invalid_operation_exception, "get_block_propagation_data only valid in p2p mode");
@@ -408,14 +415,24 @@ namespace bts { namespace client {
       my->_p2p_node->connect_to_p2p_network();
     }
 
-
     transaction_id_type client::reserve_name( const std::string& name, const fc::variant& data )
     { try {
         auto trx = get_wallet()->reserve_name( name, data );
         broadcast_transaction( trx );
         return trx.id();
     } FC_RETHROW_EXCEPTIONS( warn, "", ("name",name)("data",data) ) }
-    transaction_id_type client::register_delegate( const std::string& name, const fc::variant& data )
+
+    /*
+    transaction_id_type client::update_name(const std::string& name, const fc::variant& data)
+    {
+      try {
+        auto trx = get_wallet()->update_name(name, data);
+        broadcast_transaction(trx);
+        return trx.id();
+      } FC_RETHROW_EXCEPTIONS(warn, "", ("name", name)("data", data))
+    }
+    */
+    transaction_id_type client::register_delegate(const std::string& name, const fc::variant& data)
     { try {
              FC_ASSERT( false, "Not Implemented" );
         //auto trx = get_wallet()->register_delegate( name, data );
@@ -429,17 +446,41 @@ namespace bts { namespace client {
       get_wallet()->set_delegate_trust_status(delegate_name, user_trust_level);
     }
 
-    wallet::delegate_trust_status client::get_delegate_trust_status(const std::string& delegate_name) const
+    bts::wallet::delegate_trust_status client::get_delegate_trust_status(const std::string& delegate_name) const
     {
       //TODO verify if delegate_name is a valid delegate_name in blockchain before sending to wallet
       return get_wallet()->get_delegate_trust_status(delegate_name);
     }
 
-    std::map<std::string,wallet::delegate_trust_status> client::list_delegate_trust_status() const
+    std::map<std::string,bts::wallet::delegate_trust_status> client::list_delegate_trust_status() const
     {
       return get_wallet()->list_delegate_trust_status();
     }
 
+    transaction_id_type client::submit_proposal(const std::string& name, 
+                                                const std::string& subject,
+                                                const std::string& body,
+                                                const std::string& proposal_type,
+                                                const fc::variant& json_data)
+    {
+      try {
+        auto trx = get_wallet()->submit_proposal(name, subject, body, proposal_type, json_data);
+        broadcast_transaction(trx);
+        return trx.id();
+      } FC_RETHROW_EXCEPTIONS(warn, "", ("name", name)("subject", subject))
+    }
+
+    transaction_id_type client::vote_proposal(const std::string& name, 
+                                              proposal_id_type proposal_id,
+                                              uint8_t vote)
+
+    {
+      try {
+        auto trx = get_wallet()->vote_proposal(name,proposal_id,vote);
+        broadcast_transaction(trx);
+        return trx.id();
+      } FC_RETHROW_EXCEPTIONS(warn, "", ("name", name)("proposal_id", proposal_id)("vote",vote))
+    }
 
     fc::sha256 client_notification::digest()const
     {
