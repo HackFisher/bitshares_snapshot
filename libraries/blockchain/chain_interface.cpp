@@ -1,6 +1,7 @@
 #include <bts/blockchain/chain_interface.hpp>
 #include <bts/blockchain/config.hpp>
 #include <fc/io/json.hpp>
+#include <algorithm>
 #include <sstream>
 
 namespace bts{ namespace blockchain {
@@ -80,16 +81,21 @@ namespace bts{ namespace blockchain {
       return next_id;
    }
 
-   bool chain_interface::is_active_delegate( name_id_type delegate_id )const
+   std::vector<name_id_type> chain_interface::get_active_delegates()const
+   { try {
+      return get_property( active_delegate_list_id ).as<std::vector<name_id_type> >();
+   } FC_RETHROW_EXCEPTIONS( warn, "" ) }
+
+   void                      chain_interface::set_active_delegates( const std::vector<name_id_type>& delegate_ids )
    {
-       auto active_delegates = get_active_delegates();
-       for( auto id : active_delegates )
-       {
-          if( id == delegate_id )
-             return true;
-       }
-       return false;
+      set_property( active_delegate_list_id, fc::variant(delegate_ids) );
    }
+
+   bool                      chain_interface::is_active_delegate( name_id_type delegate_id ) const
+   { try {
+      auto active = get_active_delegates();
+      return active.end() != std::find( active.begin(), active.end(), delegate_id );
+   } FC_RETHROW_EXCEPTIONS( warn, "", ("delegate_id",delegate_id) ) }
 
 } }  // bts::blockchain
 

@@ -102,7 +102,10 @@ namespace bts { namespace blockchain {
          /** return the current fee rate in millishares */
          virtual int64_t                    get_fee_rate()const override;
          virtual int64_t                    get_delegate_pay_rate()const override;
-         virtual std::vector<name_id_type>  get_active_delegates()const override;
+
+         /** top delegates by current vote, projected to be active in the next round */
+         std::vector<name_id_type>          next_round_active_delegates()const;
+
          std::vector<name_id_type>          get_delegates_by_vote( uint32_t first=0, uint32_t count = -1 )const;
          std::vector<name_record>           get_delegate_records_by_vote( uint32_t first=0, uint32_t count = -1)const;
          std::vector<proposal_record>       get_proposals( uint32_t first=0, uint32_t count = -1)const;
@@ -138,6 +141,16 @@ namespace bts { namespace blockchain {
                                                                                                           
          virtual void                       store_proposal_vote( const proposal_vote& r )override;
          virtual oproposal_vote             get_proposal_vote( proposal_vote_id_type id )const override;
+
+         virtual oorder_record              get_bid_record( const market_index_key& )const override;
+         virtual oorder_record              get_ask_record( const market_index_key& )const override;
+         virtual oorder_record              get_short_record( const market_index_key& )const override;
+         virtual ocollateral_record         get_collateral_record( const market_index_key& )const override;
+                                                                                                            
+         virtual void                       store_bid_record( const market_index_key& key, const order_record& ) override;
+         virtual void                       store_ask_record( const market_index_key& key, const order_record& ) override;
+         virtual void                       store_short_record( const market_index_key& key, const order_record& ) override;
+         virtual void                       store_collateral_record( const market_index_key& key, const collateral_record& ) override;
 
       private:
          std::unique_ptr<detail::chain_database_impl> my;

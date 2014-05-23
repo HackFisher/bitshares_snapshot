@@ -2,6 +2,8 @@
 #include <bts/blockchain/config.hpp>
 #include <bts/blockchain/genesis_config.hpp>
 #include <bts/blockchain/time.hpp>
+#include <bts/blockchain/operation_factory.hpp>
+#include <bts/blockchain/fire_operation.hpp>
 
 #include <bts/db/level_map.hpp>
 #include <bts/db/level_pod_map.hpp>
@@ -111,9 +113,6 @@ namespace bts { namespace blockchain {
                                                            const pending_chain_state_ptr& );
             void                       save_undo_state( const block_id_type& id,
                                                            const pending_chain_state_ptr& );
-            void                       save_redo_state( const block_id_type& id,
-                                                           const pending_chain_state_ptr& );
-            void                       clear_redo_state( const block_id_type& id );
             void                       update_head_block( const full_block& blk );
             std::vector<block_id_type> fetch_blocks_at_number( uint32_t block_num );
             void                       recursive_mark_as_linked( const std::unordered_set<block_id_type>& ids );
@@ -136,7 +135,6 @@ namespace bts { namespace blockchain {
 
             /** the data required to 'undo' the changes a block made to the database */
             bts::db::level_map<block_id_type,pending_chain_state>     _undo_state;
-            bts::db::level_map<block_id_type,pending_chain_state>     _redo_state;
 
             // blocks in the current 'official' chain.
             bts::db::level_map<uint32_t,block_id_type>     _block_num_to_id;
@@ -160,6 +158,12 @@ namespace bts { namespace blockchain {
             bts::db::level_map< std::string, name_id_type >                      _name_index;
             bts::db::level_map< std::string, asset_id_type >                     _symbol_index;
             bts::db::level_pod_map< vote_del, int >                              _delegate_vote_index;
+
+
+            bts::db::level_map< market_index_key, order_record >                     _asks_db;
+            bts::db::level_map< market_index_key, order_record >                     _bids_db;
+            bts::db::level_map< market_index_key, order_record >                     _shorts_db;
+            bts::db::level_map< market_index_key, collateral_record >                _collateral_db;
 
             /** used to prevent duplicate processing */
             bts::db::level_pod_map< transaction_id_type, transaction_location >  _processed_transaction_ids;
@@ -396,15 +400,6 @@ namespace bts { namespace blockchain {
            _undo_state.store( block_id, *undo_state );
       } FC_RETHROW_EXCEPTIONS( warn, "", ("block_id",block_id) ) }
 
-      void chain_database_impl::save_redo_state( const block_id_type& block_id,
-                                                 const pending_chain_state_ptr& pending_state )
-      {try{
-           _redo_state.store( block_id, *pending_state );
-      }FC_RETHROW_EXCEPTIONS( warn, "", ("block_id",block_id) ) }
-      void chain_database_impl::clear_redo_state( const block_id_type& id )
-      {
-         _redo_state.remove(id);
-      }
 
       void chain_database_impl::verify_header( const full_block& block_data )
       { try {
@@ -538,19 +533,14 @@ namespace bts { namespace blockchain {
 
             pay_delegate( block_data.timestamp, block_data.delegate_pay_rate, pending_state );
 
+            if( block_data.block_num % BTS_BLOCKCHAIN_NUM_DELEGATES == 0 )
+            {
+                self->set_property( chain_property_enum::active_delegate_list_id, fc::variant(self->next_round_active_delegates()) );
+            }
+
             update_random_seed( block_data.previous_secret, pending_state );
 
             save_undo_state( block_id, pending_state );
-
-            // in case we crash during apply changes... remember what we
-            // were in the process of applying...
-            //
-            // TODO: what if we crash in the middle of save_redo_state?
-            //
-            // on launch if data in redo database is not marked as
-            // included... the re-apply the redo state and mark it as
-            // included.
-            save_redo_state( block_id, pending_state );
 
             // TODO: verify that apply changes can be called any number of
             // times without changing the database other than the first
@@ -559,10 +549,6 @@ namespace bts { namespace blockchain {
             pending_state->apply_changes();
 
             mark_included( block_id, true );
-
-            // we have compelted successfully (as far as we can tell,
-            // we can free the redo state
-            clear_redo_state( block_id );
 
             update_head_block( block_data );
 
@@ -644,6 +630,17 @@ namespace bts { namespace blockchain {
    chain_database::chain_database()
    :my( new detail::chain_database_impl() )
    {
+      bts::blockchain::operation_factory::instance().register_operation<withdraw_operation>();
+      bts::blockchain::operation_factory::instance().register_operation<deposit_operation>();
+      bts::blockchain::operation_factory::instance().register_operation<create_asset_operation>();
+      bts::blockchain::operation_factory::instance().register_operation<update_asset_operation>();
+      bts::blockchain::operation_factory::instance().register_operation<issue_asset_operation>();
+      bts::blockchain::operation_factory::instance().register_operation<reserve_name_operation>();
+      bts::blockchain::operation_factory::instance().register_operation<update_name_operation>();
+      bts::blockchain::operation_factory::instance().register_operation<fire_delegate_operation>();
+      bts::blockchain::operation_factory::instance().register_operation<submit_proposal_operation>();
+      bts::blockchain::operation_factory::instance().register_operation<vote_proposal_operation>();
+      
       my->self = this;
    }
 
@@ -661,7 +658,7 @@ namespace bts { namespace blockchain {
          wlog( "unexpected exception closing database\n" );
       }
    }
-   std::vector<name_id_type> chain_database::get_active_delegates()const
+   std::vector<name_id_type> chain_database::next_round_active_delegates()const
    {
       return get_delegates_by_vote( 0, BTS_BLOCKCHAIN_NUM_DELEGATES );
    }
@@ -709,13 +706,14 @@ namespace bts { namespace blockchain {
       {
           fc::create_directories( data_dir );
 
+          my->_asks_db.open( data_dir / "asks_db", true );
+          my->_bids_db.open( data_dir / "bids_db", true );
           my->_fork_number_db.open( data_dir / "fork_number_db", true );
           my->_fork_db.open( data_dir / "fork_db", true );
           my->_properties_db.open( data_dir / "properties", true );
           my->_proposals_db.open( data_dir / "proposals", true );
           my->_proposal_votes_db.open( data_dir / "proposal_votes", true );
           my->_undo_state.open( data_dir / "undo_state", true );
-          my->_redo_state.open( data_dir / "redo_state", true );
 
           my->_block_num_to_id.open( data_dir / "block_num_to_id", true );
           my->_pending_transactions.open( data_dir / "pending_transactions", true );
@@ -774,19 +772,23 @@ namespace bts { namespace blockchain {
 
    void chain_database::close()
    { try {
-      my->_fork_db.close();
+      my->_asks_db.close();
+      my->_bids_db.close();
       my->_fork_number_db.close();
       my->_undo_state.close();
-      my->_redo_state.close();
       my->_pending_transactions.close();
       my->_processed_transaction_ids.close();
+      my->_fork_db.close();
       my->_properties_db.close();
       my->_proposals_db.close();
       my->_proposal_votes_db.close();
-      my->_block_num_to_id.close();
+      my->_undo_state.close();
 
       my->_block_num_to_id.close();
+      my->_pending_transactions.close();
+      my->_processed_transaction_ids.close();
       my->_block_id_to_block.close();
+      
       my->_assets.close();
       my->_names.close();
       my->_balances.close();
@@ -1274,6 +1276,7 @@ namespace bts { namespace blockchain {
       gen_fork.is_linked = true;
       _fork_db.store( block_id_type(), gen_fork );
 
+      self->set_property( chain_property_enum::active_delegate_list_id, fc::variant(self->next_round_active_delegates()) );
       self->set_property( chain_property_enum::last_asset_id, 0 );
       self->set_property( chain_property_enum::last_name_id, uint64_t(config.names.size()) );
       self->set_property( chain_property_enum::last_random_seed_id, fc::variant(secret_hash_type()) );
@@ -1386,9 +1389,13 @@ namespace bts { namespace blockchain {
    void chain_database::store_proposal_vote( const proposal_vote& r )
    {
       if( r.is_null() )
+      {
          my->_proposal_votes_db.remove( r.id );
+      }
       else
+      {
          my->_proposal_votes_db.store( r.id, r );
+      }
    }
 
    oproposal_vote chain_database::get_proposal_vote( proposal_vote_id_type id )const
@@ -1435,9 +1442,41 @@ namespace bts { namespace blockchain {
       }
       return results;
    }
+
    digest_type    chain_database::get_current_random_seed()const
    {
       return get_property( last_random_seed_id ).as<digest_type>();
    }
+
+   oorder_record         chain_database::get_bid_record( const market_index_key& )const
+   {
+      return oorder_record();
+   }
+   oorder_record         chain_database::get_ask_record( const market_index_key& )const
+   {
+      return oorder_record();
+   }
+   oorder_record         chain_database::get_short_record( const market_index_key& )const
+   {
+      return oorder_record();
+   }
+   ocollateral_record    chain_database::get_collateral_record( const market_index_key& )const
+   {
+      return ocollateral_record();
+   }
+                                                                                              
+   void chain_database::store_bid_record( const market_index_key& key, const order_record& ) 
+   {
+   }
+   void chain_database::store_ask_record( const market_index_key& key, const order_record& ) 
+   {
+   }
+   void chain_database::store_short_record( const market_index_key& key, const order_record& )
+   {
+   }
+   void chain_database::store_collateral_record( const market_index_key& key, const collateral_record& ) 
+   {
+   }
+
 
 } } // namespace bts::blockchain

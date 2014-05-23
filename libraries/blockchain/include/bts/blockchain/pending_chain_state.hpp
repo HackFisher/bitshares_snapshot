@@ -12,8 +12,6 @@ namespace bts { namespace blockchain {
 
          virtual ~pending_chain_state()override;
 
-         virtual std::vector<name_id_type>  get_active_delegates()const override;
-
          digest_type                        get_current_random_seed()const override;
 
          virtual fc::time_point_sec         now()const override;
@@ -27,6 +25,16 @@ namespace bts { namespace blockchain {
 
          virtual oasset_record              get_asset_record( const std::string& symbol )const override;
          virtual oname_record               get_name_record( const std::string& name )const override;
+
+         virtual oorder_record              get_bid_record( const market_index_key& )const override;
+         virtual oorder_record              get_ask_record( const market_index_key& )const override;
+         virtual oorder_record              get_short_record( const market_index_key& )const override;
+         virtual ocollateral_record         get_collateral_record( const market_index_key& )const override;
+                                                                                                            
+         virtual void                       store_bid_record( const market_index_key& key, const order_record& ) override;
+         virtual void                       store_ask_record( const market_index_key& key, const order_record& ) override;
+         virtual void                       store_short_record( const market_index_key& key, const order_record& ) override;
+         virtual void                       store_collateral_record( const market_index_key& key, const collateral_record& ) override;
 
          virtual void                       store_proposal_record( const proposal_record& r )override;
          virtual oproposal_record           get_proposal_record( proposal_id_type id )const override;
@@ -74,6 +82,10 @@ namespace bts { namespace blockchain {
          std::unordered_map< chain_property_type,   fc::variant>          properties; 
          std::unordered_map<proposal_id_type, proposal_record>            proposals;
          std::map< proposal_vote_id_type, proposal_vote>                  proposal_votes; 
+         std::map< market_index_key, order_record>                        bids; 
+         std::map< market_index_key, order_record>                        asks; 
+         std::map< market_index_key, order_record>                        shorts; 
+         std::map< market_index_key, collateral_record>                   collateral; 
 
          chain_interface_ptr                                            _prev_state;
    };
@@ -84,4 +96,4 @@ namespace bts { namespace blockchain {
 
 FC_REFLECT( bts::blockchain::pending_chain_state,
             (assets)(names)(balances)(name_id_index)(symbol_id_index)(unique_transactions)
-            (properties)(proposals)(proposal_votes) )
+            (properties)(proposals)(proposal_votes)(bids)(asks)(shorts)(collateral) )
