@@ -65,51 +65,16 @@ namespace bts { namespace lotto {
         
         switch ((operation_type_enum)op.type.value) // TODO: Fix me, why type value
         {
-        case secret_op_type:
-            evaluate_secret(op.as<secret_operation>());
-            break;
-        case ticket_op_type:
-            evaluate_ticket(op.as<ticket_operation>());
-            break;
-        case jackpot_op_type:
-            evaluate_jackpot(op.as<jackpot_operation>());
-            break;
+            case ticket_op_type:
+                evaluate_ticket(op.as<ticket_operation>());
+                break;
+            case jackpot_op_type:
+                evaluate_jackpot(op.as<jackpot_operation>());
+                break;
         }
 
         // TODO: maybe should not use Bitshares Me chain_database;
         transaction_evaluation_state::evaluate_operation(op);
-    }
-
-    void lotto_trx_evaluation_state::evaluate_secret(const secret_operation& op)
-    {
-        // TODO: Fix me:FC_ASSERT(op.amount.get_rounded_amount() == 0, "Amount for secret output is required to be zero");
-        // pass, validation is done in lotto_db::validate_secret_transactions
-        /*
-        auto secret_out = blk.trxs[i].outputs[j].as<claim_secret_output>();
-        FC_ASSERT(found_secret_out == false, "There can only one secret out be allowe in each block.");
-        lotto_trx_evaluation_state state(blk.trxs[i]);
-        FC_ASSERT(state.has_signature(address(blk.signee())), "", ("owner", address(blk.signee()))("sigs", state.sigs));
-
-        auto provided_delegate = lookup_delegate(secret_out.delegate_id);
-        FC_ASSERT(!!provided_delegate, "unable to find provided delegate id ${id}", ("id", secret_out.delegate_id));
-        // TODO: validate that the provided delegate is the block signee and scheduled delegate
-        // see chain_database::validate
-        if (blk.signee() == get_trustee())
-        {
-            // TODO: if this block is signed by trusee, then do not need to validate, just to trust, but this will be changed later
-        }
-        else
-        {
-            FC_ASSERT(provided_delegate->owner == blk.signee(),
-                "provided delegate is not same with the signee delegate of the block.", ("provided_del_key", provided_delegate->owner)("block_signee", blk.signee()));
-        }
-
-
-        //Add fees, so the following two requirements are removed.
-        //FC_ASSERT(trxs[i].inputs.size() == 0, "The size of claim secret inputs should be zero.");
-        //FC_ASSERT(trxs[0].outputs.size() == 1, "The size of claim secret outputs should be one.");
-        found_secret_out = true;
-        */
     }
 
     void lotto_trx_evaluation_state::evaluate_ticket(const ticket_operation& op)

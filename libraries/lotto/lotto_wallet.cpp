@@ -34,37 +34,6 @@ lotto_wallet::~lotto_wallet()
 {
 }
 
-bts::blockchain::signed_transaction lotto_wallet::next_secret(const fc::sha256& hash_secret, const fc::sha256& reveal_last_secret,
-    const uint32_t& delegate_id, address required_signee)
-{
-    std::unordered_set<address> required_sigs;
-    FC_ASSERT(is_unlocked());
-    
-    signed_transaction secret_trx;
-    secret_operation secret_op;
-
-    secret_op.delegate_id = delegate_id;
-    secret_op.secret = hash_secret;
-    // reveal secret of last round
-    secret_op.revealed_secret = reveal_last_secret;
-    secret_trx.operations.push_back(secret_op);
-
-    auto addrs = get_receive_addresses();
-    FC_ASSERT( addrs.find(required_signee) != addrs.end() );
-
-    required_sigs.insert(required_signee);
-
-    // TODO:
-    //my->sign_transaction(secret_trx, required_sigs);
-    // TODO: requireing delegate's signature;
-
-    // collect_inputs_and_sign(secret_trx, asset(0), required_signatures, "secret transaction");
-
-    return secret_trx;
-}
-
-
-
 bts::blockchain::signed_transaction lotto_wallet::buy_ticket(const uint64_t& luckynumber, const uint16_t& odds,
 asset amount)
 {

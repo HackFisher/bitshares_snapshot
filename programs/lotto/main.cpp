@@ -9,7 +9,6 @@
 #include <bts/lotto/lotto_wallet.hpp>
 #include <bts/lotto/lotto_cli.hpp>
 #include <bts/lotto/lotto_rpc_server.hpp>
-#include <bts/lotto/lotto_delegate.hpp>
 #include <fc/filesystem.hpp>
 #include <fc/thread/thread.hpp>
 #include <fc/log/file_appender.hpp>
@@ -136,14 +135,6 @@ int main(int argc, char** argv)
         {
             std::cout << "Not starting rpc server, use --server to enable the rpc interface\n";
         }
-
-        // TODO: Run lotto delegate instead
-        auto lotto_del = std::make_shared<bts::lotto::lotto_delegate>();
-        lotto_del->set_lotto_db(lotto_db);
-        lotto_del->set_lotto_wallet(wall);
-        lotto_del->set_client(c);
-
-        lotto_del->run_secret_broadcastor(datadir);
 
         c->configure(datadir);
         if (option_variables.count("p2p-port"))
