@@ -8,6 +8,7 @@
 
 #include <bts/blockchain/config.hpp>
 #include <bts/blockchain/address.hpp>
+#include <bts/blockchain/types.hpp>
 #include <bts/blockchain/pts_address.hpp>
 #include <bts/blockchain/withdraw_types.hpp>
 
@@ -35,6 +36,7 @@ namespace bts {
    /**
     *  Validates checksum and length of base58 address
     *
+          // TODO is_valid should not throw, should return false...
     *  @return true if successful, throws an exception with reason if invalid.
     */
    bool address::is_valid( const std::string& base58str )
@@ -64,6 +66,12 @@ namespace bts {
    {
        addr = fc::ripemd160::hash( fc::sha512::hash( pub.data, sizeof(pub) ) );
    }
+   
+   address::address( const bts::blockchain::public_key_type& pub )
+   {
+       addr = fc::ripemd160::hash( fc::sha512::hash( pub.key_data.data, sizeof(pub.key_data) ) );
+   }
+
 
    address::operator std::string()const
    {
@@ -74,17 +82,19 @@ namespace bts {
         return BTS_ADDRESS_PREFIX + fc::to_base58( bin_addr.data, sizeof(bin_addr) );
    }
 
+
+
 } } // namespace bts::blockchain
 
 
 namespace fc 
 { 
-   void to_variant( const bts::blockchain::address& var,  variant& vo )
-   {
+    void to_variant( const bts::blockchain::address& var,  variant& vo )
+    {
         vo = std::string(var);
-   }
-   void from_variant( const variant& var,  bts::blockchain::address& vo )
-   {
+    }
+    void from_variant( const variant& var,  bts::blockchain::address& vo )
+    {
         vo = bts::blockchain::address( var.as_string() );
-   }
+    }
 }

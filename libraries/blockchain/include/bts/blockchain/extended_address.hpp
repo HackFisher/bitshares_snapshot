@@ -3,8 +3,8 @@
 #include <fc/crypto/sha1.hpp>
 #include <fc/crypto/elliptic.hpp>
 #include <fc/array.hpp>
+#include <bts/blockchain/address.hpp>
 #include <string>
-
 
 namespace bts { namespace blockchain {
     /**
@@ -19,9 +19,13 @@ namespace bts { namespace blockchain {
           extended_public_key();
           virtual ~extended_public_key();
 
-          extended_public_key( const fc::ecc::public_key& key, const fc::sha256& code );
+          extended_public_key( const fc::ecc::public_key& key, const fc::sha256& code = fc::sha256() );
 
           extended_public_key child( uint32_t c )const;
+          extended_public_key child( const fc::sha256& secret )const;
+
+          fc::ecc::public_key get_pub_key()const { return pub_key; }
+          operator address()const { return address(pub_key); }
 
           operator fc::ecc::public_key()const { return pub_key; }
 
@@ -57,25 +61,31 @@ namespace bts { namespace blockchain {
           };
           extended_private_key( const fc::sha512& seed );
           extended_private_key( const fc::sha256& key, const fc::sha256& chain_code );
+          extended_private_key( const fc::ecc::private_key& k ):priv_key(k.get_secret()){}
           extended_private_key();
 
           /** @param pub_derivation - if true, then extended_public_key can be used
            *      to calculate child keys, otherwise the extended_private_key is
            *      required to calculate all children.
            */
-          extended_private_key child( uint32_t c, derivation_type derivation = private_derivation )const;
+          extended_private_key child( uint32_t c, 
+                                      derivation_type derivation = private_derivation )const;
+
+          extended_private_key child( const fc::sha256& secret, 
+                                      derivation_type derivation = private_derivation )const;
 
           operator fc::ecc::private_key()const;
           fc::ecc::public_key get_public_key()const;
 
           operator extended_public_key()const
-          { return extended_public_key( fc::ecc::private_key::regenerate(priv_key).get_public_key(), chain_code); }
+          {
+             return extended_public_key( fc::ecc::private_key::regenerate(priv_key).get_public_key(), 
+                                         chain_code);
+          }
 
-          fc::sha256          priv_key;
-          fc::sha256          chain_code;
+          fc::ecc::private_key_secret  priv_key;
+          fc::sha256                   chain_code;
     };
-
-
 
    /**
     *  @brief encapsulates an encoded, checksumed public key in

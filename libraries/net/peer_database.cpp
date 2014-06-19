@@ -5,11 +5,15 @@
 #include <boost/multi_index/mem_fun.hpp>
 #include <boost/multi_index/tag.hpp>
 
+#include <fc/io/raw.hpp>
+#include <fc/io/raw_variant.hpp>
 #include <fc/log/logger.hpp>
 #include <fc/io/json.hpp>
 
 #include <bts/net/peer_database.hpp>
 #include <bts/db/level_pod_map.hpp>
+
+
 
 namespace bts { namespace net {
   namespace detail
@@ -39,10 +43,22 @@ namespace bts { namespace net {
     public:
       struct last_seen_time_index {};
       struct endpoint_index {};
-      typedef boost::multi_index_container<potential_peer_database_entry, 
-                                           indexed_by<ordered_non_unique<tag<last_seen_time_index>, const_mem_fun<potential_peer_database_entry, const fc::time_point_sec&, &potential_peer_database_entry::get_last_seen_time> >,
-                                                      hashed_unique<tag<endpoint_index>, const_mem_fun<potential_peer_database_entry, const fc::ip::endpoint&, &potential_peer_database_entry::get_endpoint>, std::hash<fc::ip::endpoint>  > > > potential_peer_set;
-    private:
+      typedef boost::multi_index_container< potential_peer_database_entry, 
+                                              indexed_by< ordered_non_unique< tag<last_seen_time_index>, 
+                                                                              const_mem_fun< potential_peer_database_entry, 
+                                                                                             const fc::time_point_sec&, 
+                                                                                             &potential_peer_database_entry::get_last_seen_time> 
+                                                                            >,
+                                                          hashed_unique< tag<endpoint_index>, 
+                                                                         const_mem_fun< potential_peer_database_entry, 
+                                                                                        const fc::ip::endpoint&, 
+                                                                                        &potential_peer_database_entry::get_endpoint 
+                                                                                      >, 
+                                                                         std::hash<fc::ip::endpoint>  
+                                                                       > 
+                                                        > 
+                                          > potential_peer_set;
+    //private:
       typedef bts::db::level_pod_map<uint32_t, potential_peer_record> potential_peer_leveldb;
       potential_peer_leveldb    _leveldb;
 
@@ -51,7 +67,8 @@ namespace bts { namespace net {
     public:
       void open(const fc::path& databaseFilename);
       void close();
-
+      void clear();
+      void erase(const fc::ip::endpoint& endpointToErase);
       void update_entry(const potential_peer_record& updatedRecord);
       potential_peer_record lookup_or_create_entry_for_endpoint(const fc::ip::endpoint& endpointToLookup);
 
@@ -85,6 +102,35 @@ namespace bts { namespace net {
     {
       _leveldb.close();
       _potential_peer_set.clear();
+    }
+
+    void peer_database_impl::clear()
+    {
+      auto iter = _leveldb.begin();
+      while (iter.valid())
+      {
+        uint32_t key_to_remove = iter.key();
+        ++iter;
+        try
+        {
+          _leveldb.remove(key_to_remove);
+        }
+        catch (fc::exception&)
+        {
+          // shouldn't happen, and if it does there's not much we can do
+        }
+      }
+      _potential_peer_set.clear();
+    }
+
+    void peer_database_impl::erase(const fc::ip::endpoint& endpointToErase)
+    {
+      auto iter = _potential_peer_set.get<endpoint_index>().find(endpointToErase);
+      if (iter != _potential_peer_set.get<endpoint_index>().end())
+      {
+        _leveldb.remove(iter->database_key);
+        _potential_peer_set.get<endpoint_index>().erase(iter);
+      }
     }
 
     void peer_database_impl::update_entry(const potential_peer_record& updatedRecord)
@@ -179,6 +225,16 @@ namespace bts { namespace net {
     my->close();
   }
 
+  void peer_database::clear()
+  {
+    my->clear();
+  }
+
+  void peer_database::erase(const fc::ip::endpoint& endpointToErase)
+  {
+    my->erase(endpointToErase);
+  }
+
   void peer_database::update_entry(const potential_peer_record& updatedRecord)
   {
     my->update_entry(updatedRecord);
@@ -203,5 +259,17 @@ namespace bts { namespace net {
   {
     return my->size();
   }
+    std::vector<potential_peer_record> peer_database::get_all()const
+    {
+        std::vector<potential_peer_record> results;
+        auto itr = my->_leveldb.begin();
+        while( itr.valid() )
+        {
+           results.push_back( itr.value() );
+           ++itr;
+        }
+        return results;
+    }
+
 
 } } // end namespace bts::net

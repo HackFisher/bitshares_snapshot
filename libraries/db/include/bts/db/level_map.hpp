@@ -1,4 +1,5 @@
 #pragma once
+#include <bts/db/exception.hpp>
 #include <leveldb/db.h>
 #include <leveldb/comparator.h>
 
@@ -47,10 +48,18 @@ namespace bts { namespace db {
            _db.reset(ndb);
            try_upgrade_db( dir,ndb, fc::get_typename<Value>::name(),sizeof(Value) );
         }
+        bool is_open()const { return !!_db; }
 
         void close()
         {
           _db.reset();
+        }
+
+        fc::optional<Value> fetch_optional( const Key& k )
+        {
+           auto itr = find( k );
+           if( itr.valid() ) return itr.value();
+           return fc::optional<Value>();
         }
 
         Value fetch( const Key& k )
@@ -62,11 +71,11 @@ namespace bts { namespace db {
              auto status = _db->Get( ldb::ReadOptions(), ks, &value );
              if( status.IsNotFound() )
              {
-               FC_THROW_EXCEPTION( key_not_found_exception, "unable to find key ${key}", ("key",k) );
+               FC_THROW_EXCEPTION( fc::key_not_found_exception, "unable to find key ${key}", ("key",k) );
              }
              if( !status.ok() )
              {
-                 FC_THROW_EXCEPTION( exception, "database error: ${msg}", ("msg", status.ToString() ) );
+                 FC_THROW_EXCEPTION( db_exception, "database error: ${msg}", ("msg", status.ToString() ) );
              }
              fc::datastream<const char*> ds(value.c_str(), value.size());
              Value tmp;
@@ -121,11 +130,11 @@ namespace bts { namespace db {
 
            if( itr._it->status().IsNotFound() )
            {
-             FC_THROW_EXCEPTION( key_not_found_exception, "" );
+             FC_THROW_EXCEPTION( fc::key_not_found_exception, "" );
            }
            if( !itr._it->status().ok() )
            {
-               FC_THROW_EXCEPTION( exception, "database error: ${msg}", ("msg", itr._it->status().ToString() ) );
+               FC_THROW_EXCEPTION( db_exception, "database error: ${msg}", ("msg", itr._it->status().ToString() ) );
            }
 
            if( itr.valid() )
@@ -137,8 +146,27 @@ namespace bts { namespace db {
 
         iterator find( const Key& key )
         { try {
-           std::vector<char> kslice = fc::raw::pack( key );
-           ldb::Slice key_slice( kslice.data(), kslice.size() );
+           ldb::Slice key_slice;
+
+           /** avoid dynamic memory allocation at this step if possible, most 
+            * keys should be relatively small in size and not require dynamic
+            * memory allocation to seralize the key.
+            */
+           fc::array<char,256+sizeof(Key)>  stack_buffer;
+
+           size_t pack_size = fc::raw::pack_size(key);
+           if( pack_size <= stack_buffer.size() )
+           {
+              fc::datastream<char*> ds( stack_buffer.data, stack_buffer.size() );
+              fc::raw::pack( ds ,key );
+              key_slice = ldb::Slice( stack_buffer.data, pack_size );
+           }
+           else
+           {
+              auto kslice = fc::raw::pack( key );
+              key_slice = ldb::Slice( kslice.data(), kslice.size() );
+           }
+
            iterator itr( _db->NewIterator( ldb::ReadOptions() ) );
            itr._it->Seek( key_slice );
            if( itr.valid() && itr.key() == key )
@@ -148,7 +176,7 @@ namespace bts { namespace db {
            return iterator();
         } FC_RETHROW_EXCEPTIONS( warn, "error finding ${key}", ("key",key) ) }
 
-        iterator lower_bound( const Key& key )
+        iterator lower_bound( const Key& key )const
         { try {
            std::vector<char> kslice = fc::raw::pack( key );
            ldb::Slice key_slice( kslice.data(), kslice.size() );
@@ -212,7 +240,7 @@ namespace bts { namespace db {
              auto status = _db->Put( ldb::WriteOptions(), ks, vs );
              if( !status.ok() )
              {
-                 FC_THROW_EXCEPTION( exception, "database error: ${msg}", ("msg", status.ToString() ) );
+                 FC_THROW_EXCEPTION( db_exception, "database error: ${msg}", ("msg", status.ToString() ) );
              }
           } FC_RETHROW_EXCEPTIONS( warn, "error storing ${key} = ${value}", ("key",k)("value",v) );
         }
@@ -228,11 +256,11 @@ namespace bts { namespace db {
              auto status = _db->Delete( ldb::WriteOptions(), ks );
              if( status.IsNotFound() )
              {
-               FC_THROW_EXCEPTION( key_not_found_exception, "unable to find key ${key}", ("key",k) );
+               FC_THROW_EXCEPTION( fc::key_not_found_exception, "unable to find key ${key}", ("key",k) );
              }
              if( !status.ok() )
              {
-                 FC_THROW_EXCEPTION( exception, "database error: ${msg}", ("msg", status.ToString() ) );
+                 FC_THROW_EXCEPTION( db_exception, "database error: ${msg}", ("msg", status.ToString() ) );
              }
           } FC_RETHROW_EXCEPTIONS( warn, "error removing ${key}", ("key",k) );
         }

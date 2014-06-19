@@ -2,30 +2,98 @@
 #include <bts/blockchain/chain_database.hpp>
 #include <bts/wallet/wallet.hpp>
 #include <bts/net/node.hpp>
+#include <bts/rpc/rpc_client_api.hpp>
+#include <bts/api/common_api.hpp>
+#include <bts/rpc_stubs/common_api_client.hpp>
+#include <fc/thread/thread.hpp>
+#include <fc/log/logger_config.hpp>
+#include <memory>
+#include <boost/program_options.hpp>
+
+
+namespace bts { namespace rpc {
+  class rpc_server;
+  typedef std::shared_ptr<rpc_server> rpc_server_ptr;
+} }
+namespace bts { namespace cli {
+    class cli;
+}};
 
 namespace bts { namespace client {
 
     using namespace bts::blockchain;
     using namespace bts::wallet;
 
+    boost::program_options::variables_map parse_option_variables(int argc, char** argv);
+    fc::path get_data_dir(const boost::program_options::variables_map& option_variables);
+
     namespace detail { class client_impl; }
+
+    using namespace bts::rpc;
+
+    struct rpc_server_config
+    {
+      rpc_server_config()
+      : enable(false),
+        rpc_endpoint(fc::ip::endpoint::from_string("127.0.0.1:0")),
+        httpd_endpoint(fc::ip::endpoint::from_string("127.0.0.1:0")),
+        htdocs("./htdocs")
+      {}
+
+      bool             enable;
+      std::string      rpc_user;
+      std::string      rpc_password;
+      fc::ip::endpoint rpc_endpoint;
+      fc::ip::endpoint httpd_endpoint;
+      fc::path         htdocs;
+
+      bool is_valid() const; /* Currently just checks if rpc port is set */
+    };
+
+    struct config
+    {
+       config( ) : 
+          default_peers(vector<string>{"107.170.30.182:8763"}), 
+          ignore_console(false),
+          use_upnp(true),
+          maximum_number_of_connections(50)
+          {
+             logging = fc::logging_config::default_config();
+          }
+
+          rpc_server_config   rpc;
+          vector<string>      default_peers;
+          bool                ignore_console;
+          bool                use_upnp;
+          optional<fc::path>  genesis_config;
+          uint16_t            maximum_number_of_connections;
+          fc::logging_config  logging;
+    };
+
 
     /**
      * @class client
      * @brief integrates the network, wallet, and blockchain
      *
      */
-    class client
+    class client : public bts::rpc_stubs::common_api_client, 
+                   public std::enable_shared_from_this<client>
     {
        public:
-         client( const chain_database_ptr& chain_db );
+         client();
+         client(bts::net::simulated_network_ptr network_to_connect_to);
+
          virtual ~client();
 
-         void set_chain( const chain_database_ptr& chain );
-         void set_wallet( const wallet_ptr& wall );
+         void configure_from_command_line(int argc, char** argv);
+         fc::future<void> start();
+         void open( const path& data_dir, 
 
-         /** verifies and then broadcasts the transaction */
-         void broadcast_transaction( const signed_transaction& trx );
+                    optional<fc::path> genesis_file_path = optional<fc::path>());
+
+         void init_cli();
+         void set_daemon_mode(bool daemon_mode); 
+
 
          /**
           *  Produces a block every 30 seconds if there is at least
@@ -33,114 +101,61 @@ namespace bts { namespace client {
           */
          void run_delegate();
 
-         void add_node( const std::string& ep );
+         void add_node( const string& ep );
 
-         chain_database_ptr     get_chain()const;
-         wallet_ptr             get_wallet()const;
-         bts::net::node_ptr     get_node()const;
-         signed_transactions    get_pending_transactions()const;
+         chain_database_ptr         get_chain()const;
+         wallet_ptr                 get_wallet()const;
+         bts::rpc::rpc_server_ptr   get_rpc_server() const;
+         bts::net::node_ptr         get_node()const;
+         fc::path                   get_data_dir() const;
 
-         //-------------------------------------------------- JSON-RPC Method Implementations
-         //TODO? help()
-         //TODO? fc::variant get_info()
-         bts::blockchain::block_id_type blockchain_get_blockhash(int32_t block_number) const;
-                               uint32_t blockchain_get_blockcount() const;
-                                   void wallet_open_file(const fc::path wallet_filename, const std::string& password);
-                                   void wallet_open(const std::string& wallet_name, const std::string& password);
-                                   void wallet_create(const std::string& wallet_name, const std::string& password);
-                            std::string wallet_get_name() const;
-                                   void wallet_close();
-                                   void wallet_export_to_json(const fc::path& path) const;
-                                   void wallet_create_from_json(const fc::path& path, const std::string& name, const std::string& passphrase);
-                                   void wallet_lock();
-                                   void wallet_unlock(const fc::microseconds& timeout, const std::string& password);
-                                   void wallet_change_passphrase(const std::string& new_password);
-                  wallet_account_record wallet_create_receive_account(const std::string& account_name);
-                                   void wallet_create_sending_account(const std::string& account_name, const extended_public_key& account_pub_key);
-                        invoice_summary wallet_transfer( int64_t amount,
-                                                         const std::string& to_account_name,
-                                                         const std::string asset_symbol,
-                                                         const std::string& from_account_name,
-                                                         const std::string& invoice_memo);
-                     signed_transaction wallet_asset_create(const std::string& symbol,
-                                                            const std::string& asset_name,
-                                                            const std::string& description,
-                                                            const fc::variant& data,
-                                                            const std::string& issuer_name,
-                                                            share_type maximum_share_supply);
-                     signed_transaction wallet_asset_issue(share_type amount,
-                                                          const std::string& symbol,
-                                                          const std::string& to_account_name);
-
-
-
-         /**
-          *  Reserve a name and broadcast it to the network.
-          */
-         transaction_id_type reserve_name( const std::string& name, const fc::variant& json_data );
-         transaction_id_type update_name( const std::string& name,
-                                          const fc::optional<fc::variant>& json_data); //TODO
-         transaction_id_type register_delegate(const std::string& name, const fc::variant& json_data);
-
-         /**
-         *  Submit and vote on proposals by broadcasting to the network.
-         */
-         transaction_id_type submit_proposal(const std::string& name,
-                                             const std::string& subject,
-                                             const std::string& body,
-                                             const std::string& proposal_type,
-                                             const fc::variant& json_data);
-         transaction_id_type vote_proposal( const std::string& name,
-                                             proposal_id_type proposal_id,
-                                             uint8_t vote);
-
-         void                               set_delegate_trust_status(const std::string& delegate_name, int32_t user_trust_level);
-         bts::wallet::delegate_trust_status get_delegate_trust_status(const std::string& delegate_name) const;
-         std::map<std::string, bts::wallet::delegate_trust_status> list_delegate_trust_status() const;
-
-
-
-         fc::path                            get_data_dir()const;
-
-         // returns true if the client is connected to the network (either server or p2p)
-         bool is_connected() const;
-         uint32_t get_connection_count() const;
-         fc::variants get_peer_info() const;
-         void set_advanced_node_parameters(const fc::variant_object& params);
-         void addnode(const fc::ip::endpoint& node, const std::string& command);
-         void stop();
-         bts::net::message_propagation_data get_transaction_propagation_data(const transaction_id_type& transaction_id);
-         bts::net::message_propagation_data get_block_propagation_data(const block_id_type& block_id);
-         fc::uint160_t get_node_id() const;
+         // returns true if the client is connected to the network
+         bool                is_connected() const;
+         bts::net::node_id_t get_node_id() const;
 
          void configure( const fc::path& configuration_directory );
 
          // functions for taking command-line parameters and passing them on to the p2p node
-         void listen_on_port( uint16_t port_to_listen );
-         void connect_to_peer( const std::string& remote_endpoint );
+         void listen_on_port( uint16_t port_to_listen, bool wait_if_not_available);
+         void listen_to_p2p_network();
+         void connect_to_peer( const string& remote_endpoint );
          void connect_to_p2p_network();
+
+         fc::ip::endpoint get_p2p_listening_endpoint() const;
+#ifndef NDEBUG
+         bool handle_message(const bts::net::message&, bool sync_mode);
+#endif
+
+       protected:
+         virtual bts::api::common_api* get_impl() const override;
+
        private:
-         std::unique_ptr<detail::client_impl> my;
+         unique_ptr<detail::client_impl> my;
     };
 
-    typedef std::shared_ptr<client> client_ptr;
+    typedef shared_ptr<client> client_ptr;
 
     /* Message broadcast on the network to notify all clients of some important information
       (security vulnerability, new version, that sort of thing) */
     class client_notification
     {
-    public:
-      fc::time_point_sec         timestamp;
-      std::string                message;
-      fc::ecc::compact_signature signature;
+       public:
+         fc::time_point_sec         timestamp;
+         string                message;
+         fc::ecc::compact_signature signature;
 
-      //client_notification();
-      fc::sha256 digest() const;
-      void sign(const fc::ecc::private_key& key);
-      fc::ecc::public_key signee() const;
+         //client_notification();
+         fc::sha256 digest() const;
+         void sign(const fc::ecc::private_key& key);
+         fc::ecc::public_key signee() const;
     };
-    typedef std::shared_ptr<client_notification> client_notification_ptr;
+    typedef shared_ptr<client_notification> client_notification_ptr;
 
 } } // bts::client
 
+extern const std::string BTS_MESSAGE_MAGIC;
+
 FC_REFLECT(bts::client::client_notification, (timestamp)(message)(signature) )
+FC_REFLECT( bts::client::rpc_server_config, (enable)(rpc_user)(rpc_password)(rpc_endpoint)(httpd_endpoint)(htdocs) )
+FC_REFLECT( bts::client::config, (rpc)(default_peers)(ignore_console)(logging) )
+

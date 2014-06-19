@@ -1,13 +1,13 @@
-include_directories( "${CMAKE_CURRENT_SOURCE_DIR}/include" )
-include_directories( "${CMAKE_SOURCE_DIR}/libraries/db/include" )
-include_directories( "${CMAKE_SOURCE_DIR}/libraries/blockchain/include" )
-include_directories( "${CMAKE_SOURCE_DIR}/libraries/wallet/include" )
-include_directories( "${CMAKE_SOURCE_DIR}/libraries/client/include" )
-include_directories( "${CMAKE_SOURCE_DIR}/libraries/net/include" )
-include_directories( "${CMAKE_SOURCE_DIR}/libraries/rpc/include" )
-include_directories( "${CMAKE_SOURCE_DIR}/libraries/cli/include" )
-include_directories( "${CMAKE_SOURCE_DIR}/libraries/utilities/include" )
-include_directories( "${CMAKE_SOURCE_DIR}/libraries/bitcoin_import/include" )
-
 add_executable( bitshares_client main.cpp )
-target_link_libraries( bitshares_client bitcoin_import bts_wallet bts_rpc bts_cli bts_blockchain bts_db bts_net bts_client bts_utilities fc ${READLINE_LIBRARIES} ${CMAKE_DL_LIBS} ${PLATFORM_SPECIFIC_LIBS} ${crypto_library} ${ZLIB_LIBRARY} upnpc-static )
+if( UNIX AND NOT APPLE )
+  set(rt_library rt )
+endif()
+
+target_link_libraries( bitshares_client
+                       PRIVATE bitcoin bts_keyhotee bts_wallet bts_rpc bts_cli bts_blockchain bts_db bts_net bts_client bts_utilities fc ${CMAKE_DL_LIBS} ${PLATFORM_SPECIFIC_LIBS} )
+target_include_directories( bitshares_client 
+                            PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/include" )
+
+if (ENABLE_INSTALLER)
+  install(TARGETS bitshares_client RUNTIME DESTINATION bin)
+endif(ENABLE_INSTALLER)

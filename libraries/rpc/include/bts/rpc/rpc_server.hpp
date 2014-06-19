@@ -3,127 +3,61 @@
 #include <fc/variant.hpp>
 #include <fc/exception/exception.hpp>
 #include <fc/log/log_message.hpp>
+#include <bts/api/api_metadata.hpp>
+#include <bts/rpc_stubs/common_api_rpc_server.hpp>
 #include <bts/client/client.hpp>
+#include <fc/network/http/server.hpp>
+
+namespace bts { namespace client {
+  class client;
+} }
 
 namespace bts { namespace rpc {
-  using namespace bts::client;
-
   namespace detail { class rpc_server_impl; }
 
+  typedef std::map<std::string, bts::api::method_data> method_map_type;
+  typedef std::function<void( const fc::path& filename, const fc::http::server::response&)> http_callback_type; 
   /**
   *  @class rpc_server
   *  @brief provides a json-rpc interface to the bts client
   */
   class rpc_server
   {
-  public:
-    struct config
-    {
-      config():rpc_user("user"),
-               rpc_password("password"),
-               rpc_endpoint(fc::ip::endpoint::from_string("127.0.0.1:0")),
-               httpd_endpoint(fc::ip::endpoint::from_string("127.0.0.1:0")),
-               htdocs("./htdocs"){}
-      std::string      rpc_user;
-      std::string      rpc_password;
-      fc::ip::endpoint rpc_endpoint;
-      fc::ip::endpoint httpd_endpoint;
-      fc::path         htdocs;
+     public:
+       rpc_server(bts::client::client* client);
+       virtual ~rpc_server();
 
-      bool is_valid() const; /* Currently just checks if rpc port is set */
-    };
+       bool        configure( const bts::client::rpc_server_config& cfg );
 
-    enum method_prerequisites
-    {
-      no_prerequisites     = 0,
-      json_authenticated   = 1,
-      wallet_open          = 2,
-      wallet_unlocked      = 4,
-      connected_to_network = 8,
-    };
+       /// used to invoke json methods from the cli without going over the network
+       fc::variant direct_invoke_method(const std::string& method_name, const fc::variants& arguments);
 
-    enum parameter_classification
-    {
-      required_positional,
-      required_positional_hidden, /* Hide in help e.g. interactive password entry */
-      optional_positional,
-      optional_named
-    };
+       const bts::api::method_data& get_method_data(const std::string& method_name);
+       std::vector<bts::api::method_data> get_all_method_data() const;
 
-    struct parameter_data
-    {
-      std::string name;
-      std::string type;
-      parameter_classification classification;
-      fc::ovariant default_value;
-      parameter_data(const parameter_data& rhs) :
-        name(rhs.name),
-        type(rhs.type),
-        classification(rhs.classification),
-        default_value(rhs.default_value)
-      {}
-      parameter_data(const parameter_data&& rhs) :
-        name(std::move(rhs.name)),
-        type(std::move(rhs.type)),
-        classification(std::move(rhs.classification)),
-        default_value(std::move(rhs.default_value))
-      {}
-      parameter_data(std::string name,
-                     std::string type,
-                     parameter_classification classification,
-                     fc::ovariant default_value) :
-        name(name),
-        type(type),
-        classification(classification),
-        default_value(default_value)
-      {}
-    };
+       void close(); // shut down the RPC server
+       // wait until the RPC server is shut down (via the above close(), or by processing a "stop" RPC call)
+       void wait_till_rpc_server_shutdown();
+       void shutdown_rpc_server();
+       std::string help(const std::string& command_name) const;
 
-    typedef std::function<fc::variant(const fc::variants& params)> json_api_method_type;
+       method_map_type meta_help()const;
 
-    struct method_data
-    {
-      std::string                 name;
-      json_api_method_type        method;
-      std::string                 description;
-      std::string                 return_type;
-      std::vector<parameter_data> parameters;
-      uint32_t                    prerequisites;
-      std::string                 detailed_description;
-      std::vector<std::string>    aliases;
-    };
+       void set_http_file_callback(  const http_callback_type& );
 
-    rpc_server();
-    virtual ~rpc_server();
+       fc::optional<fc::ip::endpoint> get_rpc_endpoint() const;
+       fc::optional<fc::ip::endpoint> get_httpd_endpoint() const;
+     protected:
+       friend class bts::rpc::detail::rpc_server_impl;
 
-    client_ptr  get_client()const;
-    void        set_client( const client_ptr& c );
-    bool        configure( const config& cfg );
+       void validate_method_data(bts::api::method_data method);
+       void register_method(bts::api::method_data method);
 
-    /// used to invoke json methods from the cli without going over the network
-    fc::variant direct_invoke_method(const std::string& method_name, const fc::variants& arguments);
-
-    const method_data& get_method_data(const std::string& method_name);
-
-    /** can be called for methods that require the user to be logged in via
-    *  RPC.
-    */
-    void check_connected_to_network();
-    void check_wallet_unlocked();
-    void check_wallet_is_open();
-
-    void wait_on_quit();
-
-  protected:
-    friend class bts::rpc::detail::rpc_server_impl;
-
-    void validate_method_data(method_data method);
-    void register_method(method_data method);
-
-  private:
-      std::unique_ptr<detail::rpc_server_impl> my;
+     private:
+         std::unique_ptr<detail::rpc_server_impl> my;
   };
-   typedef std::shared_ptr<rpc_server> rpc_server_ptr;
+
+  typedef std::shared_ptr<rpc_server> rpc_server_ptr;
 
 
   class exception : public fc::exception {
@@ -158,5 +92,3 @@ RPC_DECLARE_EXCEPTION(rpc_wallet_open_needed_exception)
 
 } } // bts::rpc
 
-#include <fc/reflect/reflect.hpp>
-FC_REFLECT( bts::rpc::rpc_server::config, (rpc_user)(rpc_password)(rpc_endpoint)(httpd_endpoint)(htdocs) )

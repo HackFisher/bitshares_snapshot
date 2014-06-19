@@ -3,7 +3,7 @@
 
 namespace bts { namespace blockchain {
 
-   class pending_chain_state : public chain_interface
+   class pending_chain_state : public chain_interface, public std::enable_shared_from_this<pending_chain_state>
    {
       public:
          pending_chain_state( chain_interface_ptr prev_state = chain_interface_ptr() );
@@ -12,7 +12,7 @@ namespace bts { namespace blockchain {
 
          virtual ~pending_chain_state()override;
 
-         digest_type                        get_current_random_seed()const override;
+         fc::ripemd160                      get_current_random_seed()const override;
 
          virtual fc::time_point_sec         now()const override;
          virtual int64_t                    get_fee_rate()const override;
@@ -20,11 +20,17 @@ namespace bts { namespace blockchain {
 
          virtual oasset_record              get_asset_record( asset_id_type id )const override;
          virtual obalance_record            get_balance_record( const balance_id_type& id )const override;
-         virtual oname_record               get_name_record( name_id_type id )const override;
-         virtual otransaction_location      get_transaction_location( const transaction_id_type& )const override;
+         virtual oaccount_record            get_account_record( account_id_type id )const override;
+         virtual oaccount_record            get_account_record( const address& owner )const override;
 
-         virtual oasset_record              get_asset_record( const std::string& symbol )const override;
-         virtual oname_record               get_name_record( const std::string& name )const override;
+         virtual otransaction_record        get_transaction( const transaction_id_type& trx_id, 
+                                                             bool exact = true )const override;
+
+         virtual void                       store_transaction( const transaction_id_type&, 
+                                                                const transaction_record&  ) override;
+
+         virtual oasset_record              get_asset_record( const string& symbol )const override;
+         virtual oaccount_record            get_account_record( const string& name )const override;
 
          virtual oorder_record              get_bid_record( const market_index_key& )const override;
          virtual oorder_record              get_ask_record( const market_index_key& )const override;
@@ -44,13 +50,11 @@ namespace bts { namespace blockchain {
 
          virtual void                       store_asset_record( const asset_record& r )override;
          virtual void                       store_balance_record( const balance_record& r )override;
-         virtual void                       store_name_record( const name_record& r )override;
-         virtual void                       store_transaction_location( const transaction_id_type&,
-                                                                        const transaction_location& loc )override;
+         virtual void                       store_account_record( const account_record& r )override;
 
-         virtual fc::variant                get_property( chain_property_enum property_id )const override;
+         virtual variant                get_property( chain_property_enum property_id )const override;
          virtual void                       set_property( chain_property_enum property_id, 
-                                                          const fc::variant& property_value )override;
+                                                          const variant& property_value )override;
          /**
           *  Based upon the current state of the database, calculate any updates that
           *  should be executed in a deterministic manner.
@@ -68,26 +72,27 @@ namespace bts { namespace blockchain {
          virtual void                       get_undo_state( const chain_interface_ptr& undo_state )const;
 
          /** load the state from a variant */
-         virtual void                       from_variant( const fc::variant& v );
+         virtual void                       from_variant( const variant& v );
          /** convert the state to a variant */
-         virtual fc::variant                to_variant()const;
+         virtual variant                to_variant()const;
 
 
-         std::unordered_map< asset_id_type,         asset_record>         assets;
-         std::unordered_map< name_id_type,          name_record>          names;
-         std::unordered_map< balance_id_type,       balance_record>       balances;
-         std::unordered_map< std::string,           name_id_type>         name_id_index;
-         std::unordered_map< std::string,           asset_id_type>        symbol_id_index;
-         std::unordered_map< transaction_id_type,   transaction_location> unique_transactions;
-         std::unordered_map< chain_property_type,   fc::variant>          properties; 
-         std::unordered_map<proposal_id_type, proposal_record>            proposals;
-         std::map< proposal_vote_id_type, proposal_vote>                  proposal_votes; 
-         std::map< market_index_key, order_record>                        bids; 
-         std::map< market_index_key, order_record>                        asks; 
-         std::map< market_index_key, order_record>                        shorts; 
-         std::map< market_index_key, collateral_record>                   collateral; 
+         unordered_map< asset_id_type,         asset_record>            assets;
+         unordered_map< account_id_type,       account_record>          accounts;
+         unordered_map< balance_id_type,       balance_record>          balances;
+         unordered_map< string,           account_id_type>              account_id_index;
+         unordered_map< string,           asset_id_type>                symbol_id_index;
+         unordered_map< transaction_id_type,   transaction_record>      transactions;
+         unordered_map< chain_property_type,   variant>                 properties; 
+         unordered_map<proposal_id_type, proposal_record>               proposals;
+         unordered_map<address, account_id_type>                        key_to_account;
+         map< proposal_vote_id_type, proposal_vote>                     proposal_votes; 
+         map< market_index_key, order_record>                           bids; 
+         map< market_index_key, order_record>                           asks; 
+         map< market_index_key, order_record>                           shorts; 
+         map< market_index_key, collateral_record>                      collateral; 
 
-         chain_interface_ptr                                            _prev_state;
+         chain_interface_weak_ptr                                       _prev_state;
    };
 
    typedef std::shared_ptr<pending_chain_state> pending_chain_state_ptr;
@@ -95,5 +100,5 @@ namespace bts { namespace blockchain {
 } } // bts::blockchain
 
 FC_REFLECT( bts::blockchain::pending_chain_state,
-            (assets)(names)(balances)(name_id_index)(symbol_id_index)(unique_transactions)
+            (assets)(accounts)(balances)(account_id_index)(symbol_id_index)(transactions)
             (properties)(proposals)(proposal_votes)(bids)(asks)(shorts)(collateral) )

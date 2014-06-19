@@ -18,12 +18,12 @@ namespace bts { namespace blockchain {
   {
   }
 
-
   extended_public_key extended_public_key::child( uint32_t child_idx )const
   { try {
       fc::sha512::encoder enc;
       fc::raw::pack( enc, pub_key );
       fc::raw::pack( enc, child_idx );
+      fc::raw::pack( enc, chain_code );
 
       fc::sha512 ikey  = enc.result();
       fc::sha256 ikey_left;
@@ -37,9 +37,29 @@ namespace bts { namespace blockchain {
       child_key.pub_key    = pub_key.add(ikey_left);
 
       return child_key;
-  } FC_RETHROW_EXCEPTIONS( warn, "child index ${child_idx}", 
-                                  ("exteneded_key",*this)("child_idx", child_idx ) ) }
+  } FC_RETHROW_EXCEPTIONS( warn, "child index ${child_idx}", ("child_idx", child_idx ) ) }
 
+
+  extended_public_key extended_public_key::child( const fc::sha256& child_idx )const
+  { try {
+      fc::sha512::encoder enc;
+      fc::raw::pack( enc, pub_key );
+      fc::raw::pack( enc, child_idx );
+      fc::raw::pack( enc, chain_code );
+
+      fc::sha512 ikey  = enc.result();
+      fc::sha256 ikey_left;
+      fc::sha256 ikey_right;
+
+      memcpy( (char*)&ikey_left, (char*)&ikey, sizeof(ikey_left) );
+      memcpy( (char*)&ikey_right, ((char*)&ikey) + sizeof(ikey_left), sizeof(ikey_right) );
+
+      extended_public_key child_key;
+      child_key.chain_code = ikey_right;
+      child_key.pub_key    = pub_key.add(ikey_left);
+
+      return child_key;
+  } FC_RETHROW_EXCEPTIONS( warn, "child index ${child_idx}", ("child_idx", child_idx ) ) }
 
 
   extended_private_key::extended_private_key( const fc::sha256& key, const fc::sha256& ccode )
@@ -50,10 +70,12 @@ namespace bts { namespace blockchain {
   extended_private_key::extended_private_key( const fc::sha512& seed )
   {
     memcpy( (char*)&priv_key, (char*)&seed, sizeof(priv_key) );
-    memcpy( (char*)&chain_code, ((char*)&seed) + sizeof(priv_key), sizeof(priv_key) );
+  //  memcpy( (char*)&chain_code, ((char*)&seed) + sizeof(priv_key), sizeof(priv_key) );
   }
 
-  extended_private_key::extended_private_key(){}
+  extended_private_key::extended_private_key()
+  {
+  }
 
   extended_private_key extended_private_key::child( uint32_t child_idx, derivation_type derivation )const
   { try {
@@ -71,6 +93,7 @@ namespace bts { namespace blockchain {
       fc::raw::pack( enc, priv_key );
     }
     fc::raw::pack( enc, child_idx );
+    fc::raw::pack( enc, chain_code );
     fc::sha512 ikey = enc.result();
 
     fc::sha256 ikey_left;
@@ -83,8 +106,40 @@ namespace bts { namespace blockchain {
     child_key.chain_code = ikey_right; 
 
     return child_key;
-  } FC_RETHROW_EXCEPTIONS( warn, "child index ${child_idx}", 
-                                  ("exteneded_key",*this)("child_idx", child_idx ) ) }
+  } FC_RETHROW_EXCEPTIONS( warn, "child index ${child_idx}", ("child_idx", child_idx ) ) }
+
+
+  extended_private_key extended_private_key::child( const fc::sha256& child_idx, derivation_type derivation )const
+  { try {
+    extended_private_key child_key;
+
+    fc::sha512::encoder enc;
+    if( derivation == public_derivation )
+    {
+      fc::raw::pack( enc, get_public_key() );
+    }
+    else
+    {
+      uint8_t pad = 0;
+      fc::raw::pack( enc, pad );
+      fc::raw::pack( enc, priv_key );
+    }
+    fc::raw::pack( enc, child_idx );
+    fc::raw::pack( enc, chain_code );
+    fc::sha512 ikey = enc.result();
+
+    fc::sha256 ikey_left;
+    fc::sha256 ikey_right;
+
+    memcpy( (char*)&ikey_left, (char*)&ikey, sizeof(ikey_left) );
+    memcpy( (char*)&ikey_right, ((char*)&ikey) + sizeof(ikey_left), sizeof(ikey_right) );
+
+    child_key.priv_key  = fc::ecc::private_key::generate_from_seed( priv_key, ikey_left ).get_secret();
+    child_key.chain_code = ikey_right; 
+
+    return child_key;
+  } FC_RETHROW_EXCEPTIONS( warn, "child index ${child_idx}", ("child_idx", child_idx ) ) }
+
 
   extended_private_key::operator fc::ecc::private_key()const
   {
@@ -95,9 +150,6 @@ namespace bts { namespace blockchain {
   {
     return fc::ecc::private_key::regenerate( priv_key ).get_public_key();
   }
-
-
-
 
    extended_address::extended_address()
    { }
@@ -145,7 +197,6 @@ namespace bts { namespace blockchain {
    {
       return addr;
    }
-
 
 } } // namespace bts
 

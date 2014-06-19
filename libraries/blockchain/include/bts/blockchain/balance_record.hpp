@@ -17,10 +17,14 @@ namespace bts { namespace blockchain {
 
       /** condition.get_address() */
       balance_id_type            id()const { return condition.get_address(); }
-      /** returns 0 if asset id is not condition.asset_id */
-      asset                      get_balance( asset_id_type id )const;
+      asset                      get_balance()const;
       bool                       is_null()const    { return balance == 0; }
       balance_record             make_null()const  { balance_record cpy(*this); cpy.balance = 0; return cpy; }
+      asset_id_type              asset_id()const { return condition.asset_id; }
+      account_id_type            delegate_id()const { return condition.delegate_id; }
+
+      /** if conndition is signature or by name, return the owner */
+      address                    owner()const;
 
       share_type                 balance;
       withdraw_condition         condition;

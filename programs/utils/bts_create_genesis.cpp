@@ -8,6 +8,7 @@
 #include <fc/io/json.hpp>
 #include <fc/reflect/variant.hpp>
 #include <fc/filesystem.hpp>
+#include <bts/utilities/key_conversion.hpp>
 
 #include <iostream>
 
@@ -22,6 +23,17 @@ struct founder
 
 FC_REFLECT( founder, (keyhotee_id_utf8)(balance)(public_key) )
 
+void transform_name( std::string& name )
+{
+   for( char& c : name )
+   {
+      if( c == ' ' ) c = '-';
+      if( c == '.' ) c = '-';
+      if( c == '_' ) c = '-';
+      if( c == '#' ) c = '-';
+   }
+}
+
 int main( int argc, char** argv )
 {
    genesis_block_config config;
@@ -31,16 +43,17 @@ int main( int argc, char** argv )
    keys.reserve( BTS_BLOCKCHAIN_NUM_DELEGATES );
 
    config.names.resize( BTS_BLOCKCHAIN_NUM_DELEGATES );
-   for( uint64_t i = 0; i < BTS_BLOCKCHAIN_NUM_DELEGATES; ++i )
+   for( unsigned i = 0; i < BTS_BLOCKCHAIN_NUM_DELEGATES; ++i )
    {
       keys.push_back( fc::ecc::private_key::generate() );
-      config.names[i].name = "delegate-"+fc::to_string(i);
+      config.names[i].name = "delegate"+fc::to_string(i);
       config.names[i].is_delegate = true;
       config.names[i].owner = keys[i].get_public_key().serialize();
       config.balances[i].first = pts_address( keys[i].get_public_key() );
       config.balances[i].second = 1000;
    }
 
+   /*
    if( fc::exists( "founders.json" ) )
    {
       try {
@@ -54,7 +67,8 @@ int main( int argc, char** argv )
       for( auto f : founders )
       {
          config.names.resize( config.names.size() + 1 );
-         config.names.back().name = f.keyhotee_id_utf8;
+         config.names.back().name = fc::to_lower( f.keyhotee_id_utf8 );
+         transform_name( config.names.back().name  );
          config.names.back().is_delegate = false;
          config.names.back().owner = f.public_key;
 
@@ -65,9 +79,13 @@ int main( int argc, char** argv )
          elog( "${e}", ("e",e.to_detail_string() ) );
       }
    }
+   */
 
    fc::json::save_to_file( config, fc::path("genesis.json"), true );
-   fc::json::save_to_file( keys, fc::path("genesis_private.json"), true );
+   std::vector<std::string> wif_keys;
+   for( auto k : keys )
+      wif_keys.push_back( bts::utilities::key_to_wif( k ) );
+   fc::json::save_to_file( wif_keys, fc::path("genesis_private.json"), true );
 
    std::cout << "saving genesis.json\n";
    std::cout << "saving genesis_private.json\n";

@@ -19,7 +19,7 @@ namespace bts { namespace net {
      {
         public:
           upnp_service_impl()
-          :upnp_thread("upnp"),done(false)
+          :upnp_thread("upnp"),done(false),mapped_port(0)
           {
           }
 
@@ -30,6 +30,7 @@ namespace bts { namespace net {
           bool             done;
           fc::future<void> map_port_complete;
           fc::ip::address  external_ip;
+          uint16_t         mapped_port;
      };
 
   }
@@ -44,6 +45,11 @@ fc::ip::address upnp_service::external_ip()const
     return my->external_ip;
 }
 
+uint16_t upnp_service::mapped_port() const
+{
+    return my->mapped_port;
+}
+
 upnp_service::~upnp_service()
 {
   try {
@@ -54,7 +60,7 @@ upnp_service::~upnp_service()
          my->map_port_complete.wait();
       }
   } 
-  catch ( const fc::canceled_exception& e )
+  catch ( const fc::canceled_exception& )
   {} // expected
   catch ( const fc::exception& e )
   {
@@ -124,7 +130,10 @@ void upnp_service::map_port( uint16_t local_port )
                        printf("AddPortMapping(%s, %s, %s) failed with code %d (%s)\n",
                            port.c_str(), port.c_str(), lanaddr, r, strupnperror(r));
                    else
+                   {
                        printf("UPnP Port Mapping successful.\n");;
+                       my->mapped_port = local_port;
+                   }
        
                    fc::usleep( fc::seconds(60*20) ); // Refresh every 20 minutes
                }

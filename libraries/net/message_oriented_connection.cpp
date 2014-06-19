@@ -7,6 +7,7 @@
 
 #include <bts/net/message_oriented_connection.hpp>
 #include <bts/net/stcp_socket.hpp>
+#include <bts/net/config.hpp>
 
 namespace bts { namespace net {
   namespace detail
@@ -20,6 +21,8 @@ namespace bts { namespace net {
       fc::future<void> _read_loop_done;
       uint64_t _bytes_received;
       uint64_t _bytes_sent;
+
+      fc::time_point _connected_time;
       fc::time_point _last_message_received_time;
       fc::time_point _last_message_sent_time;
       fc::mutex _send_mutex;
@@ -32,19 +35,25 @@ namespace bts { namespace net {
       fc::tcp_socket& get_socket();
       void accept();
       void connect_to(const fc::ip::endpoint& remote_endpoint);
-      void connect_to(const fc::ip::endpoint& remote_endpoint, const fc::ip::endpoint& local_endpoint);
+      void bind(const fc::ip::endpoint& local_endpoint);
 
-      message_oriented_connection_impl(message_oriented_connection* self, message_oriented_connection_delegate* delegate = nullptr);
+      message_oriented_connection_impl(message_oriented_connection* self, 
+                                       message_oriented_connection_delegate* delegate = nullptr);
+
       void send_message(const message& message_to_send);
       void close_connection();
+
       uint64_t get_total_bytes_sent() const;
       uint64_t get_total_bytes_received() const;
+
       fc::time_point get_last_message_sent_time() const;
       fc::time_point get_last_message_received_time() const;
+      fc::time_point get_connection_time() const { return _connected_time; }
     };
 
-    message_oriented_connection_impl::message_oriented_connection_impl(message_oriented_connection* self, message_oriented_connection_delegate* delegate) : 
-      _self(self),
+    message_oriented_connection_impl::message_oriented_connection_impl(message_oriented_connection* self, 
+                                                                       message_oriented_connection_delegate* delegate) 
+    : _self(self),
       _delegate(delegate),
       _bytes_received(0),
       _bytes_sent(0)
@@ -68,10 +77,9 @@ namespace bts { namespace net {
       _read_loop_done = fc::async([=](){ read_loop(); });
     }
 
-    void message_oriented_connection_impl::connect_to(const fc::ip::endpoint& remote_endpoint, const fc::ip::endpoint& local_endpoint)
+    void message_oriented_connection_impl::bind(const fc::ip::endpoint& local_endpoint)
     {
-      _sock.connect_to(remote_endpoint, local_endpoint);
-      _read_loop_done = fc::async([=](){ read_loop(); });
+      _sock.bind(local_endpoint);
     }
 
 
@@ -81,6 +89,7 @@ namespace bts { namespace net {
       const int LEFTOVER = BUFFER_SIZE - sizeof(message_header);
       assert(BUFFER_SIZE >= sizeof(message_header));
 
+      _connected_time = fc::time_point::now();
       try 
       {
         message m;
@@ -90,6 +99,8 @@ namespace bts { namespace net {
           _sock.read(buffer, BUFFER_SIZE);
           _bytes_received += BUFFER_SIZE;
           memcpy((char*)&m, buffer, sizeof(message_header));
+
+          assert( m.size <= MAX_MESSAGE_SIZE );
 
           size_t remaining_bytes_with_padding = 16 * ((m.size - LEFTOVER + 15) / 16);
           m.data.resize(LEFTOVER + remaining_bytes_with_padding); //give extra 16 bytes to allow for padding added in send call
@@ -138,7 +149,7 @@ namespace bts { namespace net {
       catch ( ... )
       {
         _delegate->on_connection_closed(_self);
-        FC_THROW_EXCEPTION( unhandled_exception, "disconnected: {e}", ("e", fc::except_str() ) );
+        FC_THROW_EXCEPTION( fc::unhandled_exception, "disconnected: {e}", ("e", fc::except_str() ) );
       }
     }
 
@@ -212,9 +223,9 @@ namespace bts { namespace net {
     my->connect_to(remote_endpoint);
   }
 
-  void message_oriented_connection::connect_to(const fc::ip::endpoint& remote_endpoint, const fc::ip::endpoint& local_endpoint)
+  void message_oriented_connection::bind(const fc::ip::endpoint& local_endpoint)
   {
-    my->connect_to(remote_endpoint, local_endpoint);
+    my->bind(local_endpoint);
   }
   
   void message_oriented_connection::send_message(const message& message_to_send)
@@ -245,6 +256,10 @@ namespace bts { namespace net {
   fc::time_point message_oriented_connection::get_last_message_received_time() const
   {
     return my->get_last_message_received_time();
+  }
+  fc::time_point message_oriented_connection::get_connection_time() const
+  {
+    return my->get_connection_time();
   }
 
 } } // end namespace bts::net
